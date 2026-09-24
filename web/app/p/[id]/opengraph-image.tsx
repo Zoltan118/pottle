@@ -1,0 +1,49 @@
+import { ImageResponse } from "next/og";
+import { readPot, timeLeft, usd } from "@/lib/pot";
+
+export const alt = "a pottle pot";
+export const size = { width: 1200, height: 630 };
+export const contentType = "image/png";
+
+// the group-chat preview: the one surface most people see before they open the pot
+async function font(weight: number): Promise<ArrayBuffer | null> {
+  try {
+    const css = await (await fetch(`https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@${weight}`, {
+      headers: { "user-agent": "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_8; de-at) AppleWebKit/533.21.1 (KHTML, like Gecko) Version/5.0.5 Safari/533.21.1" },
+    })).text();
+    const url = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
+    return url ? await (await fetch(url)).arrayBuffer() : null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function Image({ params }: { params: Promise<{ id: string }> }) {
+  const pot = await readPot(Number((await params).id)).catch(() => null);
+  const [bold] = await Promise.all([font(800)]);
+  const ink = "#231A33", paper = "#F1ECF7", muted = "#B3A9C4", gold = "#F2B32A";
+  const pct = pot ? Math.min(1, pot.raised / pot.goal) : 0;
+  const state = !pot ? "" : pot.status === "released" ? "it's on" : pot.status === "refunding" ? "refunded" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline);
+
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", background: ink, color: paper, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, fontFamily: "Bricolage" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -2 }}>pottle</div>
+          <div style={{ fontSize: 32, color: muted }}>{state}</div>
+        </div>
+        <div style={{ fontSize: 104, fontWeight: 800, letterSpacing: -5, lineHeight: 0.95, display: "flex" }}>{pot?.title ?? "chip in. or get it back."}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <div style={{ display: "flex", height: 28, borderRadius: 99, background: "#3A2F4C", overflow: "hidden" }}>
+            <div style={{ width: `${Math.max(4, pct * 100)}%`, background: gold, borderRadius: 99 }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 40, color: "#D9D1E4" }}>
+            <span>{pot ? `${pot.people.length} in` : ""}</span>
+            <span>{pot ? `${usd(pot.raised)} of ${usd(pot.goal)}` : ""}</span>
+          </div>
+        </div>
+      </div>
+    ),
+    { ...size, fonts: bold ? [{ name: "Bricolage", data: bold, weight: 800, style: "normal" }] : [] },
+  );
+}
