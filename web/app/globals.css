@@ -150,6 +150,9 @@ a { color: inherit; }
 .sheet.on { transform: translate(-50%, 0); visibility: visible; }
 .sheet .giant { font-size: clamp(48px, 10vw, 72px); }
 .sheet .bigin { font-size: clamp(30px, 6vw, 44px); }
+/* amounts: always one row of equal buttons, so none is ever left alone on a second line */
+.sheet .chips { display: grid; grid-template-columns: repeat(4, 1fr); }
+.sheet .chip { padding-inline: 0; min-width: 0; }
 
 @media (max-width: 860px) {
   .hero, .potpage { grid-template-columns: 1fr; }

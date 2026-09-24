@@ -10,7 +10,7 @@ import { Sheet } from "@/components/Sheet";
 import { chipIn, settle, usdcBalance } from "@/lib/wallet";
 import { readPot, timeLeft, usd, type PotData, type Wrap } from "@/lib/pot";
 
-const AMOUNTS = [10, 20, 50];
+const AMOUNTS = [5, 10, 20, 50];
 
 export function PotView({ initial, wrap }: { initial: PotData; wrap: Wrap }) {
   const w = useWallet();

@@ -7,7 +7,10 @@ import { PotView } from "./PotView";
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ w?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const pot = await readPot(Number((await params).id)).catch(() => null);
+  const pot = await readPot(Number((await params).id)).catch((e) => {
+    console.error("[pottle] metadata read failed:", e instanceof Error ? e.message : e);
+    return null;
+  });
   if (!pot) return { title: "pottle" };
   const title = `${pot.title} · pottle`;
   const description = `${usd(pot.raised)} of ${usd(pot.goal)}. chip in, or get it back.`;
@@ -24,7 +27,18 @@ export default async function PotPage({ params, searchParams }: Props) {
       </section></main>
     );
   }
-  const pot = await readPot(id).catch(() => null);
+  // a pot that does not exist is a 404. a chain we cannot reach is not, so say that instead
+  let pot;
+  try {
+    pot = await readPot(id);
+  } catch (e) {
+    console.error(`[pottle] could not read pot ${id} from arc:`, e instanceof Error ? e.message : e);
+    return (
+      <main className="view"><section className="flow"><h1 className="giant q">hold on.</h1>
+        <div className="notice">can&apos;t reach arc right now. your money is safe in the pot. try again in a minute.</div>
+      </section></main>
+    );
+  }
   if (!pot) notFound();
   return <PotView initial={pot} wrap={wrap} />;
 }
