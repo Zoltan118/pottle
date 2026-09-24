@@ -1,0 +1,87 @@
+import { NextResponse } from "next/server";
+import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createWalletClient, http, isAddress, parseAbi, type Address, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { chain, DYNAMIC_ENV, NETWORK, USDC } from "@/lib/config";
+import { publicClient } from "@/lib/pot";
+
+// testnet only: sends a little usdc to a freshly signed-in wallet so nobody has to find a faucet.
+// the caller must prove who they are with their dynamic session token, and the wallet must be one
+// of the wallets on that token. wallets that already hold $1 or more get nothing.
+
+const DRIP = 10_000_000n; // $10, usdc has 6 decimals
+const HAS_ENOUGH = 1_000_000n; // $1
+const REFILL_BELOW = 40_000_000n; // ask circle's faucet for more when the relayer drops under $40
+
+const erc20 = parseAbi(["function balanceOf(address) view returns (uint256)", "function transfer(address,uint256) returns (bool)"]);
+const jwks = DYNAMIC_ENV ? createRemoteJWKSet(new URL(`https://app.dynamicauth.com/api/v0/sdk/${DYNAMIC_ENV}/.well-known/jwks`)) : null;
+
+// best effort only: serverless instances do not share memory. the balance rule is the real limit
+const recent = new Map<string, number>();
+
+type Credential = { address?: string; chain?: string };
+
+export async function POST(req: Request) {
+  if (NETWORK !== "testnet") return NextResponse.json({ error: "testnet only" }, { status: 404 });
+  const key = process.env.RELAYER_PRIVATE_KEY;
+  if (!key || !jwks) {
+    console.warn(`[pottle] drip off, missing: ${[!key && "RELAYER_PRIVATE_KEY", !jwks && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID"].filter(Boolean).join(", ")}`);
+    return NextResponse.json({ error: "drip off" }, { status: 503 });
+  }
+
+  const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
+  let address: string | undefined;
+  try { address = (await req.json()).address; } catch {}
+  if (!token || !address || !isAddress(address)) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+
+  let sub: string;
+  try {
+    const { payload } = await jwtVerify(token, jwks, { algorithms: ["RS256"] });
+    const scope = String(payload.scope ?? "").split(" ");
+    const creds = (payload.verified_credentials ?? []) as Credential[];
+    const owns = creds.some((c) => c.address?.toLowerCase() === address!.toLowerCase());
+    if (!String(payload.iss ?? "").endsWith(DYNAMIC_ENV!) || !scope.includes("user:basic") || !owns || !payload.sub) {
+      return NextResponse.json({ error: "not your wallet" }, { status: 403 });
+    }
+    sub = payload.sub;
+  } catch {
+    return NextResponse.json({ error: "sign in again" }, { status: 401 });
+  }
+
+  const last = recent.get(sub);
+  if (last && Date.now() - last < 12 * 3600_000) return NextResponse.json({ skipped: "already sent today" });
+
+  const to = address as Address;
+  const bal = await publicClient.readContract({ address: USDC, abi: erc20, functionName: "balanceOf", args: [to] });
+  if (bal >= HAS_ENOUGH) return NextResponse.json({ skipped: "has usdc" });
+
+  const account = privateKeyToAccount(key as Hex);
+  const pool = await publicClient.readContract({ address: USDC, abi: erc20, functionName: "balanceOf", args: [account.address] });
+  if (pool < REFILL_BELOW) void refill(account.address);
+  if (pool < DRIP + HAS_ENOUGH) {
+    console.warn(`[pottle] drip empty, relayer ${account.address} holds ${Number(pool) / 1e6} usdc`);
+    return NextResponse.json({ error: "faucet is empty, try faucet.circle.com" }, { status: 503 });
+  }
+
+  const wallet = createWalletClient({ account, chain, transport: http() });
+  const hash = await wallet.writeContract({ address: USDC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
+  recent.set(sub, Date.now());
+  await publicClient.waitForTransactionReceipt({ hash });
+  return NextResponse.json({ hash, amount: Number(DRIP) / 1e6 });
+}
+
+/** top the relayer up from circle's faucet api. needs CIRCLE_API_KEY from a mainnet-upgraded circle account */
+async function refill(address: Address) {
+  const apiKey = process.env.CIRCLE_API_KEY;
+  if (!apiKey) return console.warn("[pottle] relayer low and CIRCLE_API_KEY not set, refill it at faucet.circle.com");
+  try {
+    const r = await fetch("https://api.circle.com/v1/faucet/drips", {
+      method: "POST",
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json", "x-request-id": crypto.randomUUID() },
+      body: JSON.stringify({ address, blockchain: "ARC-TESTNET", usdc: true }),
+    });
+    if (r.status !== 204) console.warn(`[pottle] circle faucet refill failed: ${r.status} ${await r.text()}`);
+  } catch (e) {
+    console.warn("[pottle] circle faucet refill failed", e);
+  }
+}

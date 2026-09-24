@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { DynamicContextProvider, useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
+import { DynamicContextProvider, getAuthToken, useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import { EthereumWalletConnectors, isEthereumWallet } from "@dynamic-labs/ethereum";
 import type { Address } from "viem";
 import { chain, DYNAMIC_ENV } from "@/lib/config";
@@ -36,6 +36,7 @@ function Bridge() {
         await primaryWallet.switchNetwork(chain.id);
         return primaryWallet.getWalletClient(String(chain.id));
       },
+      token: getAuthToken,
     });
   }, [sdkHasLoaded, address, primaryWallet, setShowAuthFlow, handleLogOut]);
 
