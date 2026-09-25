@@ -44,6 +44,7 @@ export default function Home() {
           <h1 className="giant">chip in.<span className="pink">or get it back.</span></h1>
           <div className="hero-actions">
             <Link className="btn lg" href="/new">make a pot</Link>
+            {NETWORK === "mainnet" && OTHER_SITE && <a className="btn lg ghost" href={OTHER_SITE}>try it free</a>}
           </div>
         </div>
         <HeroPot />
@@ -103,9 +104,9 @@ export default function Home() {
         <span className="foot-r">
           {NETWORK === "mainnet"
             ? <span className="tipword" tabIndex={0} data-tip="the contract hasn't had an outside audit yet. keep pots small.">beta · not audited</span>
-            : <span className="tipword" tabIndex={0} data-tip="arc testnet. the money here is play money.">testnet{OTHER_SITE ? "" : " · play money"}</span>}
-          {NETWORK !== "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>the real one ↗</a>}
-          {NETWORK === "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>try free on testnet ↗</a>}
+            : <span className="tipword" tabIndex={0} data-tip="arc testnet. test dollars, nothing costs anything.">test mode</span>}
+          {NETWORK !== "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>go live ↗</a>}
+          {NETWORK === "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>try it free ↗</a>}
           <button className="tipword" data-tip="payments land in half a second and cost about a tenth of a cent. nobody can take a pot early, not even us.">usdc on arc</button>
         </span>
       </footer>

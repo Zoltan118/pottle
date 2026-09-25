@@ -3,10 +3,10 @@
 pottle runs as two sites from the same code:
 
 - **https://pottle-mainnet.vercel.app**, arc mainnet with real usdc (the deployment this submission is about)
-- **https://pottle-testnet.vercel.app**, arc testnet with play money
+- **https://pottle-testnet.vercel.app**, arc testnet with free test dollars
 
 everything below uses the **testnet** site, so nothing costs you anything. about three minutes.
-the `real | test` switch in the nav moves between the two.
+the `live | test` switch in the nav moves between the two.
 
 ## 1. make a pot (one minute)
 
