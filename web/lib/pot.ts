@@ -67,6 +67,29 @@ export async function readPotsOf(address: Address, limit = 20): Promise<PotData[
 
 export const potPath = (id: number) => `/p/${id}`;
 
+const cents = (d: number) => Math.round(d * 100) / 100;
+
+/**
+ * what the chip-in sheet offers for a pot that has `raised` of `goal`, and can take at most `max` in total:
+ * - `left`: what it still needs to hit the goal
+ * - `room`: the most anyone can add right now (the beta cap on mainnet)
+ * - `picks`: up to three one-tap amounts, the last of them always exactly "the rest" when that fits
+ * anything else is typed in by hand
+ */
+export function chipOptions(goal: number, raised: number, max: number) {
+  const left = Math.max(0, cents(goal - raised));
+  const room = Math.max(0, Math.floor((max - raised) * 100) / 100);
+  const base = [5, 10, 20, 50].filter((a) => a <= room);
+  const picks = left > 0 && left <= room
+    // when a lot is still needed, the one-tap amounts stay at or under half of it, so a friend isn't nudged to cover it all
+    ? [...base.filter((a) => a < left && (left < 40 || a <= left / 2)), left].slice(-3)
+    : base.slice(0, 3);
+  return { left, room, picks };
+}
+
+/** the smallest amount the app asks for (pottle sponsors the fee from here up), unless less than that finishes the pot */
+export const MIN_CHIP = 1;
+
 /** most a pot can hold. mainnet's contract caps it at 100 during beta (MAX_POT); the testnet contract
  * is the earlier version, which only caps the goal, at 10,000 */
 export const MAX_POT = NETWORK === "mainnet" ? 100 : 10_000;

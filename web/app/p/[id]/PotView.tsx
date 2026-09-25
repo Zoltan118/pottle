@@ -9,11 +9,10 @@ import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
 import { Sheet } from "@/components/Sheet";
 import { balanceOf, chipIn, settle } from "@/lib/wallet";
-import { MAX_POT, money, payoutStuck, readPot, timeLeft, type PotData } from "@/lib/pot";
+import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, type PotData } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
 import { NETWORK, TOKEN } from "@/lib/config";
 
-const AMOUNTS = [5, 10, 20, 50];
 
 export function PotView({ initial }: { initial: PotData }) {
   const w = useWallet();
@@ -43,7 +42,8 @@ export function PotView({ initial }: { initial: PotData }) {
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [picked, setPicked] = useState(20);
+  const [picked, setPicked] = useState<number | "other">(20);
+  const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState<"" | "pay" | "settle">("");
   const [err, setErr] = useState("");
   const [short, setShort] = useState(0); // how much the payer is missing, offered as "add money"
@@ -52,11 +52,14 @@ export function PotView({ initial }: { initial: PotData }) {
   const isOrganiser = (a: string) => a.toLowerCase() === pot.organiser.toLowerCase();
   const paid = pot.people;
   const latest = fresh ?? paid.at(-1)?.name;
-  // the beta cap: a pot never holds more than MAX_POT, so only offer amounts that still fit
-  const room = Math.max(0, Math.floor((MAX_POT - pot.raised) * 100) / 100);
-  const amounts = AMOUNTS.filter((a) => a <= room);
-  if (room > 0 && !amounts.length) amounts.push(room);
-  const amount = amounts.includes(picked) ? picked : (amounts.at(-1) ?? 0);
+  // one-tap amounts fitted to what the pot still needs (the last is exactly "the rest"), or any amount typed in
+  const { left, room, picks } = chipOptions(pot.goal, pot.raised, MAX_POT);
+  const fallback = picks.includes(20) ? 20 : (picks.filter((a) => a <= 20).at(-1) ?? picks[0] ?? 0);
+  const other = picked === "other";
+  const amount = other ? Number(typed) || 0 : picks.includes(picked) ? picked : fallback;
+  const tooSmall = amount > 0 && amount < MIN_CHIP && amount !== left;
+  const tooBig = amount > room;
+  const valid = amount > 0 && !tooSmall && !tooBig;
   const missing = amount ? Math.max(0, Math.ceil((pot.goal - pot.raised) / amount)) : 0;
   const refreshed = () => qc.invalidateQueries({ queryKey: ["pot", pot.id] });
   const message = (e: unknown) =>
@@ -64,6 +67,7 @@ export function PotView({ initial }: { initial: PotData }) {
 
   async function pay() {
     if (!w.address) return w.signIn();
+    if (!valid) return;
     setBusy("pay"); setErr(""); setShort(0);
     try {
       const bal = await balanceOf(w.address, pot.currency);
@@ -145,7 +149,7 @@ export function PotView({ initial }: { initial: PotData }) {
                 <button className="btn lg ghost potcta-share" onClick={nudge} aria-label="share this pot">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
-                <button className="btn lg wide" onClick={() => setOpen(true)}>i&apos;m in · {m(amount)}</button>
+                <button className="btn lg wide" onClick={() => setOpen(true)}>{valid ? <>i&apos;m in · {m(amount)}</> : <>i&apos;m in</>}</button>
               </div>
             </div>
           )}
@@ -187,15 +191,28 @@ export function PotView({ initial }: { initial: PotData }) {
         <h2 className="giant">you&apos;re in?</h2>
         <input className="bigin" placeholder="your name" value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
-          {amounts.map((a) => <button key={a} className="chip" aria-pressed={amount === a} onClick={() => setPicked(a)}>{m(a)}</button>)}
+          {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => setPicked(a)}>{m(a)}</button>)}
+          <button className="chip" aria-pressed={other} onClick={() => setPicked("other")}>other</button>
         </div>
+        {other && (
+          <label className="money typed">
+            <span>{TOKEN[pot.currency].symbol}</span>
+            <input className="bigin" inputMode="decimal" placeholder={String(Math.min(left || 10, room))} autoFocus value={typed} aria-label="amount"
+              onChange={(e) => { const v = e.target.value.replace(",", "."); if (/^\d{0,5}(\.\d{0,2})?$/.test(v)) setTyped(v); }}
+              onKeyDown={(e) => e.key === "Enter" && pay()} enterKeyHint="go" />
+          </label>
+        )}
         <p className="where">
-          {w.address && w.address.toLowerCase() === pot.organiser.toLowerCase()
+          {tooBig ? <>this pot can take at most <b>{m(room)}</b> more.</>
+            : tooSmall ? <>at least {m(MIN_CHIP)}, please.</>
+            : amount > 0 && amount === left ? <>that&apos;s exactly what&apos;s left. it hits the goal and goes to <b>{pot.organiserName}</b>.</>
+            : amount > left && left > 0 ? <>that&apos;s {m(Math.round((amount - left) * 100) / 100)} over the goal. the extra goes to <b>{pot.organiserName}</b> too.</>
+            : w.address && w.address.toLowerCase() === pot.organiser.toLowerCase()
             ? <>this is your pot. your {m(amount)} comes back to you with the rest if it hits {m(pot.goal)}.</>
-            : <>goes to <b>{pot.organiserName}</b> if the pot hits {m(pot.goal)}. back to you if it doesn&apos;t.</>}
+            : <>{m(left)} to go. it goes to <b>{pot.organiserName}</b> if the pot hits {m(pot.goal)}, back to you if it doesn&apos;t.</>}
         </p>
-        <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on}>
-          {busy === "pay" ? "paying…" : w.address ? `pay ${m(amount)}` : "sign in to pay"}
+        <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on || (!!w.address && !valid)}>
+          {busy === "pay" ? "paying…" : !w.address ? "sign in to pay" : valid ? `pay ${m(amount)}` : "pick an amount"}
         </button>
         <div className="err" role="alert">{open && err}</div>
         {open && short > 0 && ONRAMP_ON && (

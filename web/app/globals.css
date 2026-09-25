@@ -281,7 +281,8 @@ a { color: inherit; }
 .onramp-frame { flex: 1; min-height: 0; border-radius: 20px; overflow: hidden; }
 .sheet .bigin { font-size: clamp(30px, 6vw, 44px); }
 /* amounts: always one row of equal buttons, so none is ever left alone on a second line */
-.sheet .chips { display: grid; grid-template-columns: repeat(4, 1fr); }
+.sheet .chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.sheet .money span { font-size: clamp(30px, 6vw, 44px); }
 .sheet .chip { padding-inline: 0; min-width: 0; }
 
 @media (max-width: 860px) {
