@@ -19,7 +19,7 @@ const FEATURES = [
 
 const FAQ = [
   { q: "what does it cost?", a: "nothing from us, there are no fees. each payment has an arc network fee of about a tenth of a cent, and pottle usually pays it for you." },
-  { q: "what if the goal isn't hit?", a: "when the deadline passes, everyone gets back exactly what they put in. it happens automatically, nobody has to ask." },
+  { q: "what if the goal isn't hit?", a: "when the deadline passes, everyone gets back exactly what they put in. it happens automatically, nobody has to ask, and nobody can keep it instead, not even the organiser." },
   { q: "who gets the money?", a: "the person who made the pot, the organiser. they're the one buying the gift or paying the bill, so every pot shows who it goes to before you chip in. if the goal isn't hit, nobody gets it and everyone is refunded." },
   { q: "can the organiser chip in too?", a: "yes, and it counts toward the goal like anyone's. their share comes back to them with the rest when the pot pays out, so they've paid their part like everyone else. the organiser's circle has a ring, so you can see what they put in." },
   { q: "what if the goal is hit but the money can't be paid out?", a: "it's paid out automatically, usually within minutes. if something blocks the payout for 30 days after the deadline (for example the organiser's account gets frozen), everyone can take their money back." },
@@ -45,6 +45,7 @@ export default function Home() {
           <div className="hero-actions">
             <Link className="btn lg" href="/new">make a pot</Link>
             {NETWORK === "mainnet" && OTHER_SITE && <a className="btn lg ghost" href={OTHER_SITE}>try it free</a>}
+            <p className="hero-note">no app. friends just need an email.</p>
           </div>
         </div>
         <HeroPot />
@@ -59,6 +60,7 @@ export default function Home() {
       <section className="shell safe" aria-label="why it's safe">
         <h2 className="giant">nobody can take it early.</h2>
         <p className="safe-sub">not the organiser. not us.</p>
+        <p className="safe-vs">most group pots let the organiser keep the money when the goal is missed. pottle can&apos;t: it goes back to everyone.</p>
         <div className="safe-row">
           {POTTLE && <a className="chip" href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer" data-tip="the contract holds every pot. it has no owner and no admin.">no owner ↗</a>}
           <span className="chip" tabIndex={0} data-tip="pottle takes nothing. you only pay arc's network fee, about a tenth of a cent, and usually not even that.">no fees</span>

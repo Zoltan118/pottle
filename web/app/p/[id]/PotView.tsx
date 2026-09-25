@@ -51,6 +51,7 @@ export function PotView({ initial }: { initial: PotData }) {
   const m = (d: number) => money(d, pot.currency);
   const isOrganiser = (a: string) => a.toLowerCase() === pot.organiser.toLowerCase();
   const paid = pot.people;
+  const latest = fresh ?? paid.at(-1)?.name;
   // the beta cap: a pot never holds more than MAX_POT, so only offer amounts that still fit
   const room = Math.max(0, Math.floor((MAX_POT - pot.raised) * 100) / 100);
   const amounts = AMOUNTS.filter((a) => a <= room);
@@ -132,7 +133,22 @@ export function PotView({ initial }: { initial: PotData }) {
             {pot.status === "open" && Array.from({ length: Math.min(missing, 3) }, (_, i) => <span key={i} className="face out" aria-hidden="true">?</span>)}
           </div>
 
-          {pot.status === "open" && <div className="potcta"><button className="btn lg wide" onClick={() => setOpen(true)}>i&apos;m in · {m(amount)}</button></div>}
+          {pot.status === "open" && latest && <p className="latest">latest: <b>{latest}</b></p>}
+          {pot.status === "open" && (
+            <div className="potcta">
+              {/* phones: the pinned bar carries the progress, so it still reads when the card has scrolled away */}
+              <div className="potcta-meta" aria-hidden="true">
+                <span className="potcta-track"><i style={{ width: `${Math.min(100, pot.goal ? (pot.raised / pot.goal) * 100 : 0)}%` }} /></span>
+                <span><b>{m(pot.raised)}</b> of {m(pot.goal)} · {paid.length} in</span>
+              </div>
+              <div className="potcta-row">
+                <button className="btn lg ghost potcta-share" onClick={nudge} aria-label="share this pot">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+                <button className="btn lg wide" onClick={() => setOpen(true)}>i&apos;m in · {m(amount)}</button>
+              </div>
+            </div>
+          )}
           {pot.status === "reached" && (
             <>
               <p className="state ok">goal hit.</p>
