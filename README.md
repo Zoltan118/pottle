@@ -33,7 +33,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
 | **dollars or euros** | a pot is in usdc or eurc. euro pots are paid in and paid out in eurc |
-| **add money by card** | circle's onramp kit, inside the app: card, apple pay or google pay, with circle's own id check |
+| **add money by card** | circle's onramp kit (part of circle app kits), inside the app: card, apple pay or google pay, with circle's own id check. live on the test site against circle's sandbox; switched on for mainnet once circle's production key is set up |
 | **made for group chats** | a live link preview ("7 in, $140 of $200"), a nudge button, a qr code, and a thank-you card once it pays out |
 
 ## how it uses arc
@@ -46,7 +46,23 @@ pottle leans on the parts of arc that make small group payments sensible:
 - **circle's usdc and eurc as fiattoken.** both support eip-3009 `receiveWithAuthorization`, so a
   chip-in is one signature, and the contract (not the relayer) pulls the money
 - **eurc on arc.** euro pots are native, not wrapped
-- **circle onramp kit.** people with no usdc can buy it into their own wallet without leaving the pot
+- **circle onramp kit.** people with no usdc can buy it into their own wallet without leaving the pot.
+  built the way arc's own guide describes it: the api key stays on the server, a session route mints a
+  short-lived session only for the signed-in user's own wallet, and the browser just opens the widget
+
+## built with
+
+every package is on its latest release as of september 2026.
+
+| | version | what pottle uses it for |
+| --- | --- | --- |
+| **arc** mainnet and testnet | chain 5042 / 5042002 | usdc as gas, sub-second finality, native usdc and eurc |
+| **circle usdc and eurc** (fiattoken v2) | | one-signature chip-ins with eip-3009 `receiveWithAuthorization` |
+| **circle onramp kit** (`@circle-fin/onramp-kit`, app kits) | 1.0.2 | buying usdc by card inside the app, with `createSessionRouteHandler` on the server |
+| **dynamic** (`@dynamic-labs/sdk-react-core`) | 5.9.1 | email sign-in and embedded wallets, session tokens verified server side |
+| **viem** | 2.56.9 | reading pots, signing chip-ins, the relayer |
+| **next.js** | 16.3.6 | the app, api routes, live link previews |
+| **solidity** / **foundry** | 0.8.30 / 1.8.3 | the contract, unit, fuzz and invariant tests |
 
 ## how it works
 
