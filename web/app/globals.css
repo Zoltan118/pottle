@@ -121,7 +121,8 @@ a { color: inherit; }
 .foot-links a:first-child { background: var(--ink); color: var(--paper); }
 @media (hover: hover) and (pointer: fine) { .foot-links a:not(:first-child):hover { background: color-mix(in srgb, var(--ink) 8%, transparent); } }
 .foot-links a:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
-.foot-note { grid-area: note; margin: 0; display: flex; gap: 20px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+.foot:not(:has(.foot-note)) { grid-template-areas: "brand links"; }
+.foot-note { grid-area: note; margin: 0; color: var(--muted); font-size: 14px; font-weight: 700; }
 .tipword { border: 0; background: none; padding: 0; cursor: help; font-weight: 700; color: inherit; text-decoration: underline dotted 2px; text-underline-offset: 4px; }
 
 /* landing: safe, features, faq */
@@ -154,6 +155,7 @@ a { color: inherit; }
   .feat { min-height: 0; }
   .feat-in { padding: 18px 20px; }
   .foot { grid-template-columns: 1fr; grid-template-areas: "brand" "links" "note"; }
+  .foot:not(:has(.foot-note)) { grid-template-areas: "brand" "links"; }
   .foot-links { display: grid; grid-template-columns: 1fr; gap: 10px; }
   .foot-links a { justify-content: space-between; min-height: 52px; padding-inline: 20px; font-size: 18px; }
   .endcta .btn { width: 100%; }

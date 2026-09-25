@@ -107,12 +107,7 @@ export default function Home() {
           <a href={REPO} target="_blank" rel="noreferrer">github<span aria-hidden="true">↗</span></a>
           {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<span aria-hidden="true">↗</span></a>}
         </nav>
-        <p className="foot-note">
-          {NETWORK === "mainnet"
-            ? <button className="tipword" data-tip="no third-party audit yet, so during beta each pot holds at most $100 or €100.">beta · no third-party audit</button>
-            : <button className="tipword" data-tip="arc testnet. test dollars, nothing costs anything.">test mode</button>}
-          <button className="tipword" data-tip="payments land in half a second and cost about a tenth of a cent. nobody can take a pot early, not even us.">usdc on arc</button>
-        </p>
+        {NETWORK === "mainnet" && <p className="foot-note">beta · no third-party audit</p>}
       </footer>
       <BigMark />
     </main>
