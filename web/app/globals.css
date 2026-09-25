@@ -282,8 +282,22 @@ a { color: inherit; }
   .hero .potbtn { width: min(220px, 56vw); }
   .hero .potstage { padding-top: 40px; } /* room for the coin's name tag above the lid */
   .hero-actions { margin-top: 28px; }
+  /* phones: headline, then the pot showing it happen, then the button where the thumb is */
+  .hero { gap: 0; padding-top: 4px; }
+  .hero-text { display: contents; }
+  .hero h1 { order: 1; }
+  .hero .potstage { order: 2; padding-top: 56px; gap: 8px; }
+  /* the pot gives up size on short screens (safari's bars in view), so the button always lands above the fold */
+  .hero .potbtn { width: clamp(120px, calc(100svh - 492px), min(220px, 56vw)); }
+  .hero-actions { order: 3; margin-top: 20px; }
   .potpage .potbtn { width: min(220px, 56vw); }
   .potpage .potstage { padding-top: 76px; } /* room for coin name tags above the lid */
+}
+/* iphone se and other short phones: a little less headline and air, same order */
+@media (max-width: 860px) and (max-height: 600px) {
+  .hero h1 { font-size: 60px; }
+  .hero .potstage { padding-top: 54px; }
+  .hero-actions { margin-top: 8px; }
 }
 @media (max-width: 560px) {
   .hide-sm { display: none; }

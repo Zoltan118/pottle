@@ -42,7 +42,7 @@ export default function Home() {
     <main className="view">
       <Nav action={<Link className="btn sm hide-sm" href="/new">make a pot</Link>} />
       <section className="shell hero">
-        <div>
+        <div className="hero-text">
           <h1 className="giant">chip in.<span className="pink">or get it back.</span></h1>
           <div className="hero-actions">
             <Link className="btn lg" href="/new">make a pot</Link>
