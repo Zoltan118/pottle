@@ -23,12 +23,10 @@ const FAQ = [
   { q: "who gets the money?", a: "the person who made the pot, the organiser. they're the one buying the gift or paying the bill, so every pot shows who it goes to before you chip in. if the goal isn't hit, nobody gets it and everyone is refunded." },
   { q: "can the organiser chip in too?", a: "yes, and it counts toward the goal like anyone's. their share comes back to them with the rest when the pot pays out, so they've paid their part like everyone else. the organiser's circle has a ring, so you can see what they put in." },
   { q: "what if the goal is hit but the money can't be paid out?", a: "it's paid out automatically, usually within minutes. if something blocks the payout for 30 days after the deadline (for example the organiser's account gets frozen), everyone can take their money back." },
-  { q: "can the organiser take the money early?", a: "no. the money sits in a contract with no owner and no admin. it only goes to the organiser once the goal is hit. not even we can move it." },
   { q: "do my friends need crypto?", a: `no. they sign in with their email and get a wallet. they need usdc (or eurc for euro pots) on arc${ONRAMP ? ", which they can add by card inside pottle" : ""}.` },
   ...(ONRAMP ? [{ q: "can i pay by card?", a: "yes. if you don't have usdc yet, tap add money and buy it by card, apple pay or google pay, without leaving pottle. it's circle's onramp, so circle checks your id and the usdc lands straight in your own wallet." }] : []),
-  { q: "what are usdc and eurc?", a: "digital dollars and euros issued by circle. one usdc is always worth one dollar, one eurc one euro." },
-  { q: "what is arc?", a: "circle's blockchain for money. payments land in about half a second and fees are paid in usdc, so there's nothing else to buy first." },
-  { q: "is it safe?", a: "the contract is open source and tested, and it can only send money to the organiser or back to whoever paid. there's been no third-party audit yet, so during beta a pot on the live site holds at most $100 (or €100)." },
+  { q: "what are usdc, eurc and arc?", a: "usdc and eurc are digital dollars and euros issued by circle: one usdc is always worth one dollar, one eurc one euro. arc is circle's blockchain for money. payments land in about half a second and fees are paid in usdc, so there's nothing else to buy first." },
+  { q: "is it safe?", a: "nobody can take a pot early, not the organiser and not us: the money sits in a contract with no owner and no admin, and it can only go to the organiser once the goal is hit or back to whoever paid. the contract is open source and tested, but there's been no third-party audit yet, so during beta a pot on the live site holds at most $100 (or €100)." },
 ];
 
 export default function Home() {

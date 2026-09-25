@@ -151,8 +151,10 @@ a { color: inherit; }
 .endcta .giant { font-size: clamp(64px, 12vw, 170px); }
 @media (max-width: 860px) { .feats { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) {
-  .feats { grid-template-columns: 1fr; gap: 12px; }
-  .feat { min-height: 0; }
+  /* features: one swipeable row with the next tile peeking in, instead of six stacked tiles */
+  .feats { min-width: 0; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 78%; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; padding-inline: 20px; scrollbar-width: none; }
+  .feats::-webkit-scrollbar { display: none; }
+  .feat { min-height: 180px; scroll-snap-align: start; }
   .feat-in { padding: 18px 20px; }
   .foot { grid-template-columns: 1fr; grid-template-areas: "brand" "links" "note"; }
   .foot:not(:has(.foot-note)) { grid-template-areas: "brand" "links"; }
@@ -292,6 +294,13 @@ a { color: inherit; }
   .hero-actions { order: 3; margin-top: 20px; }
   .potpage .potbtn { width: min(220px, 56vw); }
   .potpage .potstage { padding-top: 76px; } /* room for coin name tags above the lid */
+  /* phones: the pot comes first, so a friend opening the link sees the coins drop in */
+  .potpage { gap: 12px; padding-top: 0; }
+  .potpage .potstage { order: -1; padding-top: 58px; }
+  .potpage .potbtn { width: clamp(130px, 26svh, 200px); }
+  /* and "i'm in" rides along the bottom of the screen, where the thumb is */
+  .potcta { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--paper); box-shadow: 0 -2px 0 var(--ink); }
+  .view:has(.potcta) { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 }
 /* iphone se and other short phones: a little less headline and air, same order */
 @media (max-width: 860px) and (max-height: 600px) {

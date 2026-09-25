@@ -132,7 +132,7 @@ export function PotView({ initial }: { initial: PotData }) {
             {pot.status === "open" && Array.from({ length: Math.min(missing, 3) }, (_, i) => <span key={i} className="face out" aria-hidden="true">?</span>)}
           </div>
 
-          {pot.status === "open" && <button className="btn lg wide" onClick={() => setOpen(true)}>i&apos;m in · {m(amount)}</button>}
+          {pot.status === "open" && <div className="potcta"><button className="btn lg wide" onClick={() => setOpen(true)}>i&apos;m in · {m(amount)}</button></div>}
           {pot.status === "reached" && (
             <>
               <p className="state ok">goal hit.</p>
