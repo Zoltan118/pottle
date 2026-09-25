@@ -1,0 +1,19 @@
+# pottle
+
+> a pot for the group chat. set a goal and a deadline, share one link. friends chip in with usdc (or eurc) on arc. hit the goal and the pot goes to the organiser; miss the deadline and everyone gets back exactly what they put in, automatically.
+
+## what it is
+- group collections for gifts and shared costs: birthdays, leaving gifts, trips, dinners
+- all-or-nothing: the money is held by a smart contract until the goal is hit or the deadline passes
+- nobody can take a pot early, including the organiser and the people who built pottle. the contract has no owner, no admin and no fee
+- friends sign in with their email; pottle pays the network fee for payments of $1 or more, so they only sign once
+- pots can be in dollars (usdc) or euros (eurc)
+
+## how it uses arc
+- arc is circle's layer 1 for stablecoin payments. fees are paid in usdc and payments settle in about half a second
+- chip-ins use eip-3009 (receiveWithAuthorization) on circle's usdc and eurc, so a payment is a single signature
+- payouts and refunds are triggered automatically: when anyone opens a pot that is due, and by a scheduled job
+
+## links
+- source code: https://github.com/Zoltan118/pottle
+- make a pot: /new

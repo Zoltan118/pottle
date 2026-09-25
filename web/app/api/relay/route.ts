@@ -2,11 +2,23 @@ import { NextResponse } from "next/server";
 import { createWalletClient, http, isAddress, isHex, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { pottleAbi } from "@/lib/abi";
-import { chain, POTTLE } from "@/lib/config";
+import { chain, POTTLE, TOKEN } from "@/lib/config";
+import { erc20Abi } from "@/lib/abi";
+import { allow, clientIp } from "@/lib/limits";
 import { publicClient } from "@/lib/pot";
 
 // pays the network fee so a friend only has to sign. every call is simulated first, so the
 // relayer only spends on transactions that will succeed. the relayer never holds anyone's usdc.
+//
+// guards against someone draining its gas money with spam:
+// - it only sponsors chip-ins of $1 / €1 or more; smaller ones pay their own tiny fee
+// - per visitor and per wallet rate limits (best effort, per instance)
+// - a reserve it never spends on chip-ins, so automatic payouts and refunds always have gas
+// whenever it declines, it answers { selfPay: true } and the app sends the payment from the user's wallet.
+
+const MIN_SPONSORED = 1_000_000n; // 1.00 of the pot's currency
+const RESERVE = 2_000_000n; // $2 of usdc kept back for payouts and refunds
+const selfPay = (why: string) => NextResponse.json({ selfPay: true, error: why }, { status: 409 });
 
 type Body =
   | { kind: "chip"; id: number; from: string; amount: string; name: string; validBefore: string; salt: string; v: number; r: string; s: string }
@@ -30,6 +42,17 @@ export async function POST(req: Request) {
   const account = privateKeyToAccount(key as Hex);
   const wallet = createWalletClient({ account, chain, transport: http() });
   const id = BigInt(body.id);
+
+  if (!allow(`ip:${clientIp(req)}`, 12, 60_000)) return selfPay("slow down");
+  if (body.kind === "chip") {
+    if (!/^\d+$/.test(body.amount) || BigInt(body.amount) < MIN_SPONSORED) return selfPay("under the sponsored minimum");
+    if (!allow(`from:${String(body.from).toLowerCase()}`, 20, 86_400_000)) return selfPay("daily sponsored limit");
+    const gas = await publicClient.readContract({ address: TOKEN.usd.address, abi: erc20Abi, functionName: "balanceOf", args: [account.address] });
+    if (gas < RESERVE) {
+      console.warn(`[pottle] relayer at reserve, ${Number(gas) / 1e6} usdc left, top it up: ${account.address}`);
+      return selfPay("relayer at reserve");
+    }
+  }
 
   try {
     let hash: Hex;

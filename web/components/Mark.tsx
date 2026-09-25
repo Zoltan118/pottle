@@ -13,5 +13,12 @@ export function Mark() {
 }
 
 export function Logo() {
-  return <Link className="logo" href="/" aria-label="pottle home">p<Mark />ttle</Link>;
+  return (
+    <span className="logo-wrap">
+      <Link className="logo" href="/" aria-label="pottle home">p<Mark />ttle</Link>
+      {process.env.NEXT_PUBLIC_ARC_NETWORK !== "mainnet" && (
+        <span className="netpill" tabIndex={0} data-tip="arc testnet. play money, nothing here is real.">testnet</span>
+      )}
+    </span>
+  );
 }

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <defs><clipPath id="pot"><circle cx="48" cy="57" r="23"/></clipPath></defs>
+  <rect x="17" y="17" width="62" height="12" rx="6" fill="#231A33"/>
+  <rect x="20" y="60" width="56" height="30" fill="#F2B32A" clip-path="url(#pot)"/>
+  <circle cx="48" cy="57" r="27" fill="none" stroke="#231A33" stroke-width="8"/>
+</svg>

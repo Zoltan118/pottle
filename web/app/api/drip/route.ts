@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyDynamicToken } from "@/lib/auth";
+import { allow, clientIp } from "@/lib/limits";
 import { createWalletClient, http, isAddress, parseAbi, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { chain, DYNAMIC_ENV, EURC, NETWORK, USDC } from "@/lib/config";
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "drip off" }, { status: 503 });
   }
 
+  if (!allow(`drip:${clientIp(req)}`, 5, 3_600_000)) return NextResponse.json({ error: "too many requests, try later" }, { status: 429 });
   let address: string | undefined;
   try { address = (await req.json()).address; } catch {}
   if (!address || !isAddress(address)) return NextResponse.json({ error: "sign in first" }, { status: 401 });

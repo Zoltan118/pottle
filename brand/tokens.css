@@ -1,0 +1,22 @@
+/* pottle colour tokens. text tokens are measured against --paper and --surface, all at or above 4.5:1 */
+:root {
+  --paper: #F6F3FA;
+  --surface: #FFFFFF;
+  --ink: #231A33;
+  --muted: #5E5470;
+  --ribbon: #C42A5C;       /* fills and buttons */
+  --on-ribbon: #FFFFFF;    /* 5.48:1 on ribbon */
+  --ribbon-text: #B0204F;  /* links and text accents, 6.04:1 on paper */
+  --marigold: #F2B32A;     /* the pot fill, never used for text */
+  --mint: #1F7A57;         /* goal reached, 4.8:1 on paper */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15101E; --surface: #201930; --ink: #F1ECF7; --muted: #B3A9C4;
+    --ribbon: #FF6A96; --on-ribbon: #15101E; --ribbon-text: #FF8AAE; --mint: #5FD3A4;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15101E; --surface: #201930; --ink: #F1ECF7; --muted: #B3A9C4;
+  --ribbon: #FF6A96; --on-ribbon: #15101E; --ribbon-text: #FF8AAE; --mint: #5FD3A4;
+}

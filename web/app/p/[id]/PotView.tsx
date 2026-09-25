@@ -10,7 +10,7 @@ import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
 import { Sheet } from "@/components/Sheet";
 import { balanceOf, chipIn, settle } from "@/lib/wallet";
 import { money, readPot, timeLeft, type PotData } from "@/lib/pot";
-import { TOKEN } from "@/lib/config";
+import { NETWORK, TOKEN } from "@/lib/config";
 
 const AMOUNTS = [5, 10, 20, 50];
 
@@ -111,7 +111,7 @@ export function PotView({ initial }: { initial: PotData }) {
           <div className="meta">
             <span><b>{paid.length}</b> in</span>
             <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>
-            <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.`}>safe?</button>
+            <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.${NETWORK === "mainnet" ? " pottle is in beta and not audited yet, so keep pots small." : ""}`}>safe?</button>
           </div>
 
           <div className="faces" aria-label={`${paid.length} people in`}>

@@ -10,6 +10,7 @@ async function relay(body: object): Promise<Hex | null> {
   const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   if (r.status === 503) return null; // relay off, fall back to the user's own wallet
   const j = await r.json();
+  if (j.selfPay) return null; // relay declined to sponsor this one (small amount, limits, reserve)
   if (!r.ok) throw new Error(j.error || "relay failed");
   return j.hash as Hex;
 }

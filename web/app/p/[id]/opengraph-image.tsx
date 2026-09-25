@@ -1,26 +1,15 @@
 import { ImageResponse } from "next/og";
 import { money, readPot, timeLeft } from "@/lib/pot";
+import { ogFont } from "@/lib/ogfont";
 
 export const alt = "a pottle pot";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 // the group-chat preview: the one surface most people see before they open the pot
-async function font(weight: number): Promise<ArrayBuffer | null> {
-  try {
-    const css = await (await fetch(`https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@${weight}`, {
-      headers: { "user-agent": "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_8; de-at) AppleWebKit/533.21.1 (KHTML, like Gecko) Version/5.0.5 Safari/533.21.1" },
-    })).text();
-    const url = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
-    return url ? await (await fetch(url)).arrayBuffer() : null;
-  } catch {
-    return null;
-  }
-}
-
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const pot = await readPot(Number((await params).id)).catch(() => null);
-  const [bold] = await Promise.all([font(800)]);
+  const bold = await ogFont(800);
   const ink = "#231A33", paper = "#F1ECF7", muted = "#B3A9C4", gold = "#F2B32A";
   const pct = pot ? Math.min(1, pot.raised / pot.goal) : 0;
   const state = !pot ? "" : pot.status === "released" ? "it's on" : pot.status === "refunding" ? "refunded" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline);

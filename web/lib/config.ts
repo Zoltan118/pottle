@@ -28,4 +28,15 @@ export const missingEnv = [
 
 if (missingEnv.length) console.warn(`[pottle] missing env: ${missingEnv.join(", ")}`);
 
-export const explorerTx = (hash: string) => `${chain.blockExplorers?.default.url}/tx/${hash}`;
+// arc's own explorers, the ones its docs link to
+export const EXPLORER = NETWORK === "mainnet" ? "https://explorer.arc.io" : "https://explorer.testnet.arc.io";
+export const explorerTx = (hash: string) => `${EXPLORER}/tx/${hash}`;
+export const explorerAddress = (a: string) => `${EXPLORER}/address/${a}`;
+
+export const REPO = "https://github.com/Zoltan118/pottle";
+/** the public address of this site. vercel sets VERCEL_PROJECT_PRODUCTION_URL; NEXT_PUBLIC_SITE_URL overrides it (e.g. a custom domain) */
+export const SITE =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+/** the same app on the other network, e.g. the free testnet site linked from mainnet. optional */
+export const OTHER_SITE = process.env.NEXT_PUBLIC_OTHER_SITE_URL || undefined;
