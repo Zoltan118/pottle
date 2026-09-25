@@ -49,6 +49,7 @@ export function PotView({ initial }: { initial: PotData }) {
   const [short, setShort] = useState(0); // how much the payer is missing, offered as "add money"
 
   const m = (d: number) => money(d, pot.currency);
+  const isOrganiser = (a: string) => a.toLowerCase() === pot.organiser.toLowerCase();
   const paid = pot.people;
   const missing = Math.max(0, Math.ceil((pot.goal - pot.raised) / amount));
   const refreshed = () => qc.invalidateQueries({ queryKey: ["pot", pot.id] });
@@ -109,6 +110,9 @@ export function PotView({ initial }: { initial: PotData }) {
         <div className="plate">
           <h1 className="giant">{pot.title}</h1>
           <div className="amount">{m(pot.raised)}<small>of {m(pot.goal)}</small></div>
+          <button className="goesto" data-tip={`${pot.organiserName} made this pot. hit ${m(pot.goal)} and all of it goes to ${pot.organiserName} for ${pot.title}. miss it and everyone gets their money back.`}>
+            {pot.status === "released" ? "went to" : "goes to"} <b>{pot.organiserName}</b>
+          </button>
           <div className="meta">
             <span><b>{paid.length}</b> in</span>
             <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>
@@ -117,7 +121,7 @@ export function PotView({ initial }: { initial: PotData }) {
 
           <div className="faces" aria-label={`${paid.length} people in`}>
             {paid.slice(0, 8).map((p) => (
-              <span key={p.address} className={`face${p.name === fresh ? " new" : ""}`} data-tip={`${p.name} · ${m(p.amount)}`} tabIndex={0}>{p.name[0]}</span>
+              <span key={p.address} className={`face${p.name === fresh ? " new" : ""}${isOrganiser(p.address) ? " org" : ""}`} data-tip={`${p.name}${isOrganiser(p.address) ? " · organiser" : ""} · ${m(p.amount)}`} tabIndex={0}>{p.name[0]}</span>
             ))}
             {paid.length > 8 && <span className="face more" data-tip={paid.slice(8).map((p) => p.name).join(", ")} tabIndex={0}>+{paid.length - 8}</span>}
             {pot.status === "open" && Array.from({ length: Math.min(missing, 3) }, (_, i) => <span key={i} className="face out" aria-hidden="true">?</span>)}
@@ -164,6 +168,11 @@ export function PotView({ initial }: { initial: PotData }) {
         <div className="chips" role="group" aria-label="amount">
           {AMOUNTS.map((a) => <button key={a} className="chip" aria-pressed={amount === a} onClick={() => setAmount(a)}>{m(a)}</button>)}
         </div>
+        <p className="where">
+          {w.address && w.address.toLowerCase() === pot.organiser.toLowerCase()
+            ? <>this is your pot. your {m(amount)} comes back to you with the rest if it hits {m(pot.goal)}.</>
+            : <>goes to <b>{pot.organiserName}</b> if the pot hits {m(pot.goal)}. back to you if it doesn&apos;t.</>}
+        </p>
         <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on}>
           {busy === "pay" ? "paying…" : w.address ? `pay ${m(amount)}` : "sign in to pay"}
         </button>

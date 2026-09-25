@@ -122,6 +122,7 @@ export function CreateFlow() {
         <section className="flow">
           <h1 className="giant q">you?</h1>
           <input className="bigin" placeholder="your name" autoFocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
+          <p className="hint" style={{ margin: 0 }}>the pot is paid to you, to buy the gift. chip in your own share too if you&apos;re part of it.</p>
           {missingEnv.length > 0 && <div className="notice">setup needed: <code>{missingEnv.join(", ")}</code> in <code>.env.local</code></div>}
           <div className="err" role="alert">{err}</div>
         </section>

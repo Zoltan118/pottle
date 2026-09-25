@@ -5,9 +5,10 @@ import { useMountEffect } from "@/hooks/useMountEffect";
 import { PotArt } from "./PotArt";
 
 const GOAL = 200;
-// two stories on a loop: the goal gets hit, then a pot misses and everyone is refunded
-const HIT = [["ana", 20], ["mert", 50], ["lea", 10], ["sam", 20], ["kaan", 50], ["ece", 20], ["tom", 30]] as const;
-const MISS = [["jonas", 20], ["ines", 50], ["ayla", 10]] as const;
+// two stories on a loop, each a group of friends in different countries (the people pottle is for):
+// a dollar pot that hits its goal, then a euro pot that misses and refunds everyone
+const HIT = [["maya", "new york", 20], ["lukas", "berlin", 50], ["deniz", "istanbul", 10], ["sofia", "madrid", 20], ["tom", "london", 50], ["ines", "lisbon", 20], ["kenji", "tokyo", 30]] as const;
+const MISS = [["ana", "porto", 20], ["jonas", "vienna", 50], ["chloé", "paris", 10]] as const;
 
 type Coin = { id: number; label: string; dir: "in" | "out"; x: number };
 
@@ -18,6 +19,8 @@ export function HeroPot() {
   const [tone, setTone] = useState<"" | "ok" | "back">("");
   const [coins, setCoins] = useState<Coin[]>([]);
   const count = useRef<HTMLSpanElement>(null);
+  const [sym, setSym] = useState("$");
+  const symRef = useRef("$");
 
   useMountEffect(() => {
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -32,7 +35,7 @@ export function HeroPot() {
       total = to;
       const step = (t: number) => {
         const k = Math.min(1, (t - start) / 420), v = Math.round(from + (to - from) * (1 - (1 - k) ** 3));
-        if (el) el.textContent = `$${v}`;
+        if (el) el.textContent = `${symRef.current}${v}`;
         if (k < 1 && alive) requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
@@ -50,27 +53,29 @@ export function HeroPot() {
 
     (async () => {
       while (alive) {
+        symRef.current = "$"; setSym("$");
         setTone(""); setLine("sarah's gift");
-        for (const [who, amt] of HIT) {
+        for (const [who, city, amt] of HIT) {
           await visible(); if (!alive) return;
-          coin(`${who} · $${amt}`, "in");
+          coin(`${who} · ${city} · $${amt}`, "in");
           await wait(380); tick(total + amt); setLine(`${who} is in`);
           await wait(620);
         }
-        setTone("ok"); setLine("it's on. $200 to deniz.");
+        setTone("ok"); setLine("it's on. $200 to maya.");
         await wait(2200); tick(0); setTone(""); await wait(700);
 
+        symRef.current = "€"; setSym("€");
         setLine("trip to lisbon");
-        for (const [who, amt] of MISS) {
+        for (const [who, city, amt] of MISS) {
           await visible(); if (!alive) return;
-          coin(`${who} · $${amt}`, "in");
+          coin(`${who} · ${city} · €${amt}`, "in");
           await wait(380); tick(total + amt); setLine(`${who} is in`);
           await wait(620);
         }
         setLine("time's up."); await wait(1100);
         setTone("back"); setLine("everyone got it back.");
-        for (const [who, amt] of [...MISS].reverse()) {
-          coin(`$${amt} → ${who}`, "out");
+        for (const [who, , amt] of [...MISS].reverse()) {
+          coin(`€${amt} → ${who}`, "out");
           tick(total - amt);
           await wait(420);
         }
@@ -91,7 +96,7 @@ export function HeroPot() {
         ))}
         <PotArt level={level} />
       </div>
-      <div className="count" aria-hidden="true"><span ref={count}>$0</span> <small>of ${GOAL}</small></div>
+      <div className="count" aria-hidden="true"><span ref={count}>$0</span> <small>of {sym}{GOAL}</small></div>
       <div className={`hint heroline ${tone}`} aria-hidden="true">{line}</div>
     </div>
   );

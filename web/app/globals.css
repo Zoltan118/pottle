@@ -198,6 +198,12 @@ a { color: inherit; }
 .faces { display: flex; padding-left: 10px; min-height: 46px; }
 .face { width: 46px; height: 46px; margin-left: -10px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 18px; background: var(--ink); color: var(--paper); box-shadow: 0 0 0 3px var(--paper); text-transform: lowercase; }
 .face.out { background: var(--paper); color: var(--muted); box-shadow: 0 0 0 3px var(--paper), inset 0 0 0 2px var(--line); }
+.face.org { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--ribbon); z-index: 1; }
+.goesto { justify-self: start; border: 0; background: none; padding: 0; cursor: help; font-family: var(--display); font-weight: 800; font-size: clamp(22px, 3vw, 28px); letter-spacing: -.02em; color: var(--muted); margin-top: -8px; }
+.goesto b { color: var(--ribbon-text); }
+.goesto:focus-visible { outline: 3px solid var(--marigold); outline-offset: 3px; border-radius: 6px; }
+.where { margin: 0; font-size: 15px; font-weight: 600; color: var(--muted); line-height: 1.4; }
+.where b { color: var(--ink); }
 .face.more { background: var(--marigold); color: #231A33; font-size: 15px; }
 .face.new { animation: pop 420ms var(--out); }
 @keyframes pop { from { transform: scale(.6); opacity: 0; } }

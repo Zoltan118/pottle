@@ -115,7 +115,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
             <div className="acct-pot" key={p.id}>
               <Link href={potPath(p.id)} onClick={() => setOpen(false)} className="acct-pot-main">
                 <b>{p.title}</b>
-                <span>{money(p.raised, p.currency)} of {money(p.goal, p.currency)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase() ? "" : " · you're in"}</span>
+                <span>{money(p.raised, p.currency)} of {money(p.goal, p.currency)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase() ? " · paid to you" : " · you're in"}</span>
               </Link>
               <button className="btn sm" onClick={() => share(p)}>{copied === `pot-${p.id}` ? "copied" : "share"}</button>
             </div>

@@ -3,6 +3,7 @@
 > a pot for the group chat. set a goal and a deadline, share one link. friends chip in with usdc (or eurc) on arc. hit the goal and the pot goes to the organiser; miss the deadline and everyone gets back exactly what they put in, automatically.
 
 ## what it is
+- the money goes to the person who made the pot (the organiser), who buys the gift or pays the bill. every pot shows who it goes to before anyone chips in
 - group collections for gifts and shared costs: birthdays, leaving gifts, trips, dinners
 - all-or-nothing: the money is held by a smart contract until the goal is hit or the deadline passes
 - if a pot hit its goal but still could not pay out 30 days after its deadline (for example a frozen organiser account), everyone can take their money back
