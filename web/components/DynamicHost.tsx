@@ -20,7 +20,7 @@ const arcNetwork = {
 
 /** mirrors dynamic's state into the wallet store. this is the one place the app syncs with an outside system */
 function Bridge() {
-  const { primaryWallet, setShowAuthFlow, handleLogOut, sdkHasLoaded } = useDynamicContext();
+  const { primaryWallet, setShowAuthFlow, handleLogOut, sdkHasLoaded, user } = useDynamicContext();
   const loggedIn = useIsLoggedIn();
   const address = loggedIn ? (primaryWallet?.address as Address | undefined) : undefined;
 
@@ -29,6 +29,7 @@ function Bridge() {
       on: true,
       ready: sdkHasLoaded,
       address,
+      userId: user?.userId,
       signIn: () => setShowAuthFlow(true),
       signOut: () => void handleLogOut(),
       client: async () => {
@@ -38,7 +39,7 @@ function Bridge() {
       },
       token: getAuthToken,
     });
-  }, [sdkHasLoaded, address, primaryWallet, setShowAuthFlow, handleLogOut]);
+  }, [sdkHasLoaded, address, user?.userId, primaryWallet, setShowAuthFlow, handleLogOut]);
 
   return null;
 }

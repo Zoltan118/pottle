@@ -18,7 +18,8 @@ const pub = createPublicClient({ chain, transport: http() });
 const wallet = (pk) => createWalletClient({ account: privateKeyToAccount(pk), chain, transport: http() });
 const usdcAbi = parseAbi(["function transfer(address,uint256) returns (bool)", "function approve(address,uint256) returns (bool)", "function balanceOf(address) view returns (uint256)"]);
 const potAbi = parseAbi([
-  "function create(uint128,uint64,string,string) returns (uint256)",
+  "function create(uint128,uint64,uint8,string,string) returns (uint256)",
+  "function potsOf(address) view returns (uint256[])",
   "function chipIn(uint256,uint128,string)",
   "function authNonce(uint256,string,bytes32) pure returns (bytes32)",
   "function statusOf(uint256) view returns (uint8)",
@@ -55,7 +56,7 @@ async function signChip(pk, id, amount, name) {
 }
 
 async function create(org, goal, secs, title) {
-  const hash = await org.writeContract({ address: POTTLE, abi: potAbi, functionName: "create", args: [$(goal), BigInt(Math.floor(Date.now() / 1000) + secs), title, "org"] });
+  const hash = await org.writeContract({ address: POTTLE, abi: potAbi, functionName: "create", args: [$(goal), BigInt(Math.floor(Date.now() / 1000) + secs), 1, title, "org"] });
   const rc = await wait(hash);
   return BigInt(rc.logs.find((l) => l.address.toLowerCase() === POTTLE.toLowerCase()).topics[1]);
 }
@@ -94,4 +95,9 @@ console.log("waiting for pot B's deadline…");
 while ((await status(b)) !== "refunding") await new Promise((r) => setTimeout(r, 5000));
 await relay({ kind: "refund", id: Number(b) });
 check((await bal(ana.address)) === 1, "after the deadline, ana got her exact $1 back");
+const mine = await pub.readContract({ address: POTTLE, abi: potAbi, functionName: "potsOf", args: [org.account.address] });
+check(mine.length === 2 && mine[0] === a && mine[1] === b, "potsOf lists both pots the organiser made");
+const anas = await pub.readContract({ address: POTTLE, abi: potAbi, functionName: "potsOf", args: [ana.address] });
+check(anas.length === 2, "potsOf lists both pots ana chipped into");
+console.log(`organiser ${org.account.address}`);
 console.log(`pots: ${APP}/p/${a}  ${APP}/p/${b}`);

@@ -1,19 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
 import { requestDrip, usdcBalance } from "@/lib/wallet";
 import { NETWORK } from "@/lib/config";
-import { usd } from "@/lib/pot";
+import { potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
 import { Logo } from "./Mark";
 import { Sheet } from "./Sheet";
+import { AddMoney, ONRAMP_ON } from "./AddMoney";
+
+const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 /** logo left; right: the page's own action plus sign in, or your balance once signed in */
 export function Nav({ action }: { action?: React.ReactNode }) {
   const w = useWallet();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
   const bal = useQuery({
     queryKey: ["bal", w.address],
     queryFn: () => usdcBalance(w.address!),
@@ -21,7 +27,6 @@ export function Nav({ action }: { action?: React.ReactNode }) {
     refetchInterval: 10_000,
   });
   // testnet: a signed-in wallet with under $1 gets $10 from our drip, once, without asking
-  const qc = useQueryClient();
   const drip = useQuery({
     queryKey: ["drip", w.address],
     queryFn: async () => {
@@ -33,10 +38,25 @@ export function Nav({ action }: { action?: React.ReactNode }) {
     staleTime: Infinity,
     retry: false,
   });
+  const pots = useQuery({
+    queryKey: ["pots", w.address],
+    queryFn: () => readPotsOf(w.address!),
+    enabled: !!w.address && open,
+  });
+
   const money = drip.isFetching ? "+$10…" : bal.data === undefined ? "…" : usd(Math.floor(bal.data * 100) / 100);
 
-  async function copy() {
-    try { await navigator.clipboard.writeText(w.address!); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+  async function copy(text: string, key: string) {
+    try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch {}
+  }
+
+  /** phones get the native share sheet (whatsapp, messages), desktops copy the link */
+  async function share(p: PotData) {
+    const url = `${location.origin}${potPath(p.id)}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: p.title, text: `chip in for ${p.title}`, url }); return; } catch { return; }
+    }
+    copy(url, `pot-${p.id}`);
   }
 
   return (
@@ -46,7 +66,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
         <div className="bar-right">
           {action}
           {w.on && w.ready && (w.address ? (
-            <button className="me" onClick={() => setOpen(true)} aria-label="your wallet" data-tip={drip.isFetching ? "sending you $10 of test usdc" : drip.data ? `$${drip.data} of test usdc sent to you` : undefined}>
+            <button className="me" onClick={() => setOpen(true)} aria-label="your account" data-tip={drip.isFetching ? "sending you $10 of test usdc" : undefined}>
               <i />{money}
             </button>
           ) : (
@@ -54,17 +74,45 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           ))}
         </div>
       </nav>
-      <Sheet open={open} onClose={() => setOpen(false)} label="your wallet">
-        <h2 className="giant">{money}</h2>
-        <div className="linkbox">
-          <code>{w.address}</code>
-          <button className="btn sm" onClick={copy}>{copied ? "copied" : "copy"}</button>
+
+      <Sheet open={open} onClose={() => setOpen(false)} label="your account">
+        <div className="acct-top">
+          <button className="addr" onClick={() => w.address && copy(w.address, "addr")} aria-label="copy your address">
+            <i />{w.address ? short(w.address) : ""}<span>{copied === "addr" ? "copied" : "copy"}</span>
+          </button>
+          <button className="iconbtn" onClick={() => setOpen(false)} aria-label="close">×</button>
         </div>
-        <p className="hint" style={{ margin: 0 }}>
-          {NETWORK === "testnet"
-            ? drip.error ? `${drip.error.message}. or get test usdc at faucet.circle.com` : "testnet. new wallets get $10 of test usdc automatically"
-            : "send usdc on arc to this address"}
-        </p>
+
+        <div className="acct-bal">{money}<small>usdc on arc</small></div>
+
+        {ONRAMP_ON
+          ? <AddMoney onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
+          : NETWORK === "testnet" && (
+              <p className="hint acct-note">
+                {drip.error ? `${drip.error.message}. test usdc: faucet.circle.com` : "testnet. new wallets get $10 of test usdc"}
+              </p>
+            )}
+
+        <div className="acct-pots">
+          <span className="label">your pots</span>
+          {pots.isLoading && <p className="hint">…</p>}
+          {pots.data?.length === 0 && (
+            <div className="acct-empty">
+              <p className="hint">no pots yet</p>
+              <Link className="btn sm" href="/new" onClick={() => setOpen(false)}>make a pot</Link>
+            </div>
+          )}
+          {pots.data?.map((p) => (
+            <div className="acct-pot" key={p.id}>
+              <Link href={potPath(p.id)} onClick={() => setOpen(false)} className="acct-pot-main">
+                <b>{p.title}</b>
+                <span>{usd(p.raised)} of {usd(p.goal)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase() ? "" : " · you're in"}</span>
+              </Link>
+              <button className="btn sm" onClick={() => share(p)}>{copied === `pot-${p.id}` ? "copied" : "share"}</button>
+            </div>
+          ))}
+        </div>
+
         <button className="btn lg ghost wide" onClick={() => { setOpen(false); w.signOut(); }}>sign out</button>
       </Sheet>
     </div>

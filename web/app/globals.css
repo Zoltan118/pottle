@@ -71,6 +71,22 @@ a { color: inherit; }
 .coin { position: absolute; left: 50%; top: 0; width: 13%; aspect-ratio: 1; border-radius: 50%; background: var(--marigold); box-shadow: inset 0 0 0 3px rgba(35, 26, 51, .25); transform: translate(-50%, -120%); opacity: 0; pointer-events: none; }
 .coin.drop { animation: drop 520ms var(--out) forwards; }
 @keyframes drop { 0% { opacity: 1; transform: translate(-50%, -140%); } 70% { opacity: 1; transform: translate(-50%, 150%); } 100% { opacity: 0; transform: translate(-50%, 190%) scale(.9); } }
+/* the landing pot's coins: the gold disc drops through the lid, its name tag stays readable above it */
+.coin2 { position: absolute; top: 0; width: 0; pointer-events: none; z-index: 2; }
+.coin2 i { position: absolute; left: -22px; top: 0; width: 44px; height: 44px; border-radius: 50%; background: var(--marigold); box-shadow: inset 0 0 0 4px rgba(35, 26, 51, .18); display: block; }
+.coin2 em { position: absolute; left: 0; bottom: 100%; transform: translate(-50%, -14px); font-style: normal; font-family: var(--display); font-weight: 800; font-size: 15px; white-space: nowrap; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 5px 12px; box-shadow: 0 0 0 2px var(--paper); }
+.coin2.in i { animation: coinIn 900ms var(--out) forwards; }
+.coin2.out i { animation: coinOut 900ms var(--out) forwards; }
+.coin2 em { animation: tag 900ms ease forwards; }
+@keyframes coinIn { 0% { opacity: 0; transform: translateY(-14cqh); } 12% { opacity: 1; } 60% { opacity: 1; transform: translateY(58cqh); } 100% { opacity: 0; transform: translateY(68cqh) scale(.85); } }
+@keyframes coinOut { 0% { opacity: 0; transform: translateY(62cqh) scale(.85); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18cqh); } }
+@keyframes tag { 0% { opacity: 0; transform: translate(-50%, -4px); } 15%, 75% { opacity: 1; transform: translate(-50%, -14px); } 100% { opacity: 0; transform: translate(-50%, -22px); } }
+.herop { container-type: size; }
+.herop svg { transition: filter 400ms ease; }
+.herop.ok svg { filter: drop-shadow(0 0 28px color-mix(in srgb, var(--mint) 55%, transparent)); }
+.heroline { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: -.01em; color: var(--muted); transition: color 200ms ease; }
+.heroline.ok { color: var(--mint); }
+.heroline.back { color: var(--ribbon-text); }
 .count { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 5vw, 52px); letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
 .count small { font-size: .5em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
 .hint { font-size: 15px; color: var(--muted); font-weight: 600; min-height: 1.4em; }
@@ -149,6 +165,30 @@ a { color: inherit; }
 .sheet { position: fixed; left: 50%; bottom: 0; z-index: 41; width: min(560px, 100%); background: var(--paper); border-radius: 32px 32px 0 0; padding: 28px 22px calc(28px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 20px; transform: translate(-50%, 105%); transition: transform 380ms var(--drawer); box-shadow: 0 0 0 2px var(--ink); visibility: hidden; }
 .sheet.on { transform: translate(-50%, 0); visibility: visible; }
 .sheet .giant { font-size: clamp(48px, 10vw, 72px); }
+/* a sheet never grows past the screen; its own content scrolls */
+.sheet { max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
+
+/* account sheet */
+.acct-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.addr { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 8px 6px 6px; border: 2px solid var(--ink); border-radius: 999px; background: transparent; cursor: pointer; font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; transition: transform 160ms var(--out); }
+.addr:active { transform: scale(.97); }
+.addr i { width: 32px; height: 32px; border-radius: 50%; background: var(--marigold); display: block; flex: none; }
+.addr span { font-family: var(--body); font-size: 14px; font-weight: 700; color: var(--on-ribbon); background: var(--ribbon); border-radius: 999px; padding: 6px 12px; }
+.acct-bal { font-family: var(--display); font-weight: 800; letter-spacing: -.045em; line-height: .9; font-size: clamp(56px, 16vw, 88px); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
+.acct-bal small { font-size: 16px; letter-spacing: 0; font-weight: 700; color: var(--muted); }
+.acct-note { margin: 0; }
+.acct-pots { display: grid; gap: 10px; }
+.label { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.acct-pot { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; border-radius: 20px; box-shadow: inset 0 0 0 2px var(--line); }
+.acct-pot-main { flex: 1; min-width: 0; display: grid; gap: 2px; text-decoration: none; }
+.acct-pot-main b { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-pot-main span { font-size: 14px; font-weight: 600; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* circle onramp, full screen over everything */
+.onramp { position: fixed; inset: 0; z-index: 70; background: var(--paper); display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px env(safe-area-inset-bottom, 0px); }
+.onramp-bar { display: flex; justify-content: space-between; align-items: center; padding-block: 6px 12px; }
+.onramp-frame { flex: 1; min-height: 0; border-radius: 20px; overflow: hidden; }
 .sheet .bigin { font-size: clamp(30px, 6vw, 44px); }
 /* amounts: always one row of equal buttons, so none is ever left alone on a second line */
 .sheet .chips { display: grid; grid-template-columns: repeat(4, 1fr); }
@@ -159,6 +199,7 @@ a { color: inherit; }
   .potbtn { width: min(300px, 70vw); }
   .hero { padding-block: 8px 40px; gap: 32px; }
   .hero .potbtn { width: min(220px, 56vw); }
+  .hero .potstage { padding-top: 40px; } /* room for the coin's name tag above the lid */
   .hero-actions { margin-top: 28px; }
   .potpage .potbtn { width: min(220px, 56vw); }
 }

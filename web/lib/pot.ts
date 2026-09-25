@@ -17,6 +17,7 @@ export type PotData = {
   raised: number; // dollars
   deadline: number; // unix seconds
   status: Status;
+  wrap: Wrap;
   people: Person[];
 };
 
@@ -44,11 +45,23 @@ export async function readPot(id: number): Promise<PotData | null> {
     raised: toUsd(pot.raised),
     deadline: Number(pot.deadline),
     status: s,
+    wrap: WRAPS[pot.wrap] ?? "confetti",
     people: people
       .map((address, i) => ({ address, name: names[i], amount: toUsd(amounts[i]) }))
       .filter((p) => p.amount > 0 || s === "released"),
   };
 }
+
+/** every pot this address made or chipped into, newest first, at most `limit` */
+export async function readPotsOf(address: Address, limit = 20): Promise<PotData[]> {
+  if (!POTTLE) return [];
+  const ids = await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "potsOf", args: [address] });
+  const recent = [...ids].reverse().slice(0, limit).map(Number);
+  const pots = await Promise.all(recent.map((id) => readPot(id)));
+  return pots.filter((p): p is PotData => !!p);
+}
+
+export const potPath = (id: number) => `/p/${id}`;
 
 /** "2 days left", "5 hours left", "ended" */
 export function timeLeft(deadline: number, now = Date.now() / 1000) {
@@ -62,4 +75,3 @@ export function timeLeft(deadline: number, now = Date.now() / 1000) {
 
 export const WRAPS = ["confetti", "stripes", "gingham", "plain"] as const;
 export type Wrap = (typeof WRAPS)[number];
-export const asWrap = (w: unknown): Wrap => (WRAPS as readonly unknown[]).includes(w) ? (w as Wrap) : "confetti";

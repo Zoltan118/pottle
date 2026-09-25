@@ -8,6 +8,7 @@ export type WalletApi = {
   on: boolean; // false when sign-in is not configured
   ready: boolean; // the sign-in sdk has loaded in the browser
   address?: Address;
+  userId?: string; // dynamic user id, the `sub` on their token
   signIn: () => void;
   signOut: () => void;
   client: () => Promise<WalletClient<Transport, Chain, Account>>;
@@ -34,3 +35,8 @@ export const walletStore = {
 };
 
 export const useWallet = () => useSyncExternalStore(walletStore.subscribe, () => current, () => initial);
+
+// development only: lets a local test load a wallet into the store without a real sign-in
+if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+  (window as unknown as { __pottleWallet: typeof walletStore }).__pottleWallet = walletStore;
+}

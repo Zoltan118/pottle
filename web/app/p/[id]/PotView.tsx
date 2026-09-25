@@ -8,11 +8,11 @@ import { Nav } from "@/components/Nav";
 import { PotArt } from "@/components/PotArt";
 import { Sheet } from "@/components/Sheet";
 import { chipIn, settle, usdcBalance } from "@/lib/wallet";
-import { readPot, timeLeft, usd, type PotData, type Wrap } from "@/lib/pot";
+import { readPot, timeLeft, usd, type PotData } from "@/lib/pot";
 
 const AMOUNTS = [5, 10, 20, 50];
 
-export function PotView({ initial, wrap }: { initial: PotData; wrap: Wrap }) {
+export function PotView({ initial }: { initial: PotData }) {
   const w = useWallet();
   const qc = useQueryClient();
   const { data: pot = initial } = useQuery({
@@ -61,7 +61,7 @@ export function PotView({ initial, wrap }: { initial: PotData; wrap: Wrap }) {
   const refundedAll = pot.status === "refunding" && pot.raised === 0;
 
   return (
-    <main className={`view w-${wrap}`}>
+    <main className={`view w-${pot.wrap}`}>
       <Nav action={<Link className="btn sm ghost hide-sm" href="/new">make your own</Link>} />
       <section className="shell potpage">
         <div className="plate">

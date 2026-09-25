@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { verifyDynamicToken } from "@/lib/auth";
 import { createWalletClient, http, isAddress, parseAbi, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { chain, DYNAMIC_ENV, NETWORK, USDC } from "@/lib/config";
@@ -14,39 +14,25 @@ const HAS_ENOUGH = 1_000_000n; // $1
 const REFILL_BELOW = 40_000_000n; // ask circle's faucet for more when the relayer drops under $40
 
 const erc20 = parseAbi(["function balanceOf(address) view returns (uint256)", "function transfer(address,uint256) returns (bool)"]);
-const jwks = DYNAMIC_ENV ? createRemoteJWKSet(new URL(`https://app.dynamicauth.com/api/v0/sdk/${DYNAMIC_ENV}/.well-known/jwks`)) : null;
 
 // best effort only: serverless instances do not share memory. the balance rule is the real limit
 const recent = new Map<string, number>();
 
-type Credential = { address?: string; chain?: string };
-
 export async function POST(req: Request) {
   if (NETWORK !== "testnet") return NextResponse.json({ error: "testnet only" }, { status: 404 });
   const key = process.env.RELAYER_PRIVATE_KEY;
-  if (!key || !jwks) {
-    console.warn(`[pottle] drip off, missing: ${[!key && "RELAYER_PRIVATE_KEY", !jwks && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID"].filter(Boolean).join(", ")}`);
+  if (!key || !DYNAMIC_ENV) {
+    console.warn(`[pottle] drip off, missing: ${[!key && "RELAYER_PRIVATE_KEY", !DYNAMIC_ENV && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID"].filter(Boolean).join(", ")}`);
     return NextResponse.json({ error: "drip off" }, { status: 503 });
   }
 
-  const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
   let address: string | undefined;
   try { address = (await req.json()).address; } catch {}
-  if (!token || !address || !isAddress(address)) return NextResponse.json({ error: "sign in first" }, { status: 401 });
-
-  let sub: string;
-  try {
-    const { payload } = await jwtVerify(token, jwks, { algorithms: ["RS256"] });
-    const scope = String(payload.scope ?? "").split(" ");
-    const creds = (payload.verified_credentials ?? []) as Credential[];
-    const owns = creds.some((c) => c.address?.toLowerCase() === address!.toLowerCase());
-    if (!String(payload.iss ?? "").endsWith(DYNAMIC_ENV!) || !scope.includes("user:basic") || !owns || !payload.sub) {
-      return NextResponse.json({ error: "not your wallet" }, { status: 403 });
-    }
-    sub = payload.sub;
-  } catch {
-    return NextResponse.json({ error: "sign in again" }, { status: 401 });
-  }
+  if (!address || !isAddress(address)) return NextResponse.json({ error: "sign in first" }, { status: 401 });
+  const who = await verifyDynamicToken(req);
+  if (!who) return NextResponse.json({ error: "sign in again" }, { status: 401 });
+  if (!who.wallets.includes(address.toLowerCase())) return NextResponse.json({ error: "not your wallet" }, { status: 403 });
+  const sub = who.sub;
 
   const last = recent.get(sub);
   if (last && Date.now() - last < 12 * 3600_000) return NextResponse.json({ skipped: "already sent today" });

@@ -78,6 +78,19 @@ export const pottleAbi = [
   },
   {
     "type": "function",
+    "name": "MAX_WRAP",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MIN_CHIP",
     "inputs": [],
     "outputs": [
@@ -251,6 +264,11 @@ export const pottleAbi = [
         "internalType": "uint64"
       },
       {
+        "name": "wrap",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
         "name": "title",
         "type": "string",
         "internalType": "string"
@@ -310,6 +328,11 @@ export const pottleAbi = [
             "name": "raised",
             "type": "uint128",
             "internalType": "uint128"
+          },
+          {
+            "name": "wrap",
+            "type": "uint8",
+            "internalType": "uint8"
           },
           {
             "name": "title",
@@ -403,6 +426,25 @@ export const pottleAbi = [
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "potsOf",
+    "inputs": [
+      {
+        "name": "who",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "stateMutability": "view"

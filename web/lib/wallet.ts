@@ -29,11 +29,11 @@ export async function usdcBalance(address: Address) {
   return Number(b) / 1e6;
 }
 
-export async function createPot(c: Client, a: { goal: number; deadline: number; title: string; name: string }) {
+export async function createPot(c: Client, a: { goal: number; deadline: number; wrap: number; title: string; name: string }) {
   if (!POTTLE) throw new Error("pottle is not deployed yet");
   const hash = await c.writeContract({
     address: POTTLE, abi: pottleAbi, functionName: "create", chain, account: c.account,
-    args: [BigInt(Math.round(a.goal * 1e6)), BigInt(a.deadline), a.title, a.name],
+    args: [BigInt(Math.round(a.goal * 1e6)), BigInt(a.deadline), a.wrap, a.title, a.name],
   });
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   const pottle = POTTLE.toLowerCase();

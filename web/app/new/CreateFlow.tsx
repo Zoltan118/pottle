@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useWallet } from "@/app/providers";
 import { createPot } from "@/lib/wallet";
 import { missingEnv } from "@/lib/config";
-import type { Wrap } from "@/lib/pot";
+import { WRAPS, type Wrap } from "@/lib/pot";
 
 const UNTIL = ["friday", "sunday", "1 week", "2 weeks"] as const;
 type Until = (typeof UNTIL)[number];
@@ -42,14 +42,14 @@ export function CreateFlow() {
   const [copied, setCopied] = useState(false);
 
   const valid = [title.trim().length > 0, +goal > 0 && +goal <= 10000, !!until, true, name.trim().length > 0][step] ?? true;
-  const link = potId ? `${typeof location !== "undefined" ? location.origin : ""}/p/${potId}${wrap !== "confetti" ? `?w=${wrap}` : ""}` : "";
+  const link = potId ? `${typeof location !== "undefined" ? location.origin : ""}/p/${potId}` : "";
 
   async function create() {
     if (!w.address) return w.signIn();
     setBusy(true); setErr("");
     try {
       const c = await w.client();
-      const id = await createPot(c, { goal: +goal, deadline: deadlineFor(until!), title: title.trim(), name: name.trim().toLowerCase() });
+      const id = await createPot(c, { goal: +goal, deadline: deadlineFor(until!), wrap: WRAPS.indexOf(wrap), title: title.trim(), name: name.trim().toLowerCase() });
       setPotId(id); setStep(5);
     } catch (e) {
       setErr(e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong");

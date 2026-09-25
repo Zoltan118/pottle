@@ -34,6 +34,7 @@ contract Pottle {
     uint256 public constant MAX_TITLE = 64; // bytes
     uint256 public constant MAX_NAME = 24; // bytes
     uint256 public constant MAX_PEOPLE = 100; // per pot, bounds refundAll
+    uint8 public constant MAX_WRAP = 7;
 
     struct Pot {
         address organiser;
@@ -41,6 +42,7 @@ contract Pottle {
         bool released;
         uint128 goal;
         uint128 raised; // currently held for this pot, falls as refunds go out
+        uint8 wrap; // the look the organiser picked, 0 to MAX_WRAP
         string title;
         string organiserName;
     }
@@ -59,6 +61,7 @@ contract Pottle {
     mapping(uint256 => mapping(address => bool)) public joined;
     mapping(uint256 => mapping(address => string)) public nameOf;
     mapping(uint256 => mapping(address => uint256)) public chipped;
+    mapping(address => uint256[]) internal _potsOf; // pots someone made or joined, oldest first
 
     uint256 private locked = 1;
 
@@ -94,11 +97,12 @@ contract Pottle {
 
     // ---------------------------------------------------------------- create
 
-    function create(uint128 goal, uint64 deadline, string calldata title, string calldata organiserName)
+    function create(uint128 goal, uint64 deadline, uint8 wrap, string calldata title, string calldata organiserName)
         external
         returns (uint256 id)
     {
         if (goal == 0 || goal > MAX_GOAL) revert BadGoal();
+        if (wrap > MAX_WRAP) revert BadText();
         if (deadline <= block.timestamp || deadline > block.timestamp + MAX_DURATION) revert BadDeadline();
         _text(title, MAX_TITLE);
         _text(organiserName, MAX_NAME);
@@ -110,9 +114,11 @@ contract Pottle {
             released: false,
             goal: goal,
             raised: 0,
+            wrap: wrap,
             title: title,
             organiserName: organiserName
         });
+        _potsOf[msg.sender].push(id);
         emit PotCreated(id, msg.sender, goal, deadline, title);
     }
 
@@ -160,6 +166,7 @@ contract Pottle {
             if (_people[id].length >= MAX_PEOPLE) revert PotFull();
             joined[id][from] = true;
             _people[id].push(from);
+            if (from != p.organiser) _potsOf[from].push(id);
         }
         nameOf[id][from] = name;
         p.raised += amount;
@@ -259,6 +266,11 @@ contract Pottle {
             names[i] = nameOf[id][people[i]];
             amounts[i] = chipped[id][people[i]];
         }
+    }
+
+    /// @notice Every pot this address made or chipped into, oldest first.
+    function potsOf(address who) external view returns (uint256[] memory) {
+        return _potsOf[who];
     }
 
     function _refunding(Pot storage p) private view returns (bool) {

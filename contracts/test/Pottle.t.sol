@@ -34,7 +34,7 @@ contract PottleTest is Test {
 
     function _pot(uint128 goal) internal returns (uint256 id) {
         vm.prank(deniz);
-        id = pottle.create(goal, deadline, "sarah's gift", "deniz");
+        id = pottle.create(goal, deadline, 0, "sarah's gift", "deniz");
     }
 
     function _chip(address who, uint256 id, uint128 amt, string memory name) internal {
@@ -64,17 +64,17 @@ contract PottleTest is Test {
 
     function test_create_rejectsBadInput() public {
         vm.expectRevert(Pottle.BadGoal.selector);
-        pottle.create(0, deadline, "x", "d");
+        pottle.create(0, deadline, 0, "x", "d");
         vm.expectRevert(Pottle.BadGoal.selector);
-        pottle.create(10_000e6 + 1, deadline, "x", "d");
+        pottle.create(10_000e6 + 1, deadline, 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
-        pottle.create(1e6, uint64(block.timestamp), "x", "d");
+        pottle.create(1e6, uint64(block.timestamp), 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
-        pottle.create(1e6, uint64(block.timestamp + 91 days), "x", "d");
+        pottle.create(1e6, uint64(block.timestamp + 91 days), 0, "x", "d");
         vm.expectRevert(Pottle.BadText.selector);
-        pottle.create(1e6, deadline, "", "d");
+        pottle.create(1e6, deadline, 0, "", "d");
         vm.expectRevert(Pottle.BadText.selector);
-        pottle.create(1e6, deadline, "x", "");
+        pottle.create(1e6, deadline, 0, "x", "");
     }
 
     // ---------------------------------------------------------------- happy path
@@ -300,5 +300,37 @@ contract PottleTest is Test {
         vm.prank(mert);
         vm.expectRevert(Pottle.PotFull.selector);
         pottle.chipIn(id, 1e6, "mert");
+    }
+
+    function test_potsOf_listsMadeAndJoined() public {
+        uint256 a = _pot(200e6);
+        uint256 b = _pot(100e6);
+        _chip(mert, a, 5e6, "mert");
+        _chip(mert, a, 5e6, "mert"); // chipping twice lists the pot once
+        _chip(ayla, b, 5e6, "ayla");
+        uint256[] memory d = pottle.potsOf(deniz);
+        assertEq(d.length, 2); assertEq(d[0], a); assertEq(d[1], b);
+        uint256[] memory m = pottle.potsOf(mert);
+        assertEq(m.length, 1); assertEq(m[0], a);
+        assertEq(pottle.potsOf(ayla).length, 1);
+    }
+
+    function test_organiserChippingIn_isNotListedTwice() public {
+        uint256 a = _pot(200e6);
+        usdc.mint(deniz, 10e6);
+        vm.startPrank(deniz);
+        usdc.approve(address(pottle), 10e6);
+        pottle.chipIn(a, 10e6, "deniz");
+        vm.stopPrank();
+        assertEq(pottle.potsOf(deniz).length, 1);
+    }
+
+    function test_wrapIsStoredAndBounded() public {
+        vm.prank(deniz);
+        uint256 id = pottle.create(50e6, deadline, 2, "picnic", "deniz");
+        (Pottle.Pot memory p,,,,) = pottle.getPot(id);
+        assertEq(p.wrap, 2);
+        vm.expectRevert(Pottle.BadText.selector);
+        pottle.create(50e6, deadline, 8, "x", "d");
     }
 }
