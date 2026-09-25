@@ -82,6 +82,14 @@ a { color: inherit; }
 @keyframes coinOut { 0% { opacity: 0; transform: translateY(62cqh) scale(.85); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18cqh); } }
 @keyframes tag { 0% { opacity: 0; transform: translate(-50%, -4px); } 15%, 75% { opacity: 1; transform: translate(-50%, -14px); } 100% { opacity: 0; transform: translate(-50%, -22px); } }
 .herop { container-type: size; }
+/* empty pot: a coin hovers over the lid, asking someone to go first */
+.coin2.idle i { animation: bob 2.4s ease-in-out infinite; top: -14cqh; }
+.coin2.idle em { animation: bobTag 2.4s ease-in-out infinite; transform: translate(-50%, calc(-14px - 14cqh)); }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes bobTag { 0%, 100% { transform: translate(-50%, calc(-14px - 14cqh)); } 50% { transform: translate(-50%, calc(-22px - 14cqh)); } }
+/* goal hit: coins pop up out of the pot and fall away */
+.coin2.burst i { top: 30cqh; animation: burst 1100ms cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes burst { 0% { opacity: 0; transform: translateY(0) scale(.6); } 15% { opacity: 1; } 45% { opacity: 1; transform: translateY(-38cqh) scale(1); } 100% { opacity: 0; transform: translateY(10cqh) scale(.9); } }
 .herop svg { transition: filter 400ms ease; }
 .herop.ok svg { filter: drop-shadow(0 0 28px color-mix(in srgb, var(--mint) 55%, transparent)); }
 .heroline { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: -.01em; color: var(--muted); transition: color 200ms ease; }
@@ -202,6 +210,7 @@ a { color: inherit; }
   .hero .potstage { padding-top: 40px; } /* room for the coin's name tag above the lid */
   .hero-actions { margin-top: 28px; }
   .potpage .potbtn { width: min(220px, 56vw); }
+  .potpage .potstage { padding-top: 76px; } /* room for coin name tags above the lid */
 }
 @media (max-width: 560px) {
   .hide-sm { display: none; }

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
 import { Nav } from "@/components/Nav";
-import { PotArt } from "@/components/PotArt";
+import { PotLive, type PotFeed } from "@/components/PotLive";
 import { Sheet } from "@/components/Sheet";
 import { chipIn, settle, usdcBalance } from "@/lib/wallet";
 import { readPot, timeLeft, usd, type PotData } from "@/lib/pot";
@@ -15,9 +15,25 @@ const AMOUNTS = [5, 10, 20, 50];
 export function PotView({ initial }: { initial: PotData }) {
   const w = useWallet();
   const qc = useQueryClient();
+  const feedRef = useRef<PotFeed | null>(null);
+  const [fresh, setFresh] = useState<string | null>(null);
   const { data: pot = initial } = useQuery({
     queryKey: ["pot", initial.id],
-    queryFn: async () => (await readPot(initial.id)) ?? initial,
+    // each refresh is compared with the last one, and whatever changed is played on the pot
+    queryFn: async () => {
+      const next = (await readPot(initial.id)) ?? initial;
+      const prev = qc.getQueryData<PotData>(["pot", initial.id]);
+      if (prev && feedRef.current) {
+        const level = next.goal ? next.raised / next.goal : 0;
+        for (const p of next.people) {
+          const before = prev.people.find((q) => q.address === p.address)?.amount ?? 0;
+          if (p.amount > before) { feedRef.current.drop(`${p.name} · ${usd(p.amount - before)}`, level); setFresh(p.name); }
+        }
+        if (next.raised < prev.raised) feedRef.current.refund(level);
+        if ((next.status === "reached" || next.status === "released") && prev.status === "open") setTimeout(() => feedRef.current?.celebrate(), 500);
+      }
+      return next;
+    },
     initialData: initial,
     refetchInterval: 5_000,
   });
@@ -27,7 +43,6 @@ export function PotView({ initial }: { initial: PotData }) {
   const [amount, setAmount] = useState(20);
   const [busy, setBusy] = useState<"" | "pay" | "settle">("");
   const [err, setErr] = useState("");
-  const [fresh, setFresh] = useState<string | null>(null);
 
   const paid = pot.people;
   const missing = Math.max(0, Math.ceil((pot.goal - pot.raised) / amount));
@@ -44,7 +59,7 @@ export function PotView({ initial }: { initial: PotData }) {
       const c = await w.client();
       const nm = name.trim().toLowerCase() || "friend";
       await chipIn(c, { id: pot.id, amount, name: nm });
-      setFresh(nm); setOpen(false); setName("");
+      setOpen(false); setName("");
       refreshed();
     } catch (e) { setErr(message(e)); } finally { setBusy(""); }
   }
@@ -97,9 +112,7 @@ export function PotView({ initial }: { initial: PotData }) {
               </>)}
           <div className="err" role="alert">{!open && err}</div>
         </div>
-        <div className="potstage">
-          <div className="potbtn static"><PotArt level={pot.goal ? pot.raised / pot.goal : 0} /></div>
-        </div>
+        <PotLive people={initial.people} goal={pot.goal} level={pot.goal ? pot.raised / pot.goal : 0} status={initial.status} feedRef={feedRef} />
       </section>
       <div className="shell potfoot"><Link className="btn sm ghost" href="/new">make your own pot</Link></div>
 
