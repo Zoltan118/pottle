@@ -107,7 +107,16 @@ a { color: inherit; }
 .tipdot { width: 34px; height: 34px; flex: none; border-radius: 50%; border: 2px solid currentColor; background: transparent; font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1; display: grid; place-items: center; cursor: help; color: var(--muted); transform: translateY(-.4em); transition: transform 160ms var(--out), color 160ms ease; }
 .tipdot:active { transform: translateY(-.4em) scale(.94); }
 @media (hover: hover) and (pointer: fine) { .tipdot:hover { color: var(--ink); } }
-.foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-block: 22px; border-top: 2px solid var(--ink); font-weight: 600; font-size: 15px; }
+/* footer: brand, links, fine print. one row on wide screens, a stacked block with full-width rows on phones */
+.foot { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "brand links" "note note"; align-items: center; gap: 20px 24px; padding-block: 32px calc(32px + env(safe-area-inset-bottom, 0px)); border-top: 2px solid var(--ink); font-weight: 600; font-size: 15px; }
+.foot-brand { grid-area: brand; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.foot-tag { color: var(--muted); font-weight: 700; }
+.foot-links { grid-area: links; display: flex; gap: 8px; }
+.foot-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding-inline: 16px; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--ink); font-family: var(--display); font-weight: 800; font-size: 16px; text-decoration: none; color: var(--ink); }
+.foot-links a:first-child { background: var(--ink); color: var(--paper); }
+@media (hover: hover) and (pointer: fine) { .foot-links a:not(:first-child):hover { background: color-mix(in srgb, var(--ink) 8%, transparent); } }
+.foot-links a:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+.foot-note { grid-area: note; margin: 0; display: flex; gap: 20px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
 .tipword { border: 0; background: none; padding: 0; cursor: help; font-weight: 700; color: inherit; text-decoration: underline dotted 2px; text-underline-offset: 4px; }
 
 /* landing: safe, features, faq */
@@ -134,10 +143,16 @@ a { color: inherit; }
 .faq details p { margin: 0 0 18px; font-size: 18px; font-weight: 500; color: var(--muted); max-width: 62ch; line-height: 1.5; }
 .endcta { padding-block: 72px 80px; border-top: 2px solid var(--ink); display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
 .endcta .giant { font-size: clamp(64px, 12vw, 170px); }
-.foot-l, .foot-r { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
-.foot a { font-weight: 700; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
 @media (max-width: 860px) { .feats { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .feats { grid-template-columns: 1fr; } .feat { min-height: 170px; } .foot { flex-direction: column; align-items: flex-start; } }
+@media (max-width: 560px) {
+  .feats { grid-template-columns: 1fr; gap: 12px; }
+  .feat { min-height: 0; }
+  .feat-in { padding: 18px 20px; }
+  .foot { grid-template-columns: 1fr; grid-template-areas: "brand" "links" "note"; }
+  .foot-links { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .foot-links a { justify-content: space-between; min-height: 52px; padding-inline: 20px; font-size: 18px; }
+  .endcta .btn { width: 100%; }
+}
 
 /* tooltip */
 .tip { position: fixed; z-index: 60; max-width: 240px; background: var(--ink); color: var(--paper); font-size: 15px; font-weight: 600; line-height: 1.3; padding: 10px 14px; border-radius: 14px; pointer-events: none; opacity: 0; transform: scale(.97); transform-origin: var(--o, 50% 100%); transition: opacity 125ms var(--out), transform 125ms var(--out); }
@@ -170,9 +185,11 @@ a { color: inherit; }
 .linkbox code { flex: 1; min-width: 0; font-family: var(--display); font-weight: 800; font-size: clamp(18px, 3vw, 28px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acts { display: flex; gap: 10px; flex-wrap: wrap; }
 .acts .btn { flex: 1; }
+.acts .btn:not(.ghost) { flex-basis: 100%; }
 .qr { background: #FFFFFF; border-radius: 24px; padding: 18px; width: min(320px, 100%); justify-self: center; }
 .qr svg { display: block; width: 100%; height: auto; }
 .err { color: var(--ribbon-text); font-weight: 700; font-size: 16px; min-height: 1.4em; }
+.plate .err:empty { min-height: 0; margin-top: -22px; }
 
 /* wraps */
 .w-confetti { background-color: var(--paper); background-image: radial-gradient(circle at 20% 30%, var(--marigold) 0 5px, transparent 6px), radial-gradient(circle at 70% 70%, var(--ribbon) 0 4px, transparent 5px), radial-gradient(circle at 80% 20%, var(--mint) 0 3px, transparent 4px); background-size: 64px 64px, 52px 52px, 76px 76px; }
@@ -270,16 +287,23 @@ a { color: inherit; }
   .tipdot { width: 44px; height: 44px; }
   .tipword { padding-block: 12px; margin-block: -12px; min-width: 44px; }
   .face { width: 48px; height: 48px; }
+  .goesto { padding-block: 8px; margin-block: -16px -8px; }
+}
+/* small phones: tighten the nav so logo, switch and sign in keep their gutters */
+@media (max-width: 360px) {
+  .bar-right { gap: 6px; }
+  .logo { font-size: 24px; }
+  .bar .btn.sm { padding-inline: 14px; }
 }
 .logo { min-height: 44px; }
 /* live | test: the same app on mainnet and testnet, one tap apart */
 .netswitch { display: inline-flex; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--ink); padding: 3px; flex: none; }
-.netswitch > * { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: -.01em; border-radius: 999px; padding: 8px 12px; text-decoration: none; line-height: 1; color: var(--ink); min-height: 38px; display: inline-flex; align-items: center; }
+.netswitch > * { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: -.01em; border-radius: 999px; padding: 8px 12px; text-decoration: none; line-height: 1; color: var(--ink); min-height: 40px; display: inline-flex; align-items: center; }
 .netswitch .on { background: var(--ink); color: var(--paper); }
 @media (hover: hover) and (pointer: fine) { .netswitch a:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); } }
 .netswitch a:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
-.teststrip { background: var(--marigold); color: #231A33; display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; padding: 7px 16px; font-size: 14px; font-weight: 700; text-align: center; }
-.teststrip-go { background: #231A33; color: #F5F2FA; text-decoration: none; border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
+.teststrip { background: var(--marigold); color: #231A33; display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; padding: 4px 16px; font-size: 14px; font-weight: 700; text-align: center; }
+.teststrip-go { background: #231A33; color: #F5F2FA; text-decoration: none; border-radius: 999px; padding: 0 14px; min-height: 40px; display: inline-flex; align-items: center; white-space: nowrap; }
 .teststrip-go:focus-visible { outline: 3px solid #231A33; outline-offset: 2px; }
 @media (max-width: 400px) { .netswitch > * { padding: 7px 10px; font-size: 14px; } }
 @media (max-width: 520px) {

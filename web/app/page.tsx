@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { HeroPot } from "@/components/HeroPot";
+import { Logo } from "@/components/Mark";
 import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO } from "@/lib/config";
 
 const ONRAMP = !!process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL;
@@ -24,6 +25,7 @@ const FAQ = [
   { q: "what if the goal is hit but the money can't be paid out?", a: "it's paid out automatically, usually within minutes. if something blocks the payout for 30 days after the deadline (for example the organiser's account gets frozen), everyone can take their money back." },
   { q: "can the organiser take the money early?", a: "no. the money sits in a contract with no owner and no admin. it only goes to the organiser once the goal is hit. not even we can move it." },
   { q: "do my friends need crypto?", a: `no. they sign in with their email and get a wallet. they need usdc (or eurc for euro pots) on arc${ONRAMP ? ", which they can add by card inside pottle" : ""}.` },
+  ...(ONRAMP ? [{ q: "can i pay by card?", a: "yes. if you don't have usdc yet, tap add money and buy it by card, apple pay or google pay, without leaving pottle. it's circle's onramp, so circle checks your id and the usdc lands straight in your own wallet." }] : []),
   { q: "what are usdc and eurc?", a: "digital dollars and euros issued by circle. one usdc is always worth one dollar, one eurc one euro." },
   { q: "what is arc?", a: "circle's blockchain for money. payments land in about half a second and fees are paid in usdc, so there's nothing else to buy first." },
   { q: "is it safe?", a: "the contract is open source and tested, and it can only send money to the organiser or back to whoever paid. there's been no third-party audit yet, so during beta a pot on the live site holds at most $100 (or €100)." },
@@ -96,19 +98,21 @@ export default function Home() {
       </section>
 
       <footer className="shell foot">
-        <span className="foot-l">
-          <span>pottle</span>
-          <a href={REPO} target="_blank" rel="noreferrer">github</a>
-          {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract</a>}
-        </span>
-        <span className="foot-r">
+        <div className="foot-brand">
+          <Logo />
+          <span className="foot-tag">chip in, or get it back.</span>
+        </div>
+        <nav className="foot-links" aria-label="links">
+          {OTHER_SITE && <a href={OTHER_SITE}>{NETWORK === "mainnet" ? "try it free" : "go live"}<span aria-hidden="true">↗</span></a>}
+          <a href={REPO} target="_blank" rel="noreferrer">github<span aria-hidden="true">↗</span></a>
+          {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<span aria-hidden="true">↗</span></a>}
+        </nav>
+        <p className="foot-note">
           {NETWORK === "mainnet"
-            ? <span className="tipword" tabIndex={0} data-tip="no third-party audit yet, so during beta each pot holds at most $100 or €100.">beta · no third-party audit</span>
-            : <span className="tipword" tabIndex={0} data-tip="arc testnet. test dollars, nothing costs anything.">test mode</span>}
-          {NETWORK !== "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>go live ↗</a>}
-          {NETWORK === "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>try it free ↗</a>}
+            ? <button className="tipword" data-tip="no third-party audit yet, so during beta each pot holds at most $100 or €100.">beta · no third-party audit</button>
+            : <button className="tipword" data-tip="arc testnet. test dollars, nothing costs anything.">test mode</button>}
           <button className="tipword" data-tip="payments land in half a second and cost about a tenth of a cent. nobody can take a pot early, not even us.">usdc on arc</button>
-        </span>
+        </p>
       </footer>
     </main>
   );
