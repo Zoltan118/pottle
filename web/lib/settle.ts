@@ -3,7 +3,8 @@ import { createWalletClient, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { pottleAbi } from "./abi";
 import { chain, POTTLE } from "./config";
-import { publicClient } from "./pot";
+import { PAYOUT_GRACE, publicClient } from "./pot";
+import { withNonceRetry } from "./retry";
 
 // pays pots out and refunds them without anyone pressing a button. the relayer only pays the
 // network fee; the contract decides where the money goes, so this can never send it anywhere else.
@@ -23,10 +24,20 @@ export async function settlePot(id: number): Promise<"released" | "refunded" | "
   if (!r || !POTTLE) return "nothing";
   const [pot, status] = await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "getPot", args: [BigInt(id)] });
   const s = STATUS[Number(status)];
-  const fn = s === "reached" ? "release" : s === "refunding" && pot.raised > 0n ? "refundAll" : null;
+  let fn: "release" | "refundAll" | null = s === "reached" ? "release" : s === "refunding" && pot.raised > 0n ? "refundAll" : null;
   if (!fn) return "nothing";
-  const { request } = await publicClient.simulateContract({ account: r.account, address: POTTLE, abi: pottleAbi, functionName: fn, args: [BigInt(id)] });
-  const hash = await r.wallet.writeContract(request);
+  let request;
+  try {
+    ({ request } = await publicClient.simulateContract({ account: r.account, address: POTTLE, abi: pottleAbi, functionName: fn, args: [BigInt(id)] }));
+  } catch (e) {
+    // a pot that hit its goal but cannot pay out (for example a blocklisted organiser) becomes
+    // refundable 30 days after its deadline. then refund everyone instead
+    const stuck = fn === "release" && Date.now() / 1000 >= Number(pot.deadline) + PAYOUT_GRACE;
+    if (!stuck) throw e;
+    fn = "refundAll";
+    ({ request } = await publicClient.simulateContract({ account: r.account, address: POTTLE, abi: pottleAbi, functionName: fn, args: [BigInt(id)] }));
+  }
+  const hash = await withNonceRetry(() => r.wallet.writeContract(request));
   await publicClient.waitForTransactionReceipt({ hash });
   return fn === "release" ? "released" : "refunded";
 }

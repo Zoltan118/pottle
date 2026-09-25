@@ -22,8 +22,8 @@ export type PotData = {
   people: Person[];
 };
 
-export const toUsd = (v: bigint) => Number(v) / 1e6;
-export const fromUsd = (d: number) => BigInt(Math.round(d * 1e6));
+/** token units (6 decimals) to a plain number of dollars or euros */
+const toUsd = (v: bigint) => Number(v) / 1e6;
 /** "$20", "€12.50" */
 export const money = (d: number, c: Currency = "usd") =>
   TOKEN[c].symbol + (Number.isInteger(d) ? d.toString() : d.toFixed(2));
@@ -66,6 +66,12 @@ export async function readPotsOf(address: Address, limit = 20): Promise<PotData[
 }
 
 export const potPath = (id: number) => `/p/${id}`;
+
+/** the contract's PAYOUT_GRACE: a pot that hit its goal but still hasn't paid out this long after its
+ * deadline becomes refundable. computed here so older contracts without it keep working */
+export const PAYOUT_GRACE = 30 * 86400;
+export const payoutStuck = (p: Pick<PotData, "status" | "deadline">, now = Date.now() / 1000) =>
+  p.status === "reached" && now >= p.deadline + PAYOUT_GRACE;
 
 /** "2 days left", "5 hours left", "ended" */
 export function timeLeft(deadline: number, now = Date.now() / 1000) {

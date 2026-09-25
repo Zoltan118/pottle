@@ -36,6 +36,10 @@ contract Pottle {
     uint256 public constant MAX_NAME = 24; // bytes
     uint256 public constant MAX_PEOPLE = 100; // per pot, bounds refundAll
     uint8 public constant MAX_WRAP = 7;
+    /// @notice if a pot hit its goal but still has not paid out this long after its deadline (for
+    /// example because the organiser's address was blocklisted by the token issuer), contributors may
+    /// take their money back. long enough to outlast a temporary freeze that gets reviewed and lifted.
+    uint256 public constant PAYOUT_GRACE = 30 days;
 
     struct Pot {
         address organiser;
@@ -94,6 +98,7 @@ contract Pottle {
     }
 
     constructor(IFiatToken _usdc, IFiatToken _eurc) {
+        require(address(_usdc) != address(0) && address(_eurc) != address(0), "token address");
         usdc = _usdc;
         eurc = _eurc;
     }
@@ -107,6 +112,7 @@ contract Pottle {
 
     function create(uint128 goal, uint64 deadline, uint8 wrap, uint8 currency, string calldata title, string calldata organiserName)
         external
+        nonReentrant
         returns (uint256 id)
     {
         if (goal == 0 || goal > MAX_GOAL) revert BadGoal();
@@ -230,7 +236,7 @@ contract Pottle {
 
             chipped[id][to] = 0;
             p.raised -= uint128(amount);
-            bool ok;
+            bool ok = false;
             try token.transfer(to, amount) returns (bool sent) {
                 ok = sent;
             } catch {}
@@ -283,8 +289,17 @@ contract Pottle {
         return _potsOf[who];
     }
 
+    /// @dev refunds open when the deadline passes below the goal, or when a pot that hit its goal has
+    /// still not paid out PAYOUT_GRACE after its deadline. release stays possible until refunds take the
+    /// pot back below its goal.
     function _refunding(Pot storage p) private view returns (bool) {
-        return p.organiser != address(0) && !p.released && p.raised < p.goal && block.timestamp >= p.deadline;
+        if (p.organiser == address(0) || p.released || block.timestamp < p.deadline) return false;
+        return p.raised < p.goal || block.timestamp >= uint256(p.deadline) + PAYOUT_GRACE;
+    }
+
+    /// @notice true when contributors can take their money back from this pot right now.
+    function refundable(uint256 id) external view returns (bool) {
+        return _refunding(_pots[id]);
     }
 
     function _text(string calldata s, uint256 max) private pure {

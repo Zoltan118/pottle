@@ -12,3 +12,8 @@ runs = 1000
 
 [rpc_endpoints]
 arc = "${ARC_RPC_URL}"
+
+[invariant]
+runs = 256
+depth = 60
+fail_on_revert = false

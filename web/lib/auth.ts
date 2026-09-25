@@ -1,23 +1,13 @@
 import "server-only";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { DYNAMIC_ENV } from "./config";
-import { circleWallet } from "./circle";
 
-// who is calling? either a dynamic session token ("Bearer <jwt>") or a circle user token
-// ("Circle <userToken>"). returns the user id and the wallets that belong to them, or null.
+// who is calling? checks the dynamic session token ("Bearer <jwt>") against dynamic's published keys.
+// returns the user id and the wallets on that token, or null.
 const jwks = DYNAMIC_ENV ? createRemoteJWKSet(new URL(`https://app.dynamicauth.com/api/v0/sdk/${DYNAMIC_ENV}/.well-known/jwks`)) : null;
 
 export async function verifyUser(req: Request): Promise<{ sub: string; wallets: string[] } | null> {
-  const h = req.headers.get("authorization") ?? "";
-  if (h.startsWith("Circle ")) {
-    try {
-      const w = await circleWallet(h.slice(7));
-      return w && w.userId ? { sub: w.userId, wallets: [w.address.toLowerCase()] } : null;
-    } catch {
-      return null;
-    }
-  }
-  const token = h.replace(/^Bearer /, "");
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer /, "");
   if (!token || !jwks) return null;
   try {
     const { payload } = await jwtVerify(token, jwks, { algorithms: ["RS256"] });
@@ -29,6 +19,3 @@ export async function verifyUser(req: Request): Promise<{ sub: string; wallets: 
     return null;
   }
 }
-
-/** kept for older imports */
-export const verifyDynamicToken = verifyUser;

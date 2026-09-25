@@ -42,8 +42,10 @@ itself out when its page is opened. 15 checks. it needs a funded testnet key in 
 ## the code worth reading
 
 - [`contracts/src/Pottle.sol`](contracts/src/Pottle.sol): the whole contract, about 300 lines
-- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 25 tests, including fuzzing and
-  signature binding
+- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 34 tests, including fuzzing and
+  signature binding, and [`PottleInvariant.t.sol`](contracts/test/PottleInvariant.t.sol) for random
+  sequences
+- [`AUDIT.md`](AUDIT.md): our own security review
 - [`web/lib/wallet.ts`](web/lib/wallet.ts): signing a chip-in for the pot's own token
 - [`web/app/api/relay/route.ts`](web/app/api/relay/route.ts): the sponsor, and how it refuses to be
   drained

@@ -12,7 +12,7 @@ export type WalletApi = {
   signIn: () => void;
   signOut: () => void;
   client: () => Promise<WalletClient<Transport, Chain, Account>>;
-  authHeader: () => string; // proves who the user is to our own api: "Bearer <dynamic jwt>" or "Circle <userToken>"
+  authHeader: () => string; // "Bearer <dynamic session token>", proves who the user is to our own api
 };
 
 // the dynamic sdk only runs in the browser. it publishes into this store, the app reads from it,
@@ -20,7 +20,7 @@ export type WalletApi = {
 const initial: WalletApi = {
   on: WALLETS_ON,
   ready: !WALLETS_ON,
-  signIn: () => console.warn("[pottle] sign-in not ready" + (WALLETS_ON ? "" : ", no wallet provider configured")),
+  signIn: () => console.warn("[pottle] sign-in not ready" + (WALLETS_ON ? "" : ", set NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID")),
   signOut: () => {},
   client: async () => { throw new Error("sign-in is not ready"); },
   authHeader: () => "",

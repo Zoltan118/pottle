@@ -95,7 +95,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
         {!!eur.data && eur.data > 0 && <div className="acct-bal2">{eurMoney(eur.data)}<small>eurc on arc</small></div>}
 
         {ONRAMP_ON
-          ? <AddMoney onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
+          ? <AddMoney active={open} onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
           : NETWORK === "testnet" && (
               <p className="hint acct-note">
                 {drip.error ? `${drip.error.message}. test usdc: faucet.circle.com` : "testnet. new wallets get $10 of test usdc"}

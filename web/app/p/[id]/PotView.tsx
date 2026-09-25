@@ -9,7 +9,8 @@ import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
 import { Sheet } from "@/components/Sheet";
 import { balanceOf, chipIn, settle } from "@/lib/wallet";
-import { money, readPot, timeLeft, type PotData } from "@/lib/pot";
+import { money, payoutStuck, readPot, timeLeft, type PotData } from "@/lib/pot";
+import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
 import { NETWORK, TOKEN } from "@/lib/config";
 
 const AMOUNTS = [5, 10, 20, 50];
@@ -64,7 +65,7 @@ export function PotView({ initial }: { initial: PotData }) {
         throw new Error(`you have ${m(Math.floor(bal * 100) / 100)}, ${m(amount)} needed.${ONRAMP_ON ? "" : ` add ${TOKEN[pot.currency].name.toLowerCase()} on arc to chip in.`}`);
       }
       const c = await w.client();
-      const nm = name.trim().toLowerCase() || "friend";
+      const nm = fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) || "friend";
       await chipIn(c, { id: pot.id, amount, name: nm, currency: pot.currency });
       setOpen(false); setName("");
       refreshed();
@@ -127,6 +128,10 @@ export function PotView({ initial }: { initial: PotData }) {
             <>
               <p className="state ok">goal hit.</p>
               <button className="btn lg wide" onClick={() => doSettle("release")} disabled={!!busy}>{busy ? "sending…" : `send it to ${pot.organiserName}`}</button>
+              {payoutStuck(pot) && (
+                <button className="btn sm ghost" onClick={() => doSettle("refund")} disabled={!!busy}
+                  data-tip="this pot couldn't pay out for 30 days after its deadline, so everyone can take their money back.">payout stuck? refund everyone</button>
+              )}
             </>
           )}
           {pot.status === "released" && <p className="state ok">it&apos;s on. {m(pot.raised)} went to {pot.organiserName}.</p>}
@@ -155,7 +160,7 @@ export function PotView({ initial }: { initial: PotData }) {
 
       <Sheet open={open} onClose={() => { setOpen(false); setErr(""); setShort(0); }} label="chip in">
         <h2 className="giant">you&apos;re in?</h2>
-        <input className="bigin" placeholder="your name" maxLength={24} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
+        <input className="bigin" placeholder="your name" value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
           {AMOUNTS.map((a) => <button key={a} className="chip" aria-pressed={amount === a} onClick={() => setAmount(a)}>{m(a)}</button>)}
         </div>

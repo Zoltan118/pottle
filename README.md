@@ -25,7 +25,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 
 | | |
 | --- | --- |
-| **all or nothing** | the pot releases to the organiser only once the goal is hit. past the deadline below the goal, everyone is refunded to the cent |
+| **all or nothing** | the pot releases to the organiser only once the goal is hit. past the deadline below the goal, everyone is refunded to the cent. if a finished pot still cannot pay out 30 days after its deadline, everyone can take their money back |
 | **nobody can take it early** | one immutable contract holds every pot. no owner, no admin, no upgrade path, no fee |
 | **one signature to chip in** | friends sign one message (eip-3009) and pottle pays the network fee. no approve step, no gas to buy |
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
@@ -73,7 +73,7 @@ create(goal, deadline,        |                                     |
 ## repo
 
 ```
-contracts/   foundry. src/Pottle.sol, 25 tests including fuzzing, deploy script
+contracts/   foundry. src/Pottle.sol, 34 tests, invariant tests, deploy script
 web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id]
   app/api/relay         sponsors chip-ins, payouts and refunds (simulated first, rate limited)
   app/api/cron/settle   pays out and refunds every due pot, called by the scheduled job
@@ -99,9 +99,13 @@ is missing instead of failing quietly.
 
 ## tests
 
-- **25 contract tests** (`forge test`): payout, overfunding, refunds, blocked addresses, the 100
-  person cap, euro pots, and signature binding (a signature for one pot, name, amount or currency
-  cannot be replayed on another). money conservation is fuzzed over 1,000 runs
+- **34 contract tests** (`forge test`): payout, overfunding, refunds, blocked addresses, the 30 day
+  payout grace, the 100 person cap, euro pots, a hostile re-entering token, and signature binding (a
+  signature for one pot, name, amount or currency cannot be replayed on another). money conservation
+  is fuzzed over 1,000 runs
+- **invariant testing**: 15,360 random calls across four people and both currencies; after every
+  step the contract holds exactly what it owes. **100% line, statement, branch and function coverage**
+- **slither** static analysis: no exploitable findings. details in [`AUDIT.md`](AUDIT.md)
 - **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 15 checks with real usdc,
   through the running app. one-signature chip-in with a sponsored fee, a classic approve and chip-in,
   payout, refund after the deadline, the per-person pot lists, the scheduled job paying out a pot

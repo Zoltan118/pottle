@@ -11,6 +11,7 @@ contract MockUSDC {
     mapping(address => mapping(address => uint256)) public allowance;
     mapping(address => bool) public blocked;
     mapping(address => mapping(bytes32 => bool)) public authorizationState;
+    bool public returnFalse; // behave like a token that reports failure instead of reverting
 
     bytes32 public constant RECEIVE_WITH_AUTHORIZATION_TYPEHASH = keccak256(
         "ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
@@ -32,6 +33,7 @@ contract MockUSDC {
 
     function mint(address to, uint256 v) external { balanceOf[to] += v; }
     function setBlocked(address a, bool b) external { blocked[a] = b; }
+    function setReturnFalse(bool b) external { returnFalse = b; }
 
     function approve(address s, uint256 v) external returns (bool) {
         allowance[msg.sender][s] = v;
@@ -39,11 +41,13 @@ contract MockUSDC {
     }
 
     function transfer(address to, uint256 v) external returns (bool) {
+        if (returnFalse) return false;
         _move(msg.sender, to, v);
         return true;
     }
 
     function transferFrom(address from, address to, uint256 v) external returns (bool) {
+        if (returnFalse) return false;
         require(allowance[from][msg.sender] >= v, "allowance");
         allowance[from][msg.sender] -= v;
         _move(from, to, v);

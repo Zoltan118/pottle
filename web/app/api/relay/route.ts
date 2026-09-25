@@ -5,6 +5,7 @@ import { pottleAbi } from "@/lib/abi";
 import { chain, POTTLE, TOKEN } from "@/lib/config";
 import { erc20Abi } from "@/lib/abi";
 import { allow, clientIp } from "@/lib/limits";
+import { withNonceRetry } from "@/lib/retry";
 import { publicClient } from "@/lib/pot";
 
 // pays the network fee so a friend only has to sign. every call is simulated first, so the
@@ -66,12 +67,12 @@ export async function POST(req: Request) {
         account, address: POTTLE, abi: pottleAbi, functionName: "chipInWithAuthorization",
         args: [id, body.from as Address, BigInt(body.amount), body.name, BigInt(0), BigInt(body.validBefore), body.salt as Hex, body.v, body.r as Hex, body.s as Hex],
       });
-      hash = await wallet.writeContract(request);
+      hash = await withNonceRetry(() => wallet.writeContract(request));
     } else if (body.kind === "release" || body.kind === "refund") {
       const { request } = await publicClient.simulateContract({
         account, address: POTTLE, abi: pottleAbi, functionName: body.kind === "release" ? "release" : "refundAll", args: [id],
       });
-      hash = await wallet.writeContract(request);
+      hash = await withNonceRetry(() => wallet.writeContract(request));
     } else {
       return NextResponse.json({ error: "unknown kind" }, { status: 400 });
     }

@@ -6,6 +6,7 @@ import { useWallet } from "@/app/providers";
 import { createPot } from "@/lib/wallet";
 import { missingEnv, TOKEN, type Currency } from "@/lib/config";
 import { WRAPS, type Wrap } from "@/lib/pot";
+import { fitBytes, MAX_NAME_BYTES, MAX_TITLE_BYTES } from "@/lib/text";
 
 const UNTIL = ["friday", "sunday", "1 week", "2 weeks"] as const;
 type Until = (typeof UNTIL)[number];
@@ -51,7 +52,7 @@ export function CreateFlow() {
     setBusy(true); setErr("");
     try {
       const c = await w.client();
-      const id = await createPot(c, { goal: +goal, deadline: deadlineFor(until!), wrap: WRAPS.indexOf(wrap), currency, title: title.trim(), name: name.trim().toLowerCase() });
+      const id = await createPot(c, { goal: +goal, deadline: deadlineFor(until!), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
       setPotId(id); setStep(5);
     } catch (e) {
       setErr(e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong");
@@ -82,7 +83,7 @@ export function CreateFlow() {
       {step === 0 && (
         <section className="flow">
           <h1 className="giant q">for?</h1>
-          <input className="bigin" placeholder="sarah's gift" maxLength={40} autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="what the pot is for" enterKeyHint="next" />
+          <input className="bigin" placeholder="sarah's gift" autoFocus value={title} onChange={(e) => setTitle(fitBytes(e.target.value, MAX_TITLE_BYTES))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="what the pot is for" enterKeyHint="next" />
           <div className="chips">{["birthday", "leaving gift", "trip", "dinner"].map((t) => <button key={t} className="chip" onClick={() => setTitle(t)}>{t}</button>)}</div>
         </section>
       )}
@@ -120,7 +121,7 @@ export function CreateFlow() {
       {step === 4 && (
         <section className="flow">
           <h1 className="giant q">you?</h1>
-          <input className="bigin" placeholder="your name" maxLength={24} autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
+          <input className="bigin" placeholder="your name" autoFocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
           {missingEnv.length > 0 && <div className="notice">setup needed: <code>{missingEnv.join(", ")}</code> in <code>.env.local</code></div>}
           <div className="err" role="alert">{err}</div>
         </section>

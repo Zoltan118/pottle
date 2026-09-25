@@ -5,6 +5,7 @@
 ## what it is
 - group collections for gifts and shared costs: birthdays, leaving gifts, trips, dinners
 - all-or-nothing: the money is held by a smart contract until the goal is hit or the deadline passes
+- if a pot hit its goal but still could not pay out 30 days after its deadline (for example a frozen organiser account), everyone can take their money back
 - nobody can take a pot early, including the organiser and the people who built pottle. the contract has no owner, no admin and no fee
 - friends sign in with their email; pottle pays the network fee for payments of $1 or more, so they only sign once
 - pots can be in dollars (usdc) or euros (eurc)

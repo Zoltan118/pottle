@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { settleDue } from "@/lib/settle";
 
@@ -11,7 +12,9 @@ export async function GET(req: Request) {
     console.warn("[pottle] settle job off, missing: CRON_SECRET");
     return NextResponse.json({ error: "settle job off" }, { status: 503 });
   }
-  if (req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const given = Buffer.from(req.headers.get("authorization") ?? "");
+  const want = Buffer.from(`Bearer ${secret}`);
+  if (given.length !== want.length || !timingSafeEqual(given, want)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const result = await settleDue();
   if (result.off) return NextResponse.json({ error: "relay off" }, { status: 503 });
   return NextResponse.json(result);

@@ -384,4 +384,138 @@ contract PottleTest is Test {
         vm.expectRevert(Pottle.BadText.selector);
         pottle.create(1e6, deadline, 0, 2, "x", "d");
     }
+
+    // ---------------------------------------------------------------- a pot that cannot pay out
+
+    function _stuckPot() internal returns (uint256 id) {
+        id = _pot(40e6);
+        _chip(mert, id, 20e6, "mert");
+        _chip(ayla, id, 20e6, "ayla");
+        usdc.setBlocked(deniz, true); // the organiser gets blocklisted after the goal is hit
+        vm.expectRevert(bytes("blocked"));
+        pottle.release(id);
+    }
+
+    function test_stuckPot_noRefundsBeforeTheGracePeriod() public {
+        uint256 id = _stuckPot();
+        vm.warp(deadline + 30 days - 1);
+        assertFalse(pottle.refundable(id));
+        vm.expectRevert(Pottle.NotRefunding.selector);
+        pottle.refundAll(id);
+        vm.prank(mert);
+        vm.expectRevert(Pottle.NotRefunding.selector);
+        pottle.claimRefund(id);
+    }
+
+    function test_stuckPot_refundsEveryone30DaysAfterTheDeadline() public {
+        uint256 id = _stuckPot();
+        vm.warp(deadline + 30 days);
+        assertTrue(pottle.refundable(id));
+        pottle.refundAll(id);
+        assertEq(usdc.balanceOf(mert), 1_000e6);
+        assertEq(usdc.balanceOf(ayla), 1_000e6);
+        assertEq(usdc.balanceOf(address(pottle)), 0);
+    }
+
+    function test_stuckPot_eachPersonCanClaimAfterTheGracePeriod() public {
+        uint256 id = _stuckPot();
+        vm.warp(deadline + 31 days);
+        vm.prank(mert);
+        pottle.claimRefund(id);
+        assertEq(usdc.balanceOf(mert), 1_000e6);
+        // once someone has taken money back, the pot is below its goal and can no longer pay out
+        usdc.setBlocked(deniz, false);
+        vm.expectRevert(Pottle.GoalNotReached.selector);
+        pottle.release(id);
+        pottle.refundAll(id);
+        assertEq(usdc.balanceOf(ayla), 1_000e6);
+    }
+
+    function test_stuckPot_organiserStillPaidIfUnfrozenBeforeAnyRefund() public {
+        uint256 id = _stuckPot();
+        vm.warp(deadline + 45 days);
+        usdc.setBlocked(deniz, false); // the freeze was a mistake and got lifted
+        pottle.release(id);
+        assertEq(usdc.balanceOf(deniz), 40e6);
+        assertFalse(pottle.refundable(id));
+    }
+
+    function test_healthyPot_graceNeverOpensRefundsAfterPayout() public {
+        uint256 id = _pot(20e6);
+        _chip(mert, id, 20e6, "mert");
+        pottle.release(id);
+        vm.warp(deadline + 60 days);
+        assertFalse(pottle.refundable(id));
+        vm.prank(mert);
+        vm.expectRevert(Pottle.NotRefunding.selector);
+        pottle.claimRefund(id);
+    }
+
+    // ---------------------------------------------------------------- guards that should never fire
+
+    function test_constructorRejectsZeroTokens() public {
+        vm.expectRevert(bytes("token address"));
+        new Pottle(IFiatToken(address(0)), IFiatToken(address(eurc)));
+        vm.expectRevert(bytes("token address"));
+        new Pottle(IFiatToken(address(usdc)), IFiatToken(address(0)));
+    }
+
+    function test_unknownPot() public {
+        assertEq(uint256(pottle.statusOf(42)), uint256(Pottle.Status.None));
+        vm.expectRevert(Pottle.NoSuchPot.selector);
+        pottle.release(42);
+        assertFalse(pottle.refundable(42));
+    }
+
+    function test_tokenThatReturnsFalse_neverCountsAsPaid() public {
+        uint256 id = _pot(40e6);
+        usdc.setReturnFalse(true);
+        vm.prank(mert);
+        vm.expectRevert(Pottle.TransferFailed.selector);
+        pottle.chipIn(id, 20e6, "mert");
+        (Pottle.Pot memory p,,,,) = pottle.getPot(id);
+        assertEq(p.raised, 0); // nothing recorded for a transfer that didn't happen
+
+        usdc.setReturnFalse(false);
+        _chip(mert, id, 40e6, "mert");
+        usdc.setReturnFalse(true);
+        vm.expectRevert(Pottle.TransferFailed.selector);
+        pottle.release(id);
+        assertEq(uint256(pottle.statusOf(id)), uint256(Pottle.Status.Reached)); // still owed, still releasable
+
+        uint256 id2 = _pot(100e6);
+        usdc.setReturnFalse(false);
+        _chip(ayla, id2, 20e6, "ayla");
+        vm.warp(deadline);
+        usdc.setReturnFalse(true);
+        vm.prank(ayla);
+        vm.expectRevert(Pottle.TransferFailed.selector);
+        pottle.claimRefund(id2);
+        assertEq(pottle.chipped(id2, ayla), 20e6); // still claimable
+    }
+
+    function test_reentrancyIsBlocked() public {
+        ReentrantToken bad = new ReentrantToken();
+        Pottle p2 = new Pottle(IFiatToken(address(bad)), IFiatToken(address(eurc)));
+        bad.setTarget(p2);
+        vm.prank(deniz);
+        uint256 id = p2.create(100e6, deadline, 0, 0, "x", "deniz");
+        bad.setPot(id);
+        vm.expectRevert(Pottle.Reentrancy.selector);
+        p2.chipIn(id, 10e6, "mert");
+    }
+}
+
+/// a hostile token that tries to call back into pottle while being transferred
+contract ReentrantToken {
+    Pottle target;
+    uint256 pot;
+    function setTarget(Pottle t) external { target = t; }
+    function setPot(uint256 id) external { pot = id; }
+    function transferFrom(address, address, uint256) external returns (bool) {
+        target.chipIn(pot, 1e6, "again"); // must revert with Reentrancy
+        return true;
+    }
+    function transfer(address, uint256) external pure returns (bool) { return true; }
+    function receiveWithAuthorization(address, address, uint256, uint256, uint256, bytes32, uint8, bytes32, bytes32) external {}
 }

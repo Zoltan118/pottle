@@ -19,24 +19,19 @@ export const TOKEN: Record<Currency, { address: Address; name: "USDC" | "EURC"; 
 
 export const POTTLE = (process.env.NEXT_PUBLIC_POTTLE_ADDRESS || undefined) as Address | undefined;
 export const DYNAMIC_ENV = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID || undefined;
-export const CIRCLE_APP_ID = process.env.NEXT_PUBLIC_CIRCLE_APP_ID || undefined;
-/** which wallet sign-in the app uses: circle (email wallets) or dynamic. defaults to dynamic */
-export const WALLET_PROVIDER: "circle" | "dynamic" = process.env.NEXT_PUBLIC_WALLET_PROVIDER === "circle" ? "circle" : "dynamic";
-// with circle, the app id may also live server side (CIRCLE_APP_ID or NEXT_CIRCLE_APP_ID); the browser
-// then fetches it from /api/circle. so choosing circle is enough to switch sign-in on
-export const WALLETS_ON = WALLET_PROVIDER === "circle" ? true : !!DYNAMIC_ENV;
+/** email sign-in (dynamic embedded wallets) is on when its environment id is set */
+export const WALLETS_ON = !!DYNAMIC_ENV;
 
 /** names of required env vars that are not set, so the ui can say what is off instead of failing quietly */
 export const missingEnv = [
   !POTTLE && "NEXT_PUBLIC_POTTLE_ADDRESS",
-  WALLET_PROVIDER === "dynamic" && !DYNAMIC_ENV && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID",
+  !DYNAMIC_ENV && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID",
 ].filter(Boolean) as string[];
 
 if (missingEnv.length) console.warn(`[pottle] missing env: ${missingEnv.join(", ")}`);
 
 // arc's own explorers, the ones its docs link to
-export const EXPLORER = NETWORK === "mainnet" ? "https://explorer.arc.io" : "https://explorer.testnet.arc.io";
-export const explorerTx = (hash: string) => `${EXPLORER}/tx/${hash}`;
+const EXPLORER = NETWORK === "mainnet" ? "https://explorer.arc.io" : "https://explorer.testnet.arc.io";
 export const explorerAddress = (a: string) => `${EXPLORER}/address/${a}`;
 
 export const REPO = "https://github.com/Zoltan118/pottle";

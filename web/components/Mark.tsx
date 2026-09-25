@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /** the pottle mark: lid bar, round body, marigold money at 70% */
-export function Mark() {
+function Mark() {
   return (
     <svg viewBox="0 0 96 96" aria-hidden="true">
       <defs><clipPath id="mark-inner"><circle cx="48" cy="57" r="23" /></clipPath></defs>

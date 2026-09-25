@@ -50,10 +50,11 @@ function describe(e: Envelope, cur: Currency): { text: string; done?: boolean; o
  * the "add money" button. it prepares a one-time session as soon as it is on screen, so the tap can
  * open circle's popup instantly (browsers block popups opened after a wait).
  */
-export function AddMoney({ currency = "usd", amount, label = "add money", onDone }: {
+export function AddMoney({ currency = "usd", amount, label = "add money", active = true, onDone }: {
   currency?: Currency;
   amount?: number; // prefill the widget, e.g. what someone is short by
   label?: string;
+  active?: boolean; // only prepare a session while the button is actually on screen
   onDone: () => void;
 }) {
   const w = useWallet();
@@ -66,9 +67,10 @@ export function AddMoney({ currency = "usd", amount, label = "add money", onDone
   const key = ["onramp", w.address, currency, amount ?? null];
   const prep = useQuery({
     queryKey: key,
-    enabled: !!w.address && !!w.userId,
+    enabled: active && !!w.address && !!w.userId,
     staleTime: 4 * 60_000, // sessions are short-lived and single use; mint a new one well before expiry
-    retry: 1,
+    refetchOnWindowFocus: false,
+    retry: false,
     queryFn: async () => {
       const { kit, fetchOnrampSession } = await loadKit();
       const session = await fetchOnrampSession({

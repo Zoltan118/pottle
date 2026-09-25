@@ -19,6 +19,7 @@ const FEATURES = [
 const FAQ = [
   { q: "what does it cost?", a: "nothing from us, there are no fees. each payment has an arc network fee of about a tenth of a cent, and pottle usually pays it for you." },
   { q: "what if the goal isn't hit?", a: "when the deadline passes, everyone gets back exactly what they put in. it happens automatically, nobody has to ask." },
+  { q: "what if the goal is hit but the money can't be paid out?", a: "it's paid out automatically, usually within minutes. if something blocks the payout for 30 days after the deadline (for example the organiser's account gets frozen), everyone can take their money back." },
   { q: "can the organiser take the money early?", a: "no. the money sits in a contract with no owner and no admin. it only goes to the organiser once the goal is hit. not even we can move it." },
   { q: "do my friends need crypto?", a: `no. they sign in with their email and get a wallet. they need usdc (or eurc for euro pots) on arc${ONRAMP ? ", which they can add by card inside pottle" : ""}.` },
   { q: "what are usdc and eurc?", a: "digital dollars and euros issued by circle. one usdc is always worth one dollar, one eurc one euro." },

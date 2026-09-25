@@ -7,8 +7,8 @@ import { chain, EURC, NETWORK, USDC, WALLETS_ON } from "@/lib/config";
 import { publicClient } from "@/lib/pot";
 
 // testnet only: sends a little usdc to a freshly signed-in wallet so nobody has to find a faucet.
-// the caller must prove who they are (a dynamic session token or a circle user token), and the wallet
-// must be one of theirs. wallets that already hold $1 or more get nothing.
+// the caller must prove who they are with their dynamic session token, and the wallet must be one of
+// the wallets on that token. wallets that already hold $1 or more get nothing.
 
 const DRIP = 10_000_000n; // $10, usdc has 6 decimals
 const HAS_ENOUGH = 1_000_000n; // $1
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (NETWORK !== "testnet") return NextResponse.json({ error: "testnet only" }, { status: 404 });
   const key = process.env.RELAYER_PRIVATE_KEY;
   if (!key || !WALLETS_ON) {
-    console.warn(`[pottle] drip off, missing: ${[!key && "RELAYER_PRIVATE_KEY", !WALLETS_ON && "a wallet provider (NEXT_PUBLIC_WALLET_PROVIDER + its key)"].filter(Boolean).join(", ")}`);
+    console.warn(`[pottle] drip off, missing: ${[!key && "RELAYER_PRIVATE_KEY", !WALLETS_ON && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID"].filter(Boolean).join(", ")}`);
     return NextResponse.json({ error: "drip off" }, { status: 503 });
   }
 
@@ -52,8 +52,8 @@ export async function POST(req: Request) {
   }
 
   const wallet = createWalletClient({ account, chain, transport: http() });
+  recent.set(sub, Date.now()); // before sending, so two requests at the same instant cannot both be paid
   const hash = await wallet.writeContract({ address: USDC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
-  recent.set(sub, Date.now());
   await publicClient.waitForTransactionReceipt({ hash });
 
   // euro pots need eurc. send €10 too when the relayer has some to spare (refill it at faucet.circle.com)
