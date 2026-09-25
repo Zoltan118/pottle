@@ -1,6 +1,8 @@
-# pays out and refunds due pots every 30 minutes, for pots nobody happens to open.
-# every 30 minutes stays inside the 2,000 free actions minutes a private repo gets (runs round up to 1 minute).
-# needs two repository secrets: APP_URL (e.g. https://pottle-1.vercel.app) and CRON_SECRET (same value as on vercel)
+# pays out and refunds due pots every 10 minutes, for pots nobody happens to open.
+# runs against both sites. repository secrets:
+#   CRON_SECRET       the same value as CRON_SECRET on both vercel projects
+#   APP_URL           the mainnet site, e.g. https://pottle-mainnet.vercel.app
+#   APP_URL_TESTNET   optional, the testnet site, e.g. https://pottle-testnet.vercel.app
 name: settle pots
 on:
   schedule:
@@ -9,12 +11,20 @@ on:
 jobs:
   settle:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 4
     steps:
-      - name: settle due pots
+      - name: settle due pots on each site
         env:
-          APP_URL: ${{ secrets.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.APP_URL }}
+          APP_URL_TESTNET: ${{ secrets.APP_URL_TESTNET }}
         run: |
-          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then echo "APP_URL or CRON_SECRET secret missing"; exit 1; fi
-          curl -sS --fail-with-body -m 90 -H "authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/settle"
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then echo "CRON_SECRET or APP_URL secret missing"; exit 1; fi
+          failed=0
+          for url in "$APP_URL" "$APP_URL_TESTNET"; do
+            [ -z "$url" ] && continue
+            echo "== $url"
+            curl -sS --fail-with-body -m 90 -H "authorization: Bearer $CRON_SECRET" "$url/api/cron/settle" || failed=1
+            echo
+          done
+          exit $failed

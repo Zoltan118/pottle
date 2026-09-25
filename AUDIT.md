@@ -51,10 +51,9 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
 ## known limits
 
 - **a frozen organiser.** if the organiser's address is blocklisted after the goal is hit, the payout
-  keeps failing. the mainnet contract lets everyone take their money back 30 days after the deadline,
+  keeps failing. the contract lets everyone take their money back 30 days after the deadline,
   and pays the organiser instead if the freeze is lifted before anyone does. the thirty days are there
   so a freeze made by mistake and lifted after a review does not cost the organiser a pot they won.
-  *the testnet contract `0x6eB9…5674` predates this and does not have it*
 - **names are not verified.** the name next to a chip-in is whatever the payer typed
 - **a pot can be filled with dust.** at most 100 contributors per pot, so someone could add 100
   separate $0.01 chip-ins from 100 wallets to lock others out. it costs them money and gains nothing

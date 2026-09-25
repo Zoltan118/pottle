@@ -11,9 +11,10 @@ to the organiser. miss it and everyone gets back exactly what they put in, autom
 people for weeks. pottle holds the money in a contract instead, so nobody fronts anything, nobody
 chases anybody, and nobody (not the organiser, not us) can take it out early.
 
-- live: **https://pottle-1.vercel.app**
-- chain: arc testnet, chain id **5042002**. arc mainnet: see [deployments](#deployments)
-- contract: [`0x6eB979445c951453C30edc1442fAbA5817bE5674`](https://explorer.testnet.arc.io/address/0x6eB979445c951453C30edc1442fAbA5817bE5674)
+- live on **arc mainnet**, real usdc: **https://pottle-mainnet.vercel.app**
+- try it free on **arc testnet**, play money: **https://pottle-testnet.vercel.app** (new wallets get $10)
+- both run the same code; the `real | test` switch in the nav moves between them
+- contracts: see [deployments](#deployments)
 - **trying it as a reviewer: [`JUDGES.md`](JUDGES.md)**
 - what it does not protect against: [`AUDIT.md`](AUDIT.md)
 - reporting a vulnerability: [`SECURITY.md`](SECURITY.md)
@@ -129,8 +130,8 @@ code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](
 
 | network | chain id | Pottle |
 | --- | --- | --- |
-| arc testnet | 5042002 | [`0x6eB979445c951453C30edc1442fAbA5817bE5674`](https://explorer.testnet.arc.io/address/0x6eB979445c951453C30edc1442fAbA5817bE5674) |
-| arc mainnet | 5042 | deploying before submission |
+| arc testnet | 5042002 | [`0x9a48061cbe58617d482Acb7B8df55e959B2770BB`](https://explorer.testnet.arc.io/address/0x9a48061cbe58617d482Acb7B8df55e959B2770BB) |
+| arc mainnet | 5042 | deploying before submission (with the 30 day payout grace) |
 
 usdc on arc: `0x3600000000000000000000000000000000000000`.
 eurc: `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1` (mainnet), `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` (testnet).

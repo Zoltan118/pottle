@@ -272,8 +272,15 @@ a { color: inherit; }
   .face { width: 48px; height: 48px; }
 }
 .logo { min-height: 44px; }
-.logo-wrap { display: inline-flex; align-items: center; gap: 8px; }
-.netpill { font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--marigold); border-radius: 999px; padding: 4px 9px; cursor: help; color: #231A33; }
+/* real | test: the same app on mainnet and testnet, one tap apart */
+.netswitch { display: inline-flex; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--ink); padding: 3px; flex: none; }
+.netswitch > * { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: -.01em; border-radius: 999px; padding: 8px 12px; text-decoration: none; line-height: 1; color: var(--ink); min-height: 38px; display: inline-flex; align-items: center; }
+.netswitch .on { background: var(--ink); color: var(--paper); }
+@media (hover: hover) and (pointer: fine) { .netswitch a:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); } }
+.netswitch a:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+.teststrip { background: var(--marigold); color: #231A33; display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; padding: 7px 16px; font-size: 14px; font-weight: 700; text-align: center; }
+.teststrip a { color: #231A33; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
+@media (max-width: 400px) { .netswitch > * { padding: 7px 10px; font-size: 14px; } }
 @media (max-width: 520px) {
   .wraps { gap: 8px; }
   .wrapchoice { border-radius: 16px; }

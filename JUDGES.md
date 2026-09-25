@@ -1,11 +1,16 @@
 # trying pottle as a reviewer
 
-everything below runs on **arc testnet** with free test money, so nothing costs you anything.
-about three minutes.
+pottle runs as two sites from the same code:
+
+- **https://pottle-mainnet.vercel.app**, arc mainnet with real usdc (the deployment this submission is about)
+- **https://pottle-testnet.vercel.app**, arc testnet with play money
+
+everything below uses the **testnet** site, so nothing costs you anything. about three minutes.
+the `real | test` switch in the nav moves between the two.
 
 ## 1. make a pot (one minute)
 
-1. open **https://pottle-1.vercel.app** on your phone or laptop
+1. open **https://pottle-testnet.vercel.app** on your phone or laptop
 2. tap **sign in** and use any email. dynamic sends a code and makes you a wallet
 3. your balance pill shows **+$10…** and then **$10**. that is test usdc, sent to new wallets
    automatically so you never need a faucet

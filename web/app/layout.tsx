@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { Providers } from "./providers";
 import { Tips } from "@/components/Tips";
+import { TestnetStrip } from "@/components/NetSwitch";
 import { SITE } from "@/lib/config";
 import "./globals.css";
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>
+        <TestnetStrip />
         <Providers>{children}</Providers>
         <Tips />
       </body>

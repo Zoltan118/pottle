@@ -8,6 +8,7 @@ import { balanceOf, requestDrip, usdcBalance } from "@/lib/wallet";
 import { NETWORK } from "@/lib/config";
 import { money, potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
 import { Logo } from "./Mark";
+import { NetSwitch } from "./NetSwitch";
 import { Sheet } from "./Sheet";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
 
@@ -51,7 +52,9 @@ export function Nav({ action }: { action?: React.ReactNode }) {
     enabled: !!w.address && open,
   });
 
-  const chip = drip.isFetching ? "+$10…" : bal.data === undefined ? "…" : usd(Math.floor(bal.data * 100) / 100);
+  // whole dollars from $100 up, so the chip never pushes the nav wider than a phone
+  const exact = bal.data === undefined ? "…" : usd(Math.floor(bal.data * 100) / 100);
+  const chip = drip.isFetching ? "+$10…" : bal.data === undefined ? "…" : bal.data >= 100 ? usd(Math.floor(bal.data)) : exact;
   const eurMoney = (d: number) => money(Math.floor(d * 100) / 100, "eur");
 
   async function copy(text: string, key: string) {
@@ -72,6 +75,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
       <nav className="bar">
         <Logo />
         <div className="bar-right">
+          <NetSwitch />
           {action}
           {w.on && w.ready && (w.address ? (
             <button className="me" onClick={() => setOpen(true)} aria-label="your account" data-tip={drip.isFetching ? "sending you $10 of test usdc" : undefined}>
@@ -91,7 +95,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           <button className="iconbtn" onClick={() => setOpen(false)} aria-label="close">×</button>
         </div>
 
-        <div className="acct-bal">{chip}<small>usdc on arc</small></div>
+        <div className="acct-bal">{exact}<small>usdc on arc</small></div>
         {!!eur.data && eur.data > 0 && <div className="acct-bal2">{eurMoney(eur.data)}<small>eurc on arc</small></div>}
 
         {ONRAMP_ON
