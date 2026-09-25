@@ -1,6 +1,6 @@
 # pottle security review
 
-pottle has **not had an outside audit**. this file is our own review, done before the mainnet
+pottle has had **no third-party audit** yet. this file is our own review, done before the mainnet
 deploy: what the contract guarantees, how we checked it, what it trusts, and what can still go
 wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
 
@@ -10,6 +10,9 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
   the address that paid it in**
 - refunds open when the deadline passes below the goal, or when a pot that hit its goal **still has
   not paid out 30 days after its deadline** (see "a frozen organiser" below)
+- during beta a pot on mainnet never holds more than **100 of its currency** ($100 or €100). the goal is capped at
+  100 and a chip-in that would take the pot past 100 is refused, so the most any single pot can ever
+  put at risk is 100. the testnet contract is the version before this cap, with goals up to 10,000
 - nobody can move money any other way. there is no owner, no admin, no pause, no upgrade and no fee.
   the deployer has no powers after deployment
 - a signed chip-in cannot be redirected. the eip-3009 nonce commits to the pot id, the name and a salt,
@@ -24,10 +27,10 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
 
 | check | result |
 | --- | --- |
-| unit and fuzz tests (`forge test`) | 34 tests pass, including a 1,000-run fuzz of money conservation, signature binding across pots, names, amounts and currencies, a hostile token that tries to re-enter, and a token that returns `false` instead of reverting |
-| invariant testing | 256 runs of random sequences (create, chip in, time passes, pay out, refund all, claim) across four people and both currencies, 15,360 calls. after every step: the contract holds **exactly** what it still owes in each currency, and every unpaid pot's total equals the sum of its contributors |
+| unit and fuzz tests (`forge test`) | 36 tests pass, including a 1,000-run fuzz of money conservation, signature binding across pots, names, amounts and currencies, a hostile token that tries to re-enter, and a token that returns `false` instead of reverting |
+| invariant testing | 256 runs of random sequences (create, chip in, time passes, pay out, refund all, claim) across four people and both currencies, 15,360 calls. after every step: the contract holds **exactly** what it still owes in each currency, every unpaid pot's total equals the sum of its contributors, and no pot is above the 100 cap |
 | coverage (`forge coverage`) | **100%** of lines, statements, branches and functions in `Pottle.sol` |
-| static analysis (slither 0.11.4) | 7 findings, none exploitable. see below |
+| static analysis (slither 0.11.4) | 6 findings, none exploitable. see below |
 | end to end on arc testnet | 15 checks with real usdc through the running app (`web/scripts/e2e-testnet.mjs`) |
 
 ### slither findings
@@ -35,7 +38,6 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
 | finding | verdict |
 | --- | --- |
 | reentrancy in `refundAll`: state written after the token transfer | not exploitable. it is the deliberate "put the balance back if this refund transfer fails" path; the tokens are circle's usdc and eurc, which cannot call back, and every state-changing function is behind a reentrancy lock (proven by the hostile-token test) |
-| uninitialised local `ok` | made explicit |
 | external calls in a loop (`refundAll`) | by design: capped at 100 contributors, and each transfer is isolated so one failure cannot stop the rest |
 | block timestamp comparisons (4) | by design: deadlines are days long; validators can shift a timestamp by seconds |
 
@@ -57,8 +59,10 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
 - **names are not verified.** the name next to a chip-in is whatever the payer typed
 - **a pot can be filled with dust.** at most 100 contributors per pot, so someone could add 100
   separate $0.01 chip-ins from 100 wallets to lock others out. it costs them money and gains nothing
-- **overpaying is allowed.** anything above the goal goes to the organiser with the rest
-- **limits**: deadlines at most 90 days out, goals at most 10,000, names 24 bytes and titles 64 bytes
+- **overpaying is allowed, up to the cap.** anything above the goal goes to the organiser with the rest,
+  but no pot takes in more than 100
+- **limits**: deadlines at most 90 days out, pots at most 100 during beta (a new contract lifts it later;
+  this one cannot change), names 24 bytes and titles 64 bytes
   (the app trims longer text so it never fails on chain)
 
 ## the app and its servers

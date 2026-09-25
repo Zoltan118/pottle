@@ -6,7 +6,8 @@ pottle runs as two sites from the same code:
 - **https://pottle-testnet.vercel.app**, arc testnet with free test dollars
 
 everything below uses the **testnet** site, so nothing costs you anything. about three minutes.
-the `live | test` switch in the nav moves between the two.
+the `live | test` switch in the nav moves between the two. the testnet contract is the version
+before the $100 beta cap, so test pots can go up to 10,000; everything else is the same.
 
 ## 1. make a pot (one minute)
 
@@ -47,7 +48,7 @@ itself out when its page is opened. 15 checks. it needs a funded testnet key in 
 ## the code worth reading
 
 - [`contracts/src/Pottle.sol`](contracts/src/Pottle.sol): the whole contract, about 300 lines
-- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 34 tests, including fuzzing and
+- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 36 tests, including fuzzing and
   signature binding, and [`PottleInvariant.t.sol`](contracts/test/PottleInvariant.t.sol) for random
   sequences
 - [`AUDIT.md`](AUDIT.md): our own security review

@@ -26,7 +26,7 @@ const FAQ = [
   { q: "do my friends need crypto?", a: `no. they sign in with their email and get a wallet. they need usdc (or eurc for euro pots) on arc${ONRAMP ? ", which they can add by card inside pottle" : ""}.` },
   { q: "what are usdc and eurc?", a: "digital dollars and euros issued by circle. one usdc is always worth one dollar, one eurc one euro." },
   { q: "what is arc?", a: "circle's blockchain for money. payments land in about half a second and fees are paid in usdc, so there's nothing else to buy first." },
-  { q: "is it safe?", a: "the contract is open source and tested, and it can only send money to the organiser or back to whoever paid. it hasn't had an outside audit yet, so keep pots to amounts you'd hand a friend." },
+  { q: "is it safe?", a: "the contract is open source and tested, and it can only send money to the organiser or back to whoever paid. there's been no third-party audit yet, so while pottle is in beta each pot holds at most $100 (or €100)." },
 ];
 
 export default function Home() {
@@ -103,7 +103,7 @@ export default function Home() {
         </span>
         <span className="foot-r">
           {NETWORK === "mainnet"
-            ? <span className="tipword" tabIndex={0} data-tip="the contract hasn't had an outside audit yet. keep pots small.">beta · not audited</span>
+            ? <span className="tipword" tabIndex={0} data-tip="no third-party audit yet, so during beta each pot holds at most $100 or €100.">beta · no third-party audit</span>
             : <span className="tipword" tabIndex={0} data-tip="arc testnet. test dollars, nothing costs anything.">test mode</span>}
           {NETWORK !== "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>go live ↗</a>}
           {NETWORK === "mainnet" && OTHER_SITE && <a href={OTHER_SITE}>try it free ↗</a>}

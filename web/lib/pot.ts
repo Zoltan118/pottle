@@ -1,6 +1,6 @@
 import { createPublicClient, http, type Address } from "viem";
 import { pottleAbi } from "./abi";
-import { chain, CURRENCIES, POTTLE, TOKEN, type Currency } from "./config";
+import { chain, CURRENCIES, NETWORK, POTTLE, TOKEN, type Currency } from "./config";
 
 export const publicClient = createPublicClient({ chain, transport: http() });
 
@@ -66,6 +66,10 @@ export async function readPotsOf(address: Address, limit = 20): Promise<PotData[
 }
 
 export const potPath = (id: number) => `/p/${id}`;
+
+/** most a pot can hold. mainnet's contract caps it at 100 during beta (MAX_POT); the testnet contract
+ * is the earlier version, which only caps the goal, at 10,000 */
+export const MAX_POT = NETWORK === "mainnet" ? 100 : 10_000;
 
 /** the contract's PAYOUT_GRACE: a pot that hit its goal but still hasn't paid out this long after its
  * deadline becomes refundable. computed here so older contracts without it keep working */

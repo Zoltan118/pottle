@@ -30,7 +30,9 @@ contract Pottle {
     IFiatToken public immutable eurc;
 
     uint256 public constant MAX_DURATION = 90 days;
-    uint256 public constant MAX_GOAL = 10_000e6; // 10,000 of the pot's currency, both tokens have 6 decimals
+    /// @notice beta cap: a pot never holds more than 100 of its currency, goal and chip-ins included.
+    /// both tokens have 6 decimals
+    uint256 public constant MAX_POT = 100e6;
     uint256 public constant MIN_CHIP = 1e4; // $0.01
     uint256 public constant MAX_TITLE = 64; // bytes
     uint256 public constant MAX_NAME = 24; // bytes
@@ -84,6 +86,7 @@ contract Pottle {
     error PotClosed();
     error PotFull();
     error TooSmall();
+    error OverCap();
     error GoalNotReached();
     error NotRefunding();
     error NothingToRefund();
@@ -115,7 +118,7 @@ contract Pottle {
         nonReentrant
         returns (uint256 id)
     {
-        if (goal == 0 || goal > MAX_GOAL) revert BadGoal();
+        if (goal == 0 || goal > MAX_POT) revert BadGoal();
         if (wrap > MAX_WRAP || currency > 1) revert BadText();
         if (deadline <= block.timestamp || deadline > block.timestamp + MAX_DURATION) revert BadDeadline();
         _text(title, MAX_TITLE);
@@ -175,6 +178,7 @@ contract Pottle {
         if (p.organiser == address(0)) revert NoSuchPot();
         if (p.released || block.timestamp >= p.deadline) revert PotClosed();
         if (amount < MIN_CHIP) revert TooSmall();
+        if (uint256(p.raised) + amount > MAX_POT) revert OverCap();
         _text(name, MAX_NAME);
 
         if (!joined[id][from]) {

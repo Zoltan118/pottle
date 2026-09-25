@@ -60,10 +60,10 @@ contract PottleTest is Test {
     // ---------------------------------------------------------------- create
 
     function test_create() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         (Pottle.Pot memory p,,,,) = pottle.getPot(id);
         assertEq(p.organiser, deniz); assertEq(p.deadline, deadline); assertFalse(p.released);
-        assertEq(p.goal, 200e6); assertEq(p.raised, 0); assertEq(p.title, "sarah's gift"); assertEq(p.organiserName, "deniz");
+        assertEq(p.goal, 100e6); assertEq(p.raised, 0); assertEq(p.title, "sarah's gift"); assertEq(p.organiserName, "deniz");
         assertEq(uint256(pottle.statusOf(id)), uint256(Pottle.Status.Open));
     }
 
@@ -71,7 +71,7 @@ contract PottleTest is Test {
         vm.expectRevert(Pottle.BadGoal.selector);
         pottle.create(0, deadline, 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadGoal.selector);
-        pottle.create(10_000e6 + 1, deadline, 0, 0, "x", "d");
+        pottle.create(100e6 + 1, deadline, 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
         pottle.create(1e6, uint64(block.timestamp), 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
@@ -116,7 +116,7 @@ contract PottleTest is Test {
     // ---------------------------------------------------------------- nobody takes it early
 
     function test_cannotReleaseBelowGoal() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         _chip(mert, id, 20e6, "mert");
         vm.prank(deniz);
         vm.expectRevert(Pottle.GoalNotReached.selector);
@@ -139,7 +139,7 @@ contract PottleTest is Test {
         vm.expectRevert(Pottle.PotClosed.selector);
         pottle.chipIn(id, 5e6, "ayla");
 
-        uint256 id2 = _pot(200e6);
+        uint256 id2 = _pot(100e6);
         vm.warp(deadline);
         vm.prank(ayla);
         vm.expectRevert(Pottle.PotClosed.selector);
@@ -147,7 +147,7 @@ contract PottleTest is Test {
     }
 
     function test_chipIn_rejectsDustAndBadNames() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         vm.startPrank(mert);
         vm.expectRevert(Pottle.TooSmall.selector);
         pottle.chipIn(id, 1e4 - 1, "mert");
@@ -163,7 +163,7 @@ contract PottleTest is Test {
     // ---------------------------------------------------------------- refunds
 
     function test_missedGoal_everyoneClaimsBack() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         _chip(mert, id, 20e6, "mert");
         _chip(ayla, id, 50e6, "ayla");
 
@@ -183,7 +183,7 @@ contract PottleTest is Test {
     }
 
     function test_refundAll_isAutomaticForEveryone() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         _chip(mert, id, 20e6, "mert");
         _chip(ayla, id, 50e6, "ayla");
         _chip(mert, id, 10e6, "mert");
@@ -200,7 +200,7 @@ contract PottleTest is Test {
     }
 
     function test_refundAll_skipsABlockedAddressWithoutLosingTheirMoney() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         _chip(mert, id, 20e6, "mert");
         _chip(ayla, id, 50e6, "ayla");
         vm.warp(deadline);
@@ -225,7 +225,7 @@ contract PottleTest is Test {
     // ---------------------------------------------------------------- one-signature chip in
 
     function test_chipInWithAuthorization_relayedAndSponsored() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         bytes32 salt = keccak256("1");
         uint256 validBefore = block.timestamp + 1 hours;
         (uint8 v, bytes32 r, bytes32 s) = _sign(ecePk, id, 20e6, "ece", salt, validBefore);
@@ -238,8 +238,8 @@ contract PottleTest is Test {
     }
 
     function test_chipInWithAuthorization_cannotBeRedirectedOrRenamed() public {
-        uint256 id = _pot(200e6);
-        uint256 other = _pot(200e6);
+        uint256 id = _pot(100e6);
+        uint256 other = _pot(100e6);
         bytes32 salt = keccak256("1");
         uint256 validBefore = block.timestamp + 1 hours;
         (uint8 v, bytes32 r, bytes32 s) = _sign(ecePk, id, 20e6, "ece", salt, validBefore);
@@ -259,8 +259,8 @@ contract PottleTest is Test {
     // ---------------------------------------------------------------- invariant-ish fuzz
 
     function testFuzz_moneyIsConserved(uint128 a, uint128 b, bool hit) public {
-        a = uint128(bound(a, 1e4, 500e6));
-        b = uint128(bound(b, 1e4, 500e6));
+        a = uint128(bound(a, 1e4, 49e6));
+        b = uint128(bound(b, 1e4, 49e6));
         uint256 id = _pot(hit ? a + b : a + b + 1);
         _chip(mert, id, a, "mert");
         _chip(ayla, id, b, "ayla");
@@ -279,7 +279,7 @@ contract PottleTest is Test {
     // ---------------------------------------------------------------- page data
 
     function test_getPot_returnsPeopleNamesAndAmounts() public {
-        uint256 id = _pot(200e6);
+        uint256 id = _pot(100e6);
         _chip(mert, id, 20e6, "mert");
         _chip(ayla, id, 50e6, "ayla");
         _chip(mert, id, 5e6, "mert k"); // chipping again updates the name, not the list
@@ -292,14 +292,38 @@ contract PottleTest is Test {
         assertEq(people[1], ayla); assertEq(names[1], "ayla"); assertEq(amounts[1], 50e6);
     }
 
+    function test_betaCap_potNeverHoldsMoreThan100() public {
+        uint256 id = _pot(100e6); // a goal of exactly the cap is allowed
+        _chip(mert, id, 60e6, "mert");
+        vm.startPrank(ayla);
+        usdc.approve(address(pottle), 41e6);
+        vm.expectRevert(Pottle.OverCap.selector);
+        pottle.chipIn(id, 41e6, "ayla");
+        vm.stopPrank();
+        _chip(ayla, id, 40e6, "ayla"); // filling it to the cap exactly is fine
+        assertEq(usdc.balanceOf(address(pottle)), 100e6);
+    }
+
+    function test_betaCap_overpayingStopsAtTheCap() public {
+        uint256 id = _pot(30e6);
+        _chip(mert, id, 90e6, "mert"); // above the goal is still allowed, up to the cap
+        vm.startPrank(ayla);
+        usdc.approve(address(pottle), 11e6);
+        vm.expectRevert(Pottle.OverCap.selector);
+        pottle.chipIn(id, 11e6, "ayla");
+        vm.stopPrank();
+        pottle.release(id);
+        assertEq(usdc.balanceOf(deniz), 90e6);
+    }
+
     function test_potFull_after100People() public {
-        uint256 id = _pot(10_000e6);
+        uint256 id = _pot(100e6);
         for (uint256 i; i < 100; ++i) {
             address a = address(uint160(0x1000 + i));
-            usdc.mint(a, 1e6);
+            usdc.mint(a, 0.5e6);
             vm.startPrank(a);
-            usdc.approve(address(pottle), 1e6);
-            pottle.chipIn(id, 1e6, "x");
+            usdc.approve(address(pottle), 0.5e6);
+            pottle.chipIn(id, 0.5e6, "x");
             vm.stopPrank();
         }
         vm.prank(mert);
@@ -308,7 +332,7 @@ contract PottleTest is Test {
     }
 
     function test_potsOf_listsMadeAndJoined() public {
-        uint256 a = _pot(200e6);
+        uint256 a = _pot(100e6);
         uint256 b = _pot(100e6);
         _chip(mert, a, 5e6, "mert");
         _chip(mert, a, 5e6, "mert"); // chipping twice lists the pot once
@@ -321,7 +345,7 @@ contract PottleTest is Test {
     }
 
     function test_organiserChippingIn_isNotListedTwice() public {
-        uint256 a = _pot(200e6);
+        uint256 a = _pot(100e6);
         usdc.mint(deniz, 10e6);
         vm.startPrank(deniz);
         usdc.approve(address(pottle), 10e6);

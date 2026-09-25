@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useWallet } from "@/app/providers";
 import { createPot } from "@/lib/wallet";
-import { missingEnv, TOKEN, type Currency } from "@/lib/config";
-import { WRAPS, type Wrap } from "@/lib/pot";
+import { missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
+import { MAX_POT, WRAPS, type Wrap } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES, MAX_TITLE_BYTES } from "@/lib/text";
 
 const UNTIL = ["friday", "sunday", "1 week", "2 weeks"] as const;
@@ -44,7 +44,7 @@ export function CreateFlow() {
   const [potId, setPotId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const valid = [title.trim().length > 0, +goal > 0 && +goal <= 10000, !!until, true, name.trim().length > 0][step] ?? true;
+  const valid = [title.trim().length > 0, +goal > 0 && +goal <= MAX_POT, !!until, true, name.trim().length > 0][step] ?? true;
   const link = potId ? `${typeof location !== "undefined" ? location.origin : ""}/p/${potId}` : "";
 
   async function create() {
@@ -91,12 +91,13 @@ export function CreateFlow() {
       {step === 1 && (
         <section className="flow">
           <h1 className="giant q">goal?</h1>
-          <label className="money"><span>{TOKEN[currency].symbol}</span><input className="bigin" inputMode="numeric" placeholder="200" maxLength={5} autoFocus value={goal} onChange={(e) => setGoal(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="goal in dollars" enterKeyHint="next" /></label>
-          <div className="chips">{["50", "100", "200", "500"].map((g) => <button key={g} className="chip" aria-pressed={goal === g} onClick={() => setGoal(g)}>{TOKEN[currency].symbol}{g}</button>)}</div>
+          <label className="money"><span>{TOKEN[currency].symbol}</span><input className="bigin" inputMode="numeric" placeholder="50" maxLength={String(MAX_POT).length} autoFocus value={goal} onChange={(e) => setGoal(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="goal in dollars" enterKeyHint="next" /></label>
+          <div className="chips">{["20", "50", "75", "100"].map((g) => <button key={g} className="chip" aria-pressed={goal === g} onClick={() => setGoal(g)}>{TOKEN[currency].symbol}{g}</button>)}</div>
           <div className="cur" role="group" aria-label="currency">
             <button className="chip" aria-pressed={currency === "usd"} onClick={() => setCurrency("usd")} data-tip="friends chip in usdc">$ dollars</button>
             <button className="chip" aria-pressed={currency === "eur"} onClick={() => setCurrency("eur")} data-tip="friends chip in eurc">€ euros</button>
           </div>
+          <p className="hint" style={{ margin: 0 }}>{+goal > MAX_POT ? `up to ${TOKEN[currency].symbol}${MAX_POT.toLocaleString("en-US")} per pot${NETWORK === "mainnet" ? " while pottle is in beta" : ""}.` : ""}</p>
         </section>
       )}
 

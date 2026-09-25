@@ -9,7 +9,7 @@ import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
 import { Sheet } from "@/components/Sheet";
 import { balanceOf, chipIn, settle } from "@/lib/wallet";
-import { money, payoutStuck, readPot, timeLeft, type PotData } from "@/lib/pot";
+import { MAX_POT, money, payoutStuck, readPot, timeLeft, type PotData } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
 import { NETWORK, TOKEN } from "@/lib/config";
 
@@ -43,7 +43,7 @@ export function PotView({ initial }: { initial: PotData }) {
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState(20);
+  const [picked, setPicked] = useState(20);
   const [busy, setBusy] = useState<"" | "pay" | "settle">("");
   const [err, setErr] = useState("");
   const [short, setShort] = useState(0); // how much the payer is missing, offered as "add money"
@@ -51,7 +51,12 @@ export function PotView({ initial }: { initial: PotData }) {
   const m = (d: number) => money(d, pot.currency);
   const isOrganiser = (a: string) => a.toLowerCase() === pot.organiser.toLowerCase();
   const paid = pot.people;
-  const missing = Math.max(0, Math.ceil((pot.goal - pot.raised) / amount));
+  // the beta cap: a pot never holds more than MAX_POT, so only offer amounts that still fit
+  const room = Math.max(0, Math.floor((MAX_POT - pot.raised) * 100) / 100);
+  const amounts = AMOUNTS.filter((a) => a <= room);
+  if (room > 0 && !amounts.length) amounts.push(room);
+  const amount = amounts.includes(picked) ? picked : (amounts.at(-1) ?? 0);
+  const missing = amount ? Math.max(0, Math.ceil((pot.goal - pot.raised) / amount)) : 0;
   const refreshed = () => qc.invalidateQueries({ queryKey: ["pot", pot.id] });
   const message = (e: unknown) =>
     e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong";
@@ -116,7 +121,7 @@ export function PotView({ initial }: { initial: PotData }) {
           <div className="meta">
             <span><b>{paid.length}</b> in</span>
             <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>
-            <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.${NETWORK === "mainnet" ? " pottle is in beta and not audited yet, so keep pots small." : ""}`}>safe?</button>
+            <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.${NETWORK === "mainnet" ? ` pottle is in beta with no third-party audit yet, so each pot holds at most ${m(MAX_POT)}.` : ""}`}>safe?</button>
           </div>
 
           <div className="faces" aria-label={`${paid.length} people in`}>
@@ -166,7 +171,7 @@ export function PotView({ initial }: { initial: PotData }) {
         <h2 className="giant">you&apos;re in?</h2>
         <input className="bigin" placeholder="your name" value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
-          {AMOUNTS.map((a) => <button key={a} className="chip" aria-pressed={amount === a} onClick={() => setAmount(a)}>{m(a)}</button>)}
+          {amounts.map((a) => <button key={a} className="chip" aria-pressed={amount === a} onClick={() => setPicked(a)}>{m(a)}</button>)}
         </div>
         <p className="where">
           {w.address && w.address.toLowerCase() === pot.organiser.toLowerCase()

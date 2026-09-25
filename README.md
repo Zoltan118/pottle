@@ -28,6 +28,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | --- | --- |
 | **all or nothing** | the pot releases to the organiser only once the goal is hit. past the deadline below the goal, everyone is refunded to the cent. if a finished pot still cannot pay out 30 days after its deadline, everyone can take their money back |
 | **nobody can take it early** | one immutable contract holds every pot. no owner, no admin, no upgrade path, no fee |
+| **capped in beta** | there's been no third-party audit yet, so on mainnet a pot never holds more than $100 or €100. the contract enforces it, not just the app |
 | **one signature to chip in** | friends sign one message (eip-3009) and pottle pays the network fee. no approve step, no gas to buy |
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
@@ -74,7 +75,7 @@ create(goal, deadline,        |                                     |
 ## repo
 
 ```
-contracts/   foundry. src/Pottle.sol, 34 tests, invariant tests, deploy script
+contracts/   foundry. src/Pottle.sol, 36 tests, invariant tests, deploy script
 web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id]
   app/api/relay         sponsors chip-ins, payouts and refunds (simulated first, rate limited)
   app/api/cron/settle   pays out and refunds every due pot, called by the scheduled job
@@ -100,12 +101,12 @@ is missing instead of failing quietly.
 
 ## tests
 
-- **34 contract tests** (`forge test`): payout, overfunding, refunds, blocked addresses, the 30 day
+- **36 contract tests** (`forge test`): payout, overfunding, refunds, the $100 beta cap, blocked addresses, the 30 day
   payout grace, the 100 person cap, euro pots, a hostile re-entering token, and signature binding (a
   signature for one pot, name, amount or currency cannot be replayed on another). money conservation
   is fuzzed over 1,000 runs
 - **invariant testing**: 15,360 random calls across four people and both currencies; after every
-  step the contract holds exactly what it owes. **100% line, statement, branch and function coverage**
+  step the contract holds exactly what it owes and no pot is above the cap. **100% line, statement, branch and function coverage**
 - **slither** static analysis: no exploitable findings. details in [`AUDIT.md`](AUDIT.md)
 - **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 15 checks with real usdc,
   through the running app. one-signature chip-in with a sponsored fee, a classic approve and chip-in,
@@ -130,8 +131,8 @@ code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](
 
 | network | chain id | Pottle |
 | --- | --- | --- |
-| arc testnet | 5042002 | [`0x9a48061cbe58617d482Acb7B8df55e959B2770BB`](https://explorer.testnet.arc.io/address/0x9a48061cbe58617d482Acb7B8df55e959B2770BB) |
-| arc mainnet | 5042 | deploying before submission (with the 30 day payout grace) |
+| arc testnet | 5042002 | [`0x9a48061cbe58617d482Acb7B8df55e959B2770BB`](https://explorer.testnet.arc.io/address/0x9a48061cbe58617d482Acb7B8df55e959B2770BB) (the version before the beta cap: goals up to 10,000, otherwise the same) |
+| arc mainnet | 5042 | deploying before submission (with the 30 day payout grace and the $100 beta cap) |
 
 usdc on arc: `0x3600000000000000000000000000000000000000`.
 eurc: `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1` (mainnet), `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` (testnet).

@@ -31,19 +31,6 @@ export const pottleAbi = [
   },
   {
     "type": "function",
-    "name": "MAX_GOAL",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "MAX_NAME",
     "inputs": [],
     "outputs": [
@@ -58,6 +45,19 @@ export const pottleAbi = [
   {
     "type": "function",
     "name": "MAX_PEOPLE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_POT",
     "inputs": [],
     "outputs": [
       {
@@ -762,6 +762,11 @@ export const pottleAbi = [
   {
     "type": "error",
     "name": "NothingToRefund",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OverCap",
     "inputs": []
   },
   {

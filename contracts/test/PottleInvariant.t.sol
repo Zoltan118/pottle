@@ -27,7 +27,7 @@ contract Handler is Test {
     function potCount() external view returns (uint256) { return ids.length; }
 
     function create(uint256 who, uint128 goal, uint64 len, bool euro) external {
-        goal = uint128(bound(goal, 1e4, 10_000e6));
+        goal = uint128(bound(goal, 1e4, 100e6));
         len = uint64(bound(len, 1, 90 days));
         vm.prank(actors[who % 4]);
         ids.push(pottle.create(goal, uint64(block.timestamp) + len, 0, euro ? 1 : 0, "pot", "org"));
@@ -36,7 +36,7 @@ contract Handler is Test {
     function chip(uint256 who, uint256 pick, uint128 amount) external {
         if (ids.length == 0) return;
         uint256 id = ids[pick % ids.length];
-        amount = uint128(bound(amount, 1e4, 3_000e6));
+        amount = uint128(bound(amount, 1e4, 60e6));
         vm.prank(actors[who % 4]);
         try pottle.chipIn(id, amount, "friend") {} catch {}
     }
@@ -100,6 +100,14 @@ contract PottleInvariantTest is Test {
             uint256 sum;
             for (uint256 k; k < amounts.length; ++k) sum += amounts[k];
             assertEq(sum, p.raised);
+        }
+    }
+
+    /// the beta cap holds: no pot ever takes in more than MAX_POT
+    function invariant_noPotAboveTheCap() public view {
+        for (uint256 i; i < handler.potCount(); ++i) {
+            (Pottle.Pot memory p,,,,) = pottle.getPot(handler.ids(i));
+            assertLe(p.raised, pottle.MAX_POT());
         }
     }
 }
