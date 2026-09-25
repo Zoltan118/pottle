@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { readPot, usd } from "@/lib/pot";
+import { after } from "next/server";
+import { settlePot } from "@/lib/settle";
+import { money, readPot } from "@/lib/pot";
 import { POTTLE } from "@/lib/config";
 import { PotView } from "./PotView";
 
@@ -13,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
   if (!pot) return { title: "pottle" };
   const title = `${pot.title} · pottle`;
-  const description = `${usd(pot.raised)} of ${usd(pot.goal)}. chip in, or get it back.`;
+  const description = `${money(pot.raised, pot.currency)} of ${money(pot.goal, pot.currency)}. chip in, or get it back.`;
   return { title, description, openGraph: { title, description }, twitter: { card: "summary_large_image", title, description } };
 }
 
@@ -39,5 +41,9 @@ export default async function PotPage({ params }: Props) {
     );
   }
   if (!pot) notFound();
+  // a pot that is due gets settled right after this page is sent, so whoever opens it next sees it done
+  if (pot.status === "reached" || (pot.status === "refunding" && pot.raised > 0)) {
+    after(() => settlePot(id).catch((e) => console.warn(`[pottle] settle on view ${id} failed:`, e instanceof Error ? e.message : e)));
+  }
   return <PotView initial={pot} />;
 }

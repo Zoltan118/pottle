@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-/// @notice The slice of Circle's FiatToken (USDC) that Pottle uses.
-interface IUSDC {
+/// @notice The slice of Circle's FiatToken (USDC, EURC) that Pottle uses.
+interface IFiatToken {
     function transfer(address to, uint256 value) external returns (bool);
     function transferFrom(address from, address to, uint256 value) external returns (bool);
     function receiveWithAuthorization(
@@ -19,17 +19,18 @@ interface IUSDC {
 }
 
 /// @title Pottle
-/// @notice Group pots for gifts and shared costs. Money sits here until the goal is hit
+/// @notice Group pots for gifts and shared costs, in dollars (USDC) or euros (EURC). Money sits here until the goal is hit
 /// (then it goes to the organiser) or the deadline passes without hitting it (then everyone
 /// gets their own money back). Nobody, including the organiser and the deployer, can move
 /// funds any other way. There is no owner and no fee.
 /// @dev Titles and names live in storage so a page can render a pot from one call, with no
 /// indexer. On Arc that costs a fraction of a cent.
 contract Pottle {
-    IUSDC public immutable usdc;
+    IFiatToken public immutable usdc;
+    IFiatToken public immutable eurc;
 
     uint256 public constant MAX_DURATION = 90 days;
-    uint256 public constant MAX_GOAL = 10_000e6; // $10,000, usdc has 6 decimals
+    uint256 public constant MAX_GOAL = 10_000e6; // 10,000 of the pot's currency, both tokens have 6 decimals
     uint256 public constant MIN_CHIP = 1e4; // $0.01
     uint256 public constant MAX_TITLE = 64; // bytes
     uint256 public constant MAX_NAME = 24; // bytes
@@ -43,6 +44,7 @@ contract Pottle {
         uint128 goal;
         uint128 raised; // currently held for this pot, falls as refunds go out
         uint8 wrap; // the look the organiser picked, 0 to MAX_WRAP
+        uint8 currency; // 0 = usdc, 1 = eurc
         string title;
         string organiserName;
     }
@@ -91,18 +93,24 @@ contract Pottle {
         locked = 1;
     }
 
-    constructor(IUSDC _usdc) {
+    constructor(IFiatToken _usdc, IFiatToken _eurc) {
         usdc = _usdc;
+        eurc = _eurc;
+    }
+
+    /// @notice The token a pot is paid in.
+    function tokenOf(uint256 id) public view returns (IFiatToken) {
+        return _pots[id].currency == 1 ? eurc : usdc;
     }
 
     // ---------------------------------------------------------------- create
 
-    function create(uint128 goal, uint64 deadline, uint8 wrap, string calldata title, string calldata organiserName)
+    function create(uint128 goal, uint64 deadline, uint8 wrap, uint8 currency, string calldata title, string calldata organiserName)
         external
         returns (uint256 id)
     {
         if (goal == 0 || goal > MAX_GOAL) revert BadGoal();
-        if (wrap > MAX_WRAP) revert BadText();
+        if (wrap > MAX_WRAP || currency > 1) revert BadText();
         if (deadline <= block.timestamp || deadline > block.timestamp + MAX_DURATION) revert BadDeadline();
         _text(title, MAX_TITLE);
         _text(organiserName, MAX_NAME);
@@ -115,6 +123,7 @@ contract Pottle {
             goal: goal,
             raised: 0,
             wrap: wrap,
+            currency: currency,
             title: title,
             organiserName: organiserName
         });
@@ -127,7 +136,7 @@ contract Pottle {
     /// @notice Chip in after approving this contract to spend your USDC.
     function chipIn(uint256 id, uint128 amount, string calldata name) external nonReentrant {
         _record(id, msg.sender, amount, name);
-        if (!usdc.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
+        if (!tokenOf(id).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
     }
 
     /// @notice Chip in with one signature (EIP-3009). Anyone can submit it, so the fee can be
@@ -147,7 +156,7 @@ contract Pottle {
     ) external nonReentrant {
         _record(id, from, amount, name);
         bytes32 nonce = authNonce(id, name, salt);
-        usdc.receiveWithAuthorization(from, address(this), amount, validAfter, validBefore, nonce, v, r, s);
+        tokenOf(id).receiveWithAuthorization(from, address(this), amount, validAfter, validBefore, nonce, v, r, s);
     }
 
     /// @notice The EIP-3009 nonce a contributor signs for a given pot and name.
@@ -186,7 +195,7 @@ contract Pottle {
 
         p.released = true;
         uint256 amount = p.raised;
-        if (!usdc.transfer(p.organiser, amount)) revert TransferFailed();
+        if (!tokenOf(id).transfer(p.organiser, amount)) revert TransferFailed();
         emit Released(id, p.organiser, amount);
     }
 
@@ -201,7 +210,7 @@ contract Pottle {
 
         chipped[id][msg.sender] = 0;
         p.raised -= uint128(amount);
-        if (!usdc.transfer(msg.sender, amount)) revert TransferFailed();
+        if (!tokenOf(id).transfer(msg.sender, amount)) revert TransferFailed();
         emit Refunded(id, msg.sender, amount);
     }
 
@@ -212,6 +221,7 @@ contract Pottle {
         Pot storage p = _pots[id];
         if (!_refunding(p)) revert NotRefunding();
 
+        IFiatToken token = tokenOf(id);
         address[] storage people = _people[id];
         for (uint256 i; i < people.length; ++i) {
             address to = people[i];
@@ -221,7 +231,7 @@ contract Pottle {
             chipped[id][to] = 0;
             p.raised -= uint128(amount);
             bool ok;
-            try usdc.transfer(to, amount) returns (bool sent) {
+            try token.transfer(to, amount) returns (bool sent) {
                 ok = sent;
             } catch {}
             if (ok) {

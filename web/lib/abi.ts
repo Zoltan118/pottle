@@ -6,7 +6,12 @@ export const pottleAbi = [
       {
         "name": "_usdc",
         "type": "address",
-        "internalType": "contract IUSDC"
+        "internalType": "contract IFiatToken"
+      },
+      {
+        "name": "_eurc",
+        "type": "address",
+        "internalType": "contract IFiatToken"
       }
     ],
     "stateMutability": "nonpayable"
@@ -269,6 +274,11 @@ export const pottleAbi = [
         "internalType": "uint8"
       },
       {
+        "name": "currency",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
         "name": "title",
         "type": "string",
         "internalType": "string"
@@ -287,6 +297,19 @@ export const pottleAbi = [
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "eurc",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IFiatToken"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -331,6 +354,11 @@ export const pottleAbi = [
           },
           {
             "name": "wrap",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "currency",
             "type": "uint8",
             "internalType": "uint8"
           },
@@ -496,13 +524,32 @@ export const pottleAbi = [
   },
   {
     "type": "function",
+    "name": "tokenOf",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IFiatToken"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "usdc",
     "inputs": [],
     "outputs": [
       {
         "name": "",
         "type": "address",
-        "internalType": "contract IUSDC"
+        "internalType": "contract IFiatToken"
       }
     ],
     "stateMutability": "view"
@@ -712,6 +759,6 @@ export const pottleAbi = [
   }
 ] as const
 
-export const usdcAbi = [
+export const erc20Abi = [
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "a", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const

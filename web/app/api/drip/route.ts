@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyDynamicToken } from "@/lib/auth";
 import { createWalletClient, http, isAddress, parseAbi, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { chain, DYNAMIC_ENV, NETWORK, USDC } from "@/lib/config";
+import { chain, DYNAMIC_ENV, EURC, NETWORK, USDC } from "@/lib/config";
 import { publicClient } from "@/lib/pot";
 
 // testnet only: sends a little usdc to a freshly signed-in wallet so nobody has to find a faucet.
@@ -53,7 +53,21 @@ export async function POST(req: Request) {
   const hash = await wallet.writeContract({ address: USDC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
   recent.set(sub, Date.now());
   await publicClient.waitForTransactionReceipt({ hash });
-  return NextResponse.json({ hash, amount: Number(DRIP) / 1e6 });
+
+  // euro pots need eurc. send €10 too when the relayer has some to spare (refill it at faucet.circle.com)
+  let eur = 0;
+  const [theirEur, poolEur] = await Promise.all([
+    publicClient.readContract({ address: EURC, abi: erc20, functionName: "balanceOf", args: [to] }),
+    publicClient.readContract({ address: EURC, abi: erc20, functionName: "balanceOf", args: [account.address] }),
+  ]);
+  if (theirEur < HAS_ENOUGH && poolEur >= DRIP + HAS_ENOUGH) {
+    const h2 = await wallet.writeContract({ address: EURC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
+    await publicClient.waitForTransactionReceipt({ hash: h2 });
+    eur = Number(DRIP) / 1e6;
+  } else if (poolEur < DRIP + HAS_ENOUGH) {
+    console.warn(`[pottle] eurc drip empty, relayer holds ${Number(poolEur) / 1e6} eurc`);
+  }
+  return NextResponse.json({ hash, amount: Number(DRIP) / 1e6, eur });
 }
 
 /** top the relayer up from circle's faucet api. needs CIRCLE_API_KEY from a mainnet-upgraded circle account */

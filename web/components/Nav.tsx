@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
-import { requestDrip, usdcBalance } from "@/lib/wallet";
+import { balanceOf, requestDrip, usdcBalance } from "@/lib/wallet";
 import { NETWORK } from "@/lib/config";
-import { potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
+import { money, potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
 import { Logo } from "./Mark";
 import { Sheet } from "./Sheet";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
@@ -32,11 +32,18 @@ export function Nav({ action }: { action?: React.ReactNode }) {
     queryFn: async () => {
       const sent = await requestDrip(w.address!, w.token());
       if (sent) await qc.invalidateQueries({ queryKey: ["bal", w.address] });
+      if (sent) await qc.invalidateQueries({ queryKey: ["eur", w.address] });
       return sent;
     },
     enabled: NETWORK === "testnet" && !!w.address && bal.data !== undefined && bal.data < 1,
     staleTime: Infinity,
     retry: false,
+  });
+  const eur = useQuery({
+    queryKey: ["eur", w.address],
+    queryFn: () => balanceOf(w.address!, "eur"),
+    enabled: !!w.address && open,
+    refetchInterval: 10_000,
   });
   const pots = useQuery({
     queryKey: ["pots", w.address],
@@ -44,7 +51,8 @@ export function Nav({ action }: { action?: React.ReactNode }) {
     enabled: !!w.address && open,
   });
 
-  const money = drip.isFetching ? "+$10…" : bal.data === undefined ? "…" : usd(Math.floor(bal.data * 100) / 100);
+  const chip = drip.isFetching ? "+$10…" : bal.data === undefined ? "…" : usd(Math.floor(bal.data * 100) / 100);
+  const eurMoney = (d: number) => money(Math.floor(d * 100) / 100, "eur");
 
   async function copy(text: string, key: string) {
     try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch {}
@@ -67,7 +75,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           {action}
           {w.on && w.ready && (w.address ? (
             <button className="me" onClick={() => setOpen(true)} aria-label="your account" data-tip={drip.isFetching ? "sending you $10 of test usdc" : undefined}>
-              <i />{money}
+              <i />{chip}
             </button>
           ) : (
             <button className="btn sm ghost" onClick={w.signIn}>sign in</button>
@@ -83,7 +91,8 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           <button className="iconbtn" onClick={() => setOpen(false)} aria-label="close">×</button>
         </div>
 
-        <div className="acct-bal">{money}<small>usdc on arc</small></div>
+        <div className="acct-bal">{chip}<small>usdc on arc</small></div>
+        {!!eur.data && eur.data > 0 && <div className="acct-bal2">{eurMoney(eur.data)}<small>eurc on arc</small></div>}
 
         {ONRAMP_ON
           ? <AddMoney onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
@@ -106,7 +115,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
             <div className="acct-pot" key={p.id}>
               <Link href={potPath(p.id)} onClick={() => setOpen(false)} className="acct-pot-main">
                 <b>{p.title}</b>
-                <span>{usd(p.raised)} of {usd(p.goal)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase() ? "" : " · you're in"}</span>
+                <span>{money(p.raised, p.currency)} of {money(p.goal, p.currency)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase() ? "" : " · you're in"}</span>
               </Link>
               <button className="btn sm" onClick={() => share(p)}>{copied === `pot-${p.id}` ? "copied" : "share"}</button>
             </div>

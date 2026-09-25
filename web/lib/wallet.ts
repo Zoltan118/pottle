@@ -2,8 +2,8 @@
 
 import type { WalletApi } from "@/app/providers";
 import { parseSignature, toHex, type Address, type Hex } from "viem";
-import { pottleAbi, usdcAbi } from "./abi";
-import { chain, POTTLE, USDC } from "./config";
+import { erc20Abi, pottleAbi } from "./abi";
+import { chain, CURRENCIES, POTTLE, TOKEN, type Currency } from "./config";
 import { publicClient } from "./pot";
 
 async function relay(body: object): Promise<Hex | null> {
@@ -24,16 +24,17 @@ export async function requestDrip(address: Address, token: string | undefined) {
   return (j.amount as number | undefined) ?? 0;
 }
 
-export async function usdcBalance(address: Address) {
-  const b = await publicClient.readContract({ address: USDC, abi: usdcAbi, functionName: "balanceOf", args: [address] });
+export async function balanceOf(address: Address, c: Currency = "usd") {
+  const b = await publicClient.readContract({ address: TOKEN[c].address, abi: erc20Abi, functionName: "balanceOf", args: [address] });
   return Number(b) / 1e6;
 }
+export const usdcBalance = (address: Address) => balanceOf(address, "usd");
 
-export async function createPot(c: Client, a: { goal: number; deadline: number; wrap: number; title: string; name: string }) {
+export async function createPot(c: Client, a: { goal: number; deadline: number; wrap: number; currency: Currency; title: string; name: string }) {
   if (!POTTLE) throw new Error("pottle is not deployed yet");
   const hash = await c.writeContract({
     address: POTTLE, abi: pottleAbi, functionName: "create", chain, account: c.account,
-    args: [BigInt(Math.round(a.goal * 1e6)), BigInt(a.deadline), a.wrap, a.title, a.name],
+    args: [BigInt(Math.round(a.goal * 1e6)), BigInt(a.deadline), a.wrap, CURRENCIES.indexOf(a.currency), a.title, a.name],
   });
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   const pottle = POTTLE.toLowerCase();
@@ -43,7 +44,7 @@ export async function createPot(c: Client, a: { goal: number; deadline: number; 
 }
 
 /** one signature, then the relayer (or the user's own wallet) submits it */
-export async function chipIn(c: Client, a: { id: number; amount: number; name: string }) {
+export async function chipIn(c: Client, a: { id: number; amount: number; name: string; currency: Currency }) {
   if (!POTTLE) throw new Error("pottle is not deployed yet");
   const from = c.account.address;
   const value = BigInt(Math.round(a.amount * 1e6));
@@ -53,7 +54,8 @@ export async function chipIn(c: Client, a: { id: number; amount: number; name: s
 
   const signature = await c.signTypedData({
     account: c.account,
-    domain: { name: "USDC", version: "2", chainId: chain.id, verifyingContract: USDC },
+    // the pot's own token checks this signature, so it is signed for that token (usdc or eurc)
+    domain: { name: TOKEN[a.currency].name, version: "2", chainId: chain.id, verifyingContract: TOKEN[a.currency].address },
     types: {
       ReceiveWithAuthorization: [
         { name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" },

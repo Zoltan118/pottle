@@ -1,0 +1,20 @@
+# pays out and refunds due pots every 30 minutes, for pots nobody happens to open.
+# every 30 minutes stays inside the 2,000 free actions minutes a private repo gets (runs round up to 1 minute).
+# needs two repository secrets: APP_URL (e.g. https://pottle-1.vercel.app) and CRON_SECRET (same value as on vercel)
+name: settle pots
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: settle due pots
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then echo "APP_URL or CRON_SECRET secret missing"; exit 1; fi
+          curl -sS --fail-with-body -m 90 -H "authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/settle"

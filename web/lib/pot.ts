@@ -1,6 +1,6 @@
 import { createPublicClient, http, type Address } from "viem";
 import { pottleAbi } from "./abi";
-import { chain, POTTLE } from "./config";
+import { chain, CURRENCIES, POTTLE, TOKEN, type Currency } from "./config";
 
 export const publicClient = createPublicClient({ chain, transport: http() });
 
@@ -18,13 +18,16 @@ export type PotData = {
   deadline: number; // unix seconds
   status: Status;
   wrap: Wrap;
+  currency: Currency;
   people: Person[];
 };
 
 export const toUsd = (v: bigint) => Number(v) / 1e6;
 export const fromUsd = (d: number) => BigInt(Math.round(d * 1e6));
-export const usd = (d: number) =>
-  "$" + (Number.isInteger(d) ? d.toString() : d.toFixed(2));
+/** "$20", "€12.50" */
+export const money = (d: number, c: Currency = "usd") =>
+  TOKEN[c].symbol + (Number.isInteger(d) ? d.toString() : d.toFixed(2));
+export const usd = (d: number) => money(d, "usd");
 
 export async function readPot(id: number): Promise<PotData | null> {
   if (!POTTLE || !Number.isSafeInteger(id) || id < 1) return null;
@@ -46,6 +49,7 @@ export async function readPot(id: number): Promise<PotData | null> {
     deadline: Number(pot.deadline),
     status: s,
     wrap: WRAPS[pot.wrap] ?? "confetti",
+    currency: CURRENCIES[pot.currency] ?? "usd",
     people: people
       .map((address, i) => ({ address, name: names[i], amount: toUsd(amounts[i]) }))
       .filter((p) => p.amount > 0 || s === "released"),
@@ -73,5 +77,6 @@ export function timeLeft(deadline: number, now = Date.now() / 1000) {
   return `${m} min left`;
 }
 
-export const WRAPS = ["confetti", "stripes", "gingham", "plain"] as const;
+// index matches the contract's wrap field, 0 to 7
+export const WRAPS = ["confetti", "stripes", "gingham", "plain", "hearts", "stars", "waves", "sprinkles"] as const;
 export type Wrap = (typeof WRAPS)[number];

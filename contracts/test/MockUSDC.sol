@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 /// @notice Minimal stand-in for Circle's FiatToken: 6 decimals, a blocklist, and
 /// EIP-3009 receiveWithAuthorization with the same typehash and rules.
 contract MockUSDC {
-    string public constant name = "USDC";
+    string public name;
     uint8 public constant decimals = 6;
 
     mapping(address => uint256) public balanceOf;
@@ -17,11 +17,12 @@ contract MockUSDC {
     );
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    constructor() {
+    constructor(string memory _name) {
+        name = _name;
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256("USDC"),
+                keccak256(bytes(_name)),
                 keccak256("2"),
                 block.chainid,
                 address(this)

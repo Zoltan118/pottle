@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { readPot, timeLeft, usd } from "@/lib/pot";
+import { money, readPot, timeLeft } from "@/lib/pot";
 
 export const alt = "a pottle pot";
 export const size = { width: 1200, height: 630 };
@@ -25,6 +25,30 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const pct = pot ? Math.min(1, pot.raised / pot.goal) : 0;
   const state = !pot ? "" : pot.status === "released" ? "it's on" : pot.status === "refunding" ? "refunded" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline);
 
+  // after a pot pays out, its preview becomes the thank-you card
+  if (pot && pot.status === "released") {
+    const names = pot.people.map((p) => p.name);
+    const shown = names.slice(0, 12).join(" · ") + (names.length > 12 ? ` · +${names.length - 12}` : "");
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", background: ink, color: paper, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, fontFamily: "Bricolage" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -2 }}>pottle</div>
+            <div style={{ fontSize: 32, color: gold }}>thank you</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ fontSize: 92, fontWeight: 800, letterSpacing: -4, lineHeight: 0.95, display: "flex" }}>
+              {`${names.length} friend${names.length === 1 ? "" : "s"} chipped in ${money(pot.raised, pot.currency)}`}
+            </div>
+            <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1.5, color: gold, display: "flex" }}>{`for ${pot.title}`}</div>
+          </div>
+          <div style={{ fontSize: 30, color: muted, display: "flex" }}>{shown}</div>
+        </div>
+      ),
+      { ...size, fonts: bold ? [{ name: "Bricolage", data: bold, weight: 800, style: "normal" }] : [] },
+    );
+  }
+
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", background: ink, color: paper, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, fontFamily: "Bricolage" }}>
@@ -39,7 +63,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 40, color: "#D9D1E4" }}>
             <span>{pot ? `${pot.people.length} in` : ""}</span>
-            <span>{pot ? `${usd(pot.raised)} of ${usd(pot.goal)}` : ""}</span>
+            <span>{pot ? `${money(pot.raised, pot.currency)} of ${money(pot.goal, pot.currency)}` : ""}</span>
           </div>
         </div>
       </div>

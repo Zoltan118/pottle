@@ -2,11 +2,12 @@
 pragma solidity 0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {Pottle, IUSDC} from "../src/Pottle.sol";
+import {Pottle, IFiatToken} from "../src/Pottle.sol";
 import {MockUSDC} from "./MockUSDC.sol";
 
 contract PottleTest is Test {
     MockUSDC usdc;
+    MockUSDC eurc;
     Pottle pottle;
 
     address deniz = makeAddr("deniz"); // organiser
@@ -20,21 +21,25 @@ contract PottleTest is Test {
 
     function setUp() public {
         vm.warp(1_790_000_000);
-        usdc = new MockUSDC();
-        pottle = new Pottle(IUSDC(address(usdc)));
+        usdc = new MockUSDC("USDC");
+        eurc = new MockUSDC("EURC");
+        pottle = new Pottle(IFiatToken(address(usdc)), IFiatToken(address(eurc)));
         ece = vm.addr(ecePk);
         deadline = uint64(block.timestamp + 3 days);
         for (uint256 i; i < 3; ++i) {
             address a = [mert, ayla, ece][i];
             usdc.mint(a, 1_000e6);
-            vm.prank(a);
+            eurc.mint(a, 1_000e6);
+            vm.startPrank(a);
             usdc.approve(address(pottle), type(uint256).max);
+            eurc.approve(address(pottle), type(uint256).max);
+            vm.stopPrank();
         }
     }
 
     function _pot(uint128 goal) internal returns (uint256 id) {
         vm.prank(deniz);
-        id = pottle.create(goal, deadline, 0, "sarah's gift", "deniz");
+        id = pottle.create(goal, deadline, 0, 0, "sarah's gift", "deniz");
     }
 
     function _chip(address who, uint256 id, uint128 amt, string memory name) internal {
@@ -64,17 +69,17 @@ contract PottleTest is Test {
 
     function test_create_rejectsBadInput() public {
         vm.expectRevert(Pottle.BadGoal.selector);
-        pottle.create(0, deadline, 0, "x", "d");
+        pottle.create(0, deadline, 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadGoal.selector);
-        pottle.create(10_000e6 + 1, deadline, 0, "x", "d");
+        pottle.create(10_000e6 + 1, deadline, 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
-        pottle.create(1e6, uint64(block.timestamp), 0, "x", "d");
+        pottle.create(1e6, uint64(block.timestamp), 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
-        pottle.create(1e6, uint64(block.timestamp + 91 days), 0, "x", "d");
+        pottle.create(1e6, uint64(block.timestamp + 91 days), 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadText.selector);
-        pottle.create(1e6, deadline, 0, "", "d");
+        pottle.create(1e6, deadline, 0, 0, "", "d");
         vm.expectRevert(Pottle.BadText.selector);
-        pottle.create(1e6, deadline, 0, "x", "");
+        pottle.create(1e6, deadline, 0, 0, "x", "");
     }
 
     // ---------------------------------------------------------------- happy path
@@ -327,10 +332,56 @@ contract PottleTest is Test {
 
     function test_wrapIsStoredAndBounded() public {
         vm.prank(deniz);
-        uint256 id = pottle.create(50e6, deadline, 2, "picnic", "deniz");
+        uint256 id = pottle.create(50e6, deadline, 2, 0, "picnic", "deniz");
         (Pottle.Pot memory p,,,,) = pottle.getPot(id);
         assertEq(p.wrap, 2);
         vm.expectRevert(Pottle.BadText.selector);
-        pottle.create(50e6, deadline, 8, "x", "d");
+        pottle.create(50e6, deadline, 8, 0, "x", "d");
+    }
+
+    // ---------------------------------------------------------------- euro pots
+
+    function test_euroPot_paysAndReleasesInEurc() public {
+        vm.prank(deniz);
+        uint256 id = pottle.create(30e6, deadline, 0, 1, "lisbon trip", "deniz");
+        assertEq(address(pottle.tokenOf(id)), address(eurc));
+        _chip(mert, id, 20e6, "mert");
+        _chip(ayla, id, 10e6, "ayla");
+        assertEq(eurc.balanceOf(mert), 980e6);
+        assertEq(usdc.balanceOf(mert), 1_000e6); // no dollars touched
+        pottle.release(id);
+        assertEq(eurc.balanceOf(deniz), 30e6);
+        assertEq(usdc.balanceOf(deniz), 0);
+    }
+
+    function test_euroPot_refundsInEurc() public {
+        vm.prank(deniz);
+        uint256 id = pottle.create(100e6, deadline, 0, 1, "lisbon trip", "deniz");
+        _chip(mert, id, 20e6, "mert");
+        vm.warp(deadline);
+        pottle.refundAll(id);
+        assertEq(eurc.balanceOf(mert), 1_000e6);
+    }
+
+    function test_euroPot_signatureMustBeForEurc() public {
+        vm.prank(deniz);
+        uint256 id = pottle.create(100e6, deadline, 0, 1, "lisbon trip", "deniz");
+        bytes32 salt = keccak256("e");
+        uint256 validBefore = block.timestamp + 1 hours;
+        // a usdc signature does not move euros
+        (uint8 v, bytes32 r, bytes32 s) = _sign(ecePk, id, 20e6, "ece", salt, validBefore);
+        vm.expectRevert(bytes("bad signature"));
+        pottle.chipInWithAuthorization(id, ece, 20e6, "ece", 0, validBefore, salt, v, r, s);
+        // the same payment signed for eurc goes through
+        bytes32 nonce = pottle.authNonce(id, "ece", salt);
+        bytes32 structHash = keccak256(abi.encode(eurc.RECEIVE_WITH_AUTHORIZATION_TYPEHASH(), ece, address(pottle), uint256(20e6), uint256(0), validBefore, nonce));
+        (v, r, s) = vm.sign(ecePk, keccak256(abi.encodePacked("\x19\x01", eurc.DOMAIN_SEPARATOR(), structHash)));
+        pottle.chipInWithAuthorization(id, ece, 20e6, "ece", 0, validBefore, salt, v, r, s);
+        assertEq(eurc.balanceOf(ece), 980e6);
+    }
+
+    function test_badCurrencyRejected() public {
+        vm.expectRevert(Pottle.BadText.selector);
+        pottle.create(1e6, deadline, 0, 2, "x", "d");
     }
 }

@@ -2,7 +2,8 @@
 
 import { useRef, useState, type MutableRefObject } from "react";
 import { useMountEffect } from "@/hooks/useMountEffect";
-import { usd, type Person, type Status } from "@/lib/pot";
+import { money, type Person, type Status } from "@/lib/pot";
+import type { Currency } from "@/lib/config";
 import { PotArt } from "./PotArt";
 
 export type PotFeed = {
@@ -21,11 +22,12 @@ type Coin = { id: number; label?: string; kind: "in" | "out" | "burst"; x: numbe
  * then reacts live to new chip-ins pushed through `feedRef`. the numbers on the page never animate
  * away from the truth; only the pot does.
  */
-export function PotLive({ people, goal, level, status, feedRef }: {
+export function PotLive({ people, goal, level, status, currency, feedRef }: {
   people: Person[];
   goal: number;
   level: number;
   status: Status;
+  currency: Currency;
   feedRef: MutableRefObject<PotFeed | null>;
 }) {
   const [fill, setFill] = useState(level);
@@ -68,7 +70,7 @@ export function PotLive({ people, goal, level, status, feedRef }: {
       people.slice(0, 8).forEach((p, i) => {
         sum += p.amount;
         const to = sum / goal;
-        later(250 + i * 420, () => api.drop(`${p.name} · ${usd(p.amount)}`, to));
+        later(250 + i * 420, () => api.drop(`${p.name} · ${money(p.amount, currency)}`, to));
       });
       const replayEnd = 250 + Math.min(people.length, 8) * 420;
       later(replayEnd, () => setFill(level));

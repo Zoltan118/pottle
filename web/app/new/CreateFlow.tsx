@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useWallet } from "@/app/providers";
 import { createPot } from "@/lib/wallet";
-import { missingEnv } from "@/lib/config";
+import { missingEnv, TOKEN, type Currency } from "@/lib/config";
 import { WRAPS, type Wrap } from "@/lib/pot";
 
 const UNTIL = ["friday", "sunday", "1 week", "2 weeks"] as const;
@@ -26,6 +26,7 @@ const dateLabel = (u: Until) =>
 
 const WRAP_LIST: { id: Wrap; label: string }[] = [
   { id: "confetti", label: "confetti" }, { id: "stripes", label: "ribbon" }, { id: "gingham", label: "picnic" }, { id: "plain", label: "plain" },
+  { id: "hearts", label: "hearts" }, { id: "stars", label: "stars" }, { id: "waves", label: "waves" }, { id: "sprinkles", label: "sprinkles" },
 ];
 
 export function CreateFlow() {
@@ -33,6 +34,7 @@ export function CreateFlow() {
   const [step, setStep] = useState(0);
   const [title, setTitle] = useState("");
   const [goal, setGoal] = useState("");
+  const [currency, setCurrency] = useState<Currency>("usd");
   const [until, setUntil] = useState<Until | null>(null);
   const [wrap, setWrap] = useState<Wrap>("confetti");
   const [name, setName] = useState("");
@@ -49,7 +51,7 @@ export function CreateFlow() {
     setBusy(true); setErr("");
     try {
       const c = await w.client();
-      const id = await createPot(c, { goal: +goal, deadline: deadlineFor(until!), wrap: WRAPS.indexOf(wrap), title: title.trim(), name: name.trim().toLowerCase() });
+      const id = await createPot(c, { goal: +goal, deadline: deadlineFor(until!), wrap: WRAPS.indexOf(wrap), currency, title: title.trim(), name: name.trim().toLowerCase() });
       setPotId(id); setStep(5);
     } catch (e) {
       setErr(e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong");
@@ -88,8 +90,12 @@ export function CreateFlow() {
       {step === 1 && (
         <section className="flow">
           <h1 className="giant q">goal?</h1>
-          <label className="money"><span>$</span><input className="bigin" inputMode="numeric" placeholder="200" maxLength={5} autoFocus value={goal} onChange={(e) => setGoal(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="goal in dollars" enterKeyHint="next" /></label>
-          <div className="chips">{["50", "100", "200", "500"].map((g) => <button key={g} className="chip" aria-pressed={goal === g} onClick={() => setGoal(g)}>${g}</button>)}</div>
+          <label className="money"><span>{TOKEN[currency].symbol}</span><input className="bigin" inputMode="numeric" placeholder="200" maxLength={5} autoFocus value={goal} onChange={(e) => setGoal(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="goal in dollars" enterKeyHint="next" /></label>
+          <div className="chips">{["50", "100", "200", "500"].map((g) => <button key={g} className="chip" aria-pressed={goal === g} onClick={() => setGoal(g)}>{TOKEN[currency].symbol}{g}</button>)}</div>
+          <div className="cur" role="group" aria-label="currency">
+            <button className="chip" aria-pressed={currency === "usd"} onClick={() => setCurrency("usd")} data-tip="friends chip in usdc">$ dollars</button>
+            <button className="chip" aria-pressed={currency === "eur"} onClick={() => setCurrency("eur")} data-tip="friends chip in eurc">€ euros</button>
+          </div>
         </section>
       )}
 
