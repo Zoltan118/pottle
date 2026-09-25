@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { HeroPot } from "@/components/HeroPot";
-import { Logo } from "@/components/Mark";
+import { BigMark, Logo } from "@/components/Mark";
 import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO } from "@/lib/config";
 
 const ONRAMP = !!process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL;
@@ -114,6 +114,7 @@ export default function Home() {
           <button className="tipword" data-tip="payments land in half a second and cost about a tenth of a cent. nobody can take a pot early, not even us.">usdc on arc</button>
         </p>
       </footer>
+      <BigMark />
     </main>
   );
 }

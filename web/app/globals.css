@@ -107,8 +107,13 @@ a { color: inherit; }
 .tipdot { width: 34px; height: 34px; flex: none; border-radius: 50%; border: 2px solid currentColor; background: transparent; font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1; display: grid; place-items: center; cursor: help; color: var(--muted); transform: translateY(-.4em); transition: transform 160ms var(--out), color 160ms ease; }
 .tipdot:active { transform: translateY(-.4em) scale(.94); }
 @media (hover: hover) and (pointer: fine) { .tipdot:hover { color: var(--ink); } }
+/* the sign-off: the wordmark filling the width, its lower part cut off by the page edge */
+.bigmark { overflow: hidden; font-size: min(34vw, 420px); height: .66em; display: flex; justify-content: center; user-select: none; pointer-events: none; margin-top: 8px; color: color-mix(in srgb, var(--ribbon) 16%, var(--paper)); }
+.bigmark span { display: inline-flex; align-items: flex-start; font-family: var(--display); font-weight: 800; letter-spacing: -.06em; line-height: .78; }
+.bigmark svg { width: .8em; height: .8em; margin-inline: .02em; transform: translateY(.1em); }
+.bigmark svg rect[fill="#F2B32A"] { fill: color-mix(in srgb, var(--marigold) 45%, var(--paper)); }
 /* footer: brand, links, fine print. one row on wide screens, a stacked block with full-width rows on phones */
-.foot { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "brand links" "note note"; align-items: center; gap: 20px 24px; padding-block: 32px calc(32px + env(safe-area-inset-bottom, 0px)); border-top: 2px solid var(--ink); font-weight: 600; font-size: 15px; }
+.foot { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "brand links" "note note"; align-items: center; gap: 20px 24px; padding-block: 32px 24px; border-top: 2px solid var(--ink); font-weight: 600; font-size: 15px; }
 .foot-brand { grid-area: brand; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .foot-tag { color: var(--muted); font-weight: 700; }
 .foot-links { grid-area: links; display: flex; gap: 8px; }
