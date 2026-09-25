@@ -26,7 +26,7 @@ const FAQ = [
   { q: "do my friends need crypto?", a: `no. they sign in with their email and get a wallet. they need usdc (or eurc for euro pots) on arc${ONRAMP ? ", which they can add by card inside pottle" : ""}.` },
   { q: "what are usdc and eurc?", a: "digital dollars and euros issued by circle. one usdc is always worth one dollar, one eurc one euro." },
   { q: "what is arc?", a: "circle's blockchain for money. payments land in about half a second and fees are paid in usdc, so there's nothing else to buy first." },
-  { q: "is it safe?", a: "the contract is open source and tested, and it can only send money to the organiser or back to whoever paid. there's been no third-party audit yet, so while pottle is in beta each pot holds at most $100 (or €100)." },
+  { q: "is it safe?", a: "the contract is open source and tested, and it can only send money to the organiser or back to whoever paid. there's been no third-party audit yet, so during beta a pot on the live site holds at most $100 (or €100)." },
 ];
 
 export default function Home() {
