@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { verifyDynamicToken } from "@/lib/auth";
+import { verifyUser } from "@/lib/auth";
 import { allow, clientIp } from "@/lib/limits";
 import { createWalletClient, http, isAddress, parseAbi, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { chain, DYNAMIC_ENV, EURC, NETWORK, USDC } from "@/lib/config";
+import { chain, EURC, NETWORK, USDC, WALLETS_ON } from "@/lib/config";
 import { publicClient } from "@/lib/pot";
 
 // testnet only: sends a little usdc to a freshly signed-in wallet so nobody has to find a faucet.
-// the caller must prove who they are with their dynamic session token, and the wallet must be one
-// of the wallets on that token. wallets that already hold $1 or more get nothing.
+// the caller must prove who they are (a dynamic session token or a circle user token), and the wallet
+// must be one of theirs. wallets that already hold $1 or more get nothing.
 
 const DRIP = 10_000_000n; // $10, usdc has 6 decimals
 const HAS_ENOUGH = 1_000_000n; // $1
@@ -22,8 +22,8 @@ const recent = new Map<string, number>();
 export async function POST(req: Request) {
   if (NETWORK !== "testnet") return NextResponse.json({ error: "testnet only" }, { status: 404 });
   const key = process.env.RELAYER_PRIVATE_KEY;
-  if (!key || !DYNAMIC_ENV) {
-    console.warn(`[pottle] drip off, missing: ${[!key && "RELAYER_PRIVATE_KEY", !DYNAMIC_ENV && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID"].filter(Boolean).join(", ")}`);
+  if (!key || !WALLETS_ON) {
+    console.warn(`[pottle] drip off, missing: ${[!key && "RELAYER_PRIVATE_KEY", !WALLETS_ON && "a wallet provider (NEXT_PUBLIC_WALLET_PROVIDER + its key)"].filter(Boolean).join(", ")}`);
     return NextResponse.json({ error: "drip off" }, { status: 503 });
   }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   let address: string | undefined;
   try { address = (await req.json()).address; } catch {}
   if (!address || !isAddress(address)) return NextResponse.json({ error: "sign in first" }, { status: 401 });
-  const who = await verifyDynamicToken(req);
+  const who = await verifyUser(req);
   if (!who) return NextResponse.json({ error: "sign in again" }, { status: 401 });
   if (!who.wallets.includes(address.toLowerCase())) return NextResponse.json({ error: "not your wallet" }, { status: 403 });
   const sub = who.sub;

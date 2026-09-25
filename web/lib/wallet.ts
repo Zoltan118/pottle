@@ -18,8 +18,8 @@ async function relay(body: object): Promise<Hex | null> {
 type Client = Awaited<ReturnType<WalletApi["client"]>>;
 
 /** testnet: ask our drip for a little usdc. returns the amount sent, or 0 if nothing was needed */
-export async function requestDrip(address: Address, token: string | undefined) {
-  const r = await fetch("/api/drip", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token ?? ""}` }, body: JSON.stringify({ address }) });
+export async function requestDrip(address: Address, authHeader: string) {
+  const r = await fetch("/api/drip", { method: "POST", headers: { "content-type": "application/json", authorization: authHeader }, body: JSON.stringify({ address }) });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || "drip failed");
   return (j.amount as number | undefined) ?? 0;

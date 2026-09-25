@@ -73,7 +73,7 @@ export function AddMoney({ currency = "usd", amount, label = "add money", onDone
       const { kit, fetchOnrampSession } = await loadKit();
       const session = await fetchOnrampSession({
         url: "/api/onramp/sessions",
-        headers: { authorization: `Bearer ${w.token() ?? ""}` },
+        headers: { authorization: w.authHeader() },
         body: {
           appUserId: w.userId!,
           destinationAddress: w.address!,

@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Account, Address, Chain, Transport, WalletClient } from "viem";
-import { DYNAMIC_ENV } from "./config";
+import { WALLETS_ON } from "./config";
 
 export type WalletApi = {
   on: boolean; // false when sign-in is not configured
@@ -12,18 +12,18 @@ export type WalletApi = {
   signIn: () => void;
   signOut: () => void;
   client: () => Promise<WalletClient<Transport, Chain, Account>>;
-  token: () => string | undefined; // the signed-in user's dynamic jwt, proves who they are to our api
+  authHeader: () => string; // proves who the user is to our own api: "Bearer <dynamic jwt>" or "Circle <userToken>"
 };
 
 // the dynamic sdk only runs in the browser. it publishes into this store, the app reads from it,
 // so every page can still render on the server
 const initial: WalletApi = {
-  on: !!DYNAMIC_ENV,
-  ready: !DYNAMIC_ENV,
-  signIn: () => console.warn("[pottle] sign-in not ready" + (DYNAMIC_ENV ? "" : ", set NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID")),
+  on: WALLETS_ON,
+  ready: !WALLETS_ON,
+  signIn: () => console.warn("[pottle] sign-in not ready" + (WALLETS_ON ? "" : ", no wallet provider configured")),
   signOut: () => {},
   client: async () => { throw new Error("sign-in is not ready"); },
-  token: () => undefined,
+  authHeader: () => "",
 };
 
 let current = initial;

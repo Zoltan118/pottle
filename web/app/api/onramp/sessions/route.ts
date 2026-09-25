@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createOnrampServerKit, createSessionRouteHandler } from "@circle-fin/onramp-kit/server";
-import { verifyDynamicToken } from "@/lib/auth";
+import { verifyUser } from "@/lib/auth";
 
 // circle onramp kit: turns our long-lived key into a one-time session for the signed-in user's
 // own wallet. the key never reaches the browser. set both base urls for sandbox, neither for production.
@@ -13,7 +13,7 @@ const handler = apiKey
   ? createSessionRouteHandler(createOnrampServerKit({ apiKey, baseUrl, widgetBaseUrl, referrerDomain }), {
       // only a signed-in user, and only into a wallet that is theirs
       authorize: async (request) => {
-        const who = await verifyDynamicToken(request);
+        const who = await verifyUser(request);
         if (!who) return false;
         const body = await request.clone().json().catch(() => null);
         const dest = String(body?.destinationAddress ?? "").toLowerCase();

@@ -37,7 +37,7 @@ function Bridge() {
         await primaryWallet.switchNetwork(chain.id);
         return primaryWallet.getWalletClient(String(chain.id));
       },
-      token: getAuthToken,
+      authHeader: () => `Bearer ${getAuthToken() ?? ""}`,
     });
   }, [sdkHasLoaded, address, user?.userId, primaryWallet, setShowAuthFlow, handleLogOut]);
 

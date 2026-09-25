@@ -30,7 +30,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
   const drip = useQuery({
     queryKey: ["drip", w.address],
     queryFn: async () => {
-      const sent = await requestDrip(w.address!, w.token());
+      const sent = await requestDrip(w.address!, w.authHeader());
       if (sent) await qc.invalidateQueries({ queryKey: ["bal", w.address] });
       if (sent) await qc.invalidateQueries({ queryKey: ["eur", w.address] });
       return sent;
