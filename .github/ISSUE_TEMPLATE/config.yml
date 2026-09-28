@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: report a vulnerability (privately)
+    url: https://github.com/Zoltan118/pottle/security/advisories/new
+    about: a way to move money out of a pot, or block a payout or refund. please don't open a public issue
+  - name: try pottle
+    url: https://test.pottle.xyz
+    about: the free testnet site, with test dollars for new wallets

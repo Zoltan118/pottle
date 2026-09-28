@@ -1,0 +1,49 @@
+# every push and pull request: the contract's tests (unit, fuzz, invariant) and the app's lint,
+# types and production build. the README's tests badge is this workflow
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: build
+        run: forge build --sizes
+      - name: test (unit, fuzz, invariant)
+        run: forge test -vv
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: lint
+        run: npm run lint
+      - name: types
+        run: npx tsc --noEmit
+      - name: production build
+        # no settings: the app builds without any, and says what is missing at runtime
+        run: npm run build

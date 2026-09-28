@@ -1,0 +1,16 @@
+name: an idea
+description: something pottle should do
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: the idea
+      placeholder: "pots that split the goal evenly, so everyone sees their share"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: the group chat it would help
+      placeholder: "our flat pays rent together and always argues about who is short"

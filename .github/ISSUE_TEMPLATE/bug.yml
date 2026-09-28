@@ -1,0 +1,31 @@
+name: something broke
+description: a pot, a payment or the site did not do what it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "found a way to move money out of a pot, or to block a payout or refund? please don't post it here: report it privately through the security tab."
+  - type: dropdown
+    id: network
+    attributes:
+      label: network
+      options: [pottle.xyz (mainnet), test.pottle.xyz (testnet), running it locally]
+    validations:
+      required: true
+  - type: input
+    id: pot
+    attributes:
+      label: pot link or transaction
+      placeholder: https://test.pottle.xyz/p/12
+  - type: textarea
+    id: what
+    attributes:
+      label: what happened, and what you expected
+      placeholder: "i chipped in $5, the pot still shows $0 after a minute"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: phone or browser
+      placeholder: iphone 15, safari

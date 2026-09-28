@@ -1,5 +1,21 @@
 <p align="center">
-  <img src="brand/social.png" alt="pottle. chip in, or get it back. a pot for the group chat, usdc on arc. the pottle mark: a round pot, half full of gold." width="860">
+  <img src="brand/social.png" alt="pottle. chip in, or get it back. a pot for the group chat, usdc on arc. the mascot, a round pot filled with gold, sits in the wordmark as the o." width="860">
+</p>
+
+<p align="center">
+  <a href="https://github.com/Zoltan118/pottle/actions/workflows/ci.yml"><img src="https://github.com/Zoltan118/pottle/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="https://pottle.xyz"><img src="https://img.shields.io/badge/arc_mainnet-pottle.xyz-C42A5C" alt="arc mainnet: pottle.xyz"></a>
+  <a href="https://test.pottle.xyz"><img src="https://img.shields.io/badge/arc_testnet-test.pottle.xyz-F2B32A" alt="arc testnet: test.pottle.xyz"></a>
+  <a href="contracts"><img src="https://img.shields.io/badge/coverage-100%25-1F7A57" alt="contract coverage 100%"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-231A33" alt="mit license"></a>
+</p>
+
+<p align="center">
+  <b><a href="https://pottle.xyz">pottle.xyz</a></b> ·
+  <a href="https://test.pottle.xyz">try it free</a> ·
+  <a href="JUDGES.md">for reviewers</a> ·
+  <a href="https://pottle.xyz/stickers">stickers</a> ·
+  <a href="AUDIT.md">what it does not protect against</a>
 </p>
 
 # pottle
@@ -19,6 +35,14 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 - what it does not protect against: [`AUDIT.md`](AUDIT.md)
 - reporting a vulnerability: [`SECURITY.md`](SECURITY.md)
 - mit licensed
+
+<p align="center">
+  <img src="brand/demo.gif" alt="six friends chip in on six beats, the pot fills to $120, turns gold and pays out to maya" width="720">
+</p>
+
+<p align="center">
+  <img src="brand/screens.png" alt="pottle on a phone: the home page, making a pot, a pot with its chip in button, and the stickers page" width="860">
+</p>
 
 ---
 
@@ -99,7 +123,7 @@ web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id]
   app/api/onramp        circle onramp kit sessions, only for the signed-in user's own wallet
   scripts/e2e-testnet   end-to-end run on arc testnet with real usdc through the app's own api
 brand/       mark, colours, social cards
-.github/     the scheduled settle job
+.github/     ci (tests, lint, types, build on every push), the scheduled settle job, issue templates
 ```
 
 ## run it
