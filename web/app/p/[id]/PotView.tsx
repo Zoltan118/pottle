@@ -13,6 +13,7 @@ import { balanceOf, chipIn, settle } from "@/lib/wallet";
 import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, type PotData } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
 import { NETWORK, TOKEN } from "@/lib/config";
+import { ShareIcon } from "@/components/Icons";
 
 
 export function PotView({ initial }: { initial: PotData }) {
@@ -181,7 +182,7 @@ export function PotView({ initial }: { initial: PotData }) {
               </div>
               <div className="potcta-row">
                 <button className="btn lg ghost potcta-share" onClick={nudge} aria-label="share this pot">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <ShareIcon />
                 </button>
                 <button className="btn lg wide" onClick={() => setOpen(true)}>{valid ? <>i&apos;m in · {m(amount)}</> : <>i&apos;m in</>}</button>
               </div>

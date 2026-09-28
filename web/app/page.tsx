@@ -3,6 +3,7 @@ import { Nav } from "@/components/Nav";
 import { HeroPot } from "@/components/HeroPot";
 import { BigMark, Logo } from "@/components/Mark";
 import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO } from "@/lib/config";
+import { ArrowOutIcon } from "@/components/Icons";
 
 const ONRAMP = !!process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL;
 
@@ -39,6 +40,8 @@ export default function Home() {
 
   return (
     <main className="view">
+      {/* the first screen: nav and hero together fill exactly one screen, so the next section never peeks in */}
+      <div className="fold">
       <Nav action={<Link className="btn sm hide-sm" href="/new">make a pot</Link>} />
       <section className="shell hero">
         <div className="hero-text">
@@ -50,9 +53,11 @@ export default function Home() {
           </div>
         </div>
         <HeroPot />
+        <a className="more" href="#how" aria-label="how it works"><span aria-hidden="true">↓</span></a>
       </section>
+      </div>
 
-      <section className="shell lines" aria-label="how it works">
+      <section className="shell lines" id="how" aria-label="how it works">
         <div className="line"><span className="giant">1 pot.</span><button className="tipdot" data-tip="set a goal and a deadline. takes 20 seconds." aria-label="about the pot">?</button></div>
         <div className="line"><span className="giant">1 link.</span><button className="tipdot" data-tip="paste it in the group chat. friends sign in with email and chip in." aria-label="about the link">?</button></div>
         <div className="line"><span className="giant">0 chasing.</span><button className="tipdot" data-tip="goal missed? everyone gets their money back, automatically." aria-label="about refunds">?</button></div>
@@ -62,11 +67,20 @@ export default function Home() {
         <h2 className="giant">nobody can take it early.</h2>
         <p className="safe-sub">not the organiser. not us.</p>
         <p className="safe-vs">most group pots let the organiser keep the money when the goal is missed. pottle can&apos;t: it goes back to everyone.</p>
-        <div className="safe-row">
-          {POTTLE && <a className="chip" href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer" data-tip="the contract holds every pot. it has no owner and no admin.">no owner ↗</a>}
-          <span className="chip" tabIndex={0} data-tip="pottle takes nothing. you only pay arc's network fee, about a tenth of a cent, and usually not even that.">no fees</span>
-          <a className="chip" href={REPO} target="_blank" rel="noreferrer" data-tip="every line is public on github.">open source ↗</a>
-        </div>
+        {/* the claims, each with its proof. the ones that can be checked link to where */}
+        <ul className="specs">
+          {POTTLE && (
+            <li><a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">
+              <b>no owner</b><span>the contract has no admin and no pause. nobody can move a pot early.</span><ArrowOutIcon />
+            </a></li>
+          )}
+          <li><div>
+            <b>no fees</b><span>pottle takes nothing. arc&apos;s network fee is about a tenth of a cent, and pottle usually pays it.</span>
+          </div></li>
+          <li><a href={REPO} target="_blank" rel="noreferrer">
+            <b>open source</b><span>every line of the app and the contract is on github.</span><ArrowOutIcon />
+          </a></li>
+        </ul>
       </section>
 
       <section className="shell feats" aria-label="features">
@@ -104,9 +118,9 @@ export default function Home() {
           <span className="foot-tag">chip in, or get it back.</span>
         </div>
         <nav className="foot-links" aria-label="links">
-          {OTHER_SITE && <a href={OTHER_SITE}>{NETWORK === "mainnet" ? "try it free" : "go live"}<span aria-hidden="true">↗</span></a>}
-          <a href={REPO} target="_blank" rel="noreferrer">github<span aria-hidden="true">↗</span></a>
-          {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<span aria-hidden="true">↗</span></a>}
+          {OTHER_SITE && <a href={OTHER_SITE}>{NETWORK === "mainnet" ? "try it free" : "go live"}<ArrowOutIcon /></a>}
+          <a href={REPO} target="_blank" rel="noreferrer">github<ArrowOutIcon /></a>
+          {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<ArrowOutIcon /></a>}
         </nav>
         {NETWORK === "mainnet" && <p className="foot-note">beta · no third-party audit</p>}
       </footer>

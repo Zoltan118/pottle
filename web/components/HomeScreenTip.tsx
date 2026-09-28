@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sheet } from "./Sheet";
 import { dismissInstall, promptInstall, useInstall } from "@/lib/install";
+import { CloseIcon } from "./Icons";
 
 /** one quiet line that offers pottle on the home screen, for people who will keep coming back to a pot */
 export function HomeScreenTip({ lead = "checking on it often?" }: { lead?: string }) {
@@ -19,7 +20,7 @@ export function HomeScreenTip({ lead = "checking on it often?" }: { lead?: strin
     <>
       <p className="a2hs">
         {lead} <button className="a2hs-go" onClick={start}>add pottle to your home screen</button>
-        <button className="a2hs-x" onClick={dismissInstall} aria-label="not now">×</button>
+        <button className="a2hs-x" onClick={dismissInstall} aria-label="not now"><CloseIcon /></button>
       </p>
       <Sheet open={open} onClose={() => setOpen(false)} label="add pottle to your home screen">
         <h2 className="giant">on your home screen.</h2>

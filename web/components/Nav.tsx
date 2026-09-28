@@ -12,6 +12,7 @@ import { NetSwitch } from "./NetSwitch";
 import { Sheet } from "./Sheet";
 import { HomeScreenTip } from "./HomeScreenTip";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
+import { CloseIcon, CopyIcon, ShareIcon } from "./Icons";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -94,9 +95,9 @@ export function Nav({ action }: { action?: React.ReactNode }) {
       <Sheet open={open} onClose={() => setOpen(false)} label="your account" closeButton={false}>
         <div className="acct-top">
           <button className="addr" onClick={() => w.address && copy(w.address, "addr")} aria-label="copy your address">
-            <i />{w.address ? short(w.address) : ""}<span>{copied === "addr" ? "copied" : "copy"}</span>
+            <i />{w.address ? short(w.address) : ""}<span><CopyIcon done={copied === "addr"} />{copied === "addr" ? "copied" : "copy"}</span>
           </button>
-          <button className="iconbtn" onClick={() => setOpen(false)} aria-label="close">×</button>
+          <button className="iconbtn" onClick={() => setOpen(false)} aria-label="close"><CloseIcon /></button>
         </div>
 
         <div className="acct-bal">{exact}<small>usdc on arc</small></div>
@@ -129,7 +130,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
                     ? (p.status === "released" ? " · paid to you" : p.status === "refunding" ? " · yours, refunded" : " · yours")
                     : (p.status === "refunding" ? " · refunded to you" : " · you're in")}</span>
               </Link>
-              <button className="btn sm" onClick={() => share(p)}>{copied === `pot-${p.id}` ? "copied" : "share"}</button>
+              <button className="btn sm" onClick={() => share(p)}><ShareIcon />{copied === `pot-${p.id}` ? "copied" : "share"}</button>
             </div>
           ))}
         </div>

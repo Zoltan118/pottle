@@ -11,6 +11,7 @@ import { createPot } from "@/lib/wallet";
 import { missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { MAX_POT, money, WRAPS, type Wrap } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES, MAX_TITLE_BYTES } from "@/lib/text";
+import { BackIcon, CloseIcon, CopyIcon, ShareIcon } from "@/components/Icons";
 
 const UNTIL = ["tonight", "tomorrow", "friday", "1 week", "pick a date"] as const;
 type Until = (typeof UNTIL)[number];
@@ -128,9 +129,9 @@ export function CreateFlow() {
     <main className="view">
       <div className="shell">
         <nav className="bar">
-          <button className="iconbtn" onClick={() => history.back()} aria-label="back" style={{ visibility: step === 0 || step === 5 ? "hidden" : "visible" }}>←</button>
+          <button className="iconbtn" onClick={() => history.back()} aria-label="back" style={{ visibility: step === 0 || step === 5 ? "hidden" : "visible" }}><BackIcon /></button>
           <div className="steps" aria-hidden="true">{[0, 1, 2, 3, 4].map((i) => <i key={i} className={i < step || step === 5 ? "done" : ""} />)}</div>
-          <Link className="iconbtn" href="/" aria-label="close">×</Link>
+          <Link className="iconbtn" href="/" aria-label="close"><CloseIcon /></Link>
         </nav>
       </div>
 
@@ -196,9 +197,9 @@ export function CreateFlow() {
         <section className="flow">
           <h1 className="giant q">ready.</h1>
           <p className="hint" style={{ margin: 0 }}>send it to the group. you&apos;ll see everyone who chips in on the pot, and in your pots under your balance.</p>
-          <div className="linkbox"><code>{link.replace(/^https?:\/\//, "")}</code><button className="btn sm" onClick={copy}>{copied ? "copied" : "copy"}</button></div>
+          <div className="linkbox"><code>{link.replace(/^https?:\/\//, "")}</code><button className="btn sm" onClick={copy}><CopyIcon done={copied} />{copied ? "copied" : "copy"}</button></div>
           <div className="ready-acts">
-            <button className="btn lg" onClick={share}>share with the group</button>
+            <button className="btn lg" onClick={share}><ShareIcon />share with the group</button>
             <a className="btn lg ghost" href={link}>open pot</a>
           </div>
           <HomeScreenTip />

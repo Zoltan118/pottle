@@ -53,7 +53,7 @@ export function HeroPot() {
 
     (async () => {
       while (alive) {
-        symRef.current = "$"; setSym("$");
+        symRef.current = "$"; setSym("$"); if (count.current) count.current.textContent = "$0";
         setTone(""); setLine("sarah's gift");
         for (const [who, city, amt] of HIT) {
           await visible(); if (!alive) return;
@@ -64,7 +64,8 @@ export function HeroPot() {
         setTone("ok"); setLine("it's on. $200 to maya.");
         await wait(2200); tick(0); setTone(""); await wait(700);
 
-        symRef.current = "€"; setSym("€");
+        // the counter only redraws when a coin lands, so switch its symbol with the story
+        symRef.current = "€"; setSym("€"); if (count.current) count.current.textContent = "€0";
         setLine("trip to lisbon");
         for (const [who, city, amt] of MISS) {
           await visible(); if (!alive) return;

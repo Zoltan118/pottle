@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type KeyboardEvent, type ReactNode, type TransitionEvent } from "react";
+import { CloseIcon } from "./Icons";
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -50,7 +51,7 @@ export function Sheet({ open, onClose, label, children, closeButton = true }: {
       <div className={`scrim${open ? " on" : ""}`} onClick={onClose} aria-hidden="true" />
       <div ref={ref} className={`sheet${open ? " on" : ""}`} role="dialog" aria-modal="true" aria-label={label} aria-hidden={!open}
         tabIndex={-1} onKeyDown={onKeyDown} onTransitionStart={onTransitionStart} onTransitionEnd={onTransitionEnd}>
-        {closeButton && <button className="iconbtn sheet-x" onClick={onClose} aria-label="close">×</button>}
+        {closeButton && <button className="iconbtn sheet-x" onClick={onClose} aria-label="close"><CloseIcon /></button>}
         {children}
       </div>
     </>
