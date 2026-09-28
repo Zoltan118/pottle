@@ -466,3 +466,29 @@ html { scroll-behavior: smooth; }
 .update-pill { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 60; border: 0; border-radius: 999px; padding: 0 18px; min-height: 44px; background: var(--ink); color: var(--paper); font: 700 15px var(--body); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); cursor: pointer; white-space: nowrap; }
 .update-pill b { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .update-pill:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+
+/* phones: the first screen and the closing "who's in?" are centred, one symmetrical stack each.
+   the reading sections in between stay left-aligned */
+@media (max-width: 860px) {
+  .hero h1 { text-align: center; }
+  .hero-actions { justify-content: center; }
+  .endcta { flex-direction: column; justify-content: center; text-align: center; }
+}
+
+/* phones: the nav is three equal columns, so the logo sits in the exact middle whatever the two sides
+   hold: the live | test switch on the left, sign in or your balance on the right */
+@media (max-width: 560px) {
+  .bar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; }
+  .bar-right { display: contents; }
+  .bar .logo { grid-column: 2; grid-row: 1; justify-self: center; }
+  .bar .netswitch { grid-column: 1; grid-row: 1; justify-self: start; }
+  .bar-right > :not(.netswitch) { grid-column: 3; grid-row: 1; justify-self: end; }
+}
+/* every nav control is one height, so their centres line up */
+.bar .netswitch { padding: 2px; }
+.bar .netswitch > * { min-height: 40px; }
+.bar .btn.sm, .bar .me { min-height: 44px; padding-block: 0; box-sizing: border-box; }
+.bar .me { padding-left: 9px; }
+@media (max-width: 360px) { .bar .me { font-size: 14px; gap: 6px; padding-right: 10px; } .bar .me i { width: 22px; height: 22px; } }
+/* on pot pages the wrap's pattern runs behind the nav; the controls get a solid fill so it never shows through them */
+.bar .netswitch, .bar .btn.ghost, .bar .me { background-color: var(--paper); }
