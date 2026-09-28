@@ -34,7 +34,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
 | **dollars or euros** | a pot is in usdc or eurc. euro pots are paid in and paid out in eurc |
 | **add money by card** | circle's onramp kit (part of circle app kits), inside the app: card, apple pay or google pay, with circle's own id check. live on the test site against circle's sandbox; switched on for mainnet once circle's production key is set up |
-| **made for group chats** | a live link preview ("7 in, $140 of $200"), a nudge button, a qr code, and a thank-you card once it pays out |
+| **made for group chats** | a live link preview ("7 in, $140 of $200"), a share button that sends the link with what's left to go, a qr code, and a thank-you card once it pays out |
 
 ## how it uses arc
 

@@ -133,9 +133,10 @@ export function PotView({ initial }: { initial: PotData }) {
     if (navigator.share) { try { await navigator.share({ text, url: url() }); } catch {} return; }
     try { await navigator.clipboard.writeText(full); setShared(label); setTimeout(() => setShared(""), 1600); } catch {}
   }
-  const nudge = () => {
+  /** share the pot with the group: the link, plus what is left to go */
+  const shareToGroup = () => {
     const left = Math.max(0, pot.goal - pot.raised);
-    send(`${m(left)} to go for ${pot.title}, ${timeLeft(pot.deadline)} 👀 chip in:`, "nudge");
+    send(`${m(left)} to go for ${pot.title}, ${timeLeft(pot.deadline)} 👀 chip in:`, "share");
   };
   const thanks = () => send(`${paid.length} friend${paid.length === 1 ? "" : "s"} chipped in ${m(pot.raised)} for ${pot.title} 🎁 thank you!`, "thanks");
   async function showQr() {
@@ -181,7 +182,7 @@ export function PotView({ initial }: { initial: PotData }) {
                 <span><b>{m(pot.raised)}</b> of {m(pot.goal)} · {paid.length} in</span>
               </div>
               <div className="potcta-row">
-                <button className="btn lg ghost potcta-share" onClick={nudge} aria-label="share this pot">
+                <button className="btn lg ghost potcta-share" onClick={shareToGroup} aria-label="share this pot">
                   <ShareIcon />
                 </button>
                 <button className="btn lg wide" onClick={() => setOpen(true)}>{valid ? <>i&apos;m in · {m(amount)}</> : <>i&apos;m in</>}</button>
@@ -201,7 +202,7 @@ export function PotView({ initial }: { initial: PotData }) {
             <button className="btn lg wide" onClick={() => doSettle("refund")} disabled={!!busy}>{busy ? "refunding…" : "refund everyone"}</button>
           )}
           <div className="acts">
-            {pot.status === "open" && <button className="btn sm ghost" onClick={nudge} data-tip="send the group a reminder">{shared === "nudge" ? "copied" : "nudge"}</button>}
+            {pot.status === "open" && <button className="btn sm ghost" onClick={shareToGroup} data-tip="send the pot to the group, with what's left to go"><ShareIcon />{shared === "share" ? "copied" : "share"}</button>}
             {pot.status === "released" && <button className="btn sm" onClick={thanks} data-tip="share the thank-you card">{shared === "thanks" ? "copied" : "share the thank-you"}</button>}
             <button className="btn sm ghost" onClick={showQr} data-tip="scan to chip in">qr</button>
           </div>
@@ -227,7 +228,7 @@ export function PotView({ initial }: { initial: PotData }) {
                 : <><b>{m(done.amount)}</b> in for {pot.title}. if the pot hits {m(pot.goal)} by <b>{decided}</b>, it goes to <b>{pot.organiserName}</b>. if it doesn&apos;t, it comes back to you automatically.</>}
             </p>
             <div className="acts">
-              <button className="btn lg" onClick={nudge}>{shared === "nudge" ? "copied" : "tell the group"}</button>
+              <button className="btn lg" onClick={shareToGroup}><ShareIcon />{shared === "share" ? "copied" : "tell the group"}</button>
               <button className="btn lg ghost" onClick={closeSheet}>done</button>
             </div>
           </>

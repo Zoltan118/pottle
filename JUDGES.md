@@ -30,7 +30,7 @@ before the $100 beta cap, so test pots can go up to 10,000; everything else is t
 ## 3. what to look at (one minute)
 
 - **safe?** on the pot page: nobody can take the money early. the contract has no owner
-- **nudge** opens your share sheet with a reminder already written. **qr** shows a code to scan
+- **share** opens your share sheet with the link and what's left to go already written. **qr** shows a code to scan
 - your **balance pill** lists every pot you made or joined, each with a share button
 - share the pot link in any chat: the preview shows the live total
 - **hit the goal** and the pot pays itself out: it settles when anyone opens it, or within ten

@@ -10,7 +10,7 @@ const ONRAMP = !!process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL;
 const FEATURES = [
   { word: "auto refund", line: "deadline missed? everyone's paid back, nobody has to ask.", wrap: "w-waves" },
   { word: "€ too", line: "euro pots in eurc, for friends who think in euros.", wrap: "w-stars" },
-  { word: "nudge", line: "one tap sends the group a reminder with the link.", wrap: "w-stripes" },
+  { word: "share", line: "one tap sends the group the link, with what's left to go.", wrap: "w-stripes" },
   { word: "qr", line: "for the office leaving gift. scan, chip in, done.", wrap: "w-gingham" },
   { word: "thank you", line: "a card with everyone's names when it pays out.", wrap: "w-hearts" },
   ONRAMP
