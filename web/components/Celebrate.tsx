@@ -1,6 +1,7 @@
 "use client";
 
 import { useMountEffect } from "@/hooks/useMountEffect";
+import { Mascot } from "./Mascot";
 
 // where each coin flies: across the screen, some higher and later than others
 const COINS = [
@@ -23,7 +24,7 @@ export function Celebrate({ onDone, label = "goal hit." }: { onDone: () => void;
       {COINS.map(([x, y, delay], i) => (
         <i key={i} style={{ "--x": `${x}vw`, "--y": `${y}vh`, animationDelay: `${delay}ms` } as React.CSSProperties} />
       ))}
-      <b>{label}</b>
+      <b><Mascot mood="stars" level={1} size={92} />{label}</b>
     </div>
   );
 }

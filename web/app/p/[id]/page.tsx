@@ -5,6 +5,7 @@ import { settlePot } from "@/lib/settle";
 import { money, readPot } from "@/lib/pot";
 import { POTTLE } from "@/lib/config";
 import { PotView } from "./PotView";
+import { Mascot } from "@/components/Mascot";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -40,7 +41,7 @@ export default async function PotPage({ params }: Props) {
   } catch (e) {
     console.error(`[pottle] could not read pot ${id} from arc:`, e instanceof Error ? e.message : e);
     return (
-      <main className="view"><section className="flow"><h1 className="giant q">hold on.</h1>
+      <main className="view"><section className="flow"><div className="lost-mascot"><Mascot mood="confused" level={0.4} /></div><h1 className="giant q">hold on.</h1>
         <div className="notice">can&apos;t reach arc right now. your money is safe in the pot. try again in a minute.</div>
       </section></main>
     );

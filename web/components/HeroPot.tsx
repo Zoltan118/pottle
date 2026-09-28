@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useMountEffect } from "@/hooks/useMountEffect";
-import { PotArt } from "./PotArt";
+import { Mascot, type Mood } from "./Mascot";
 
 const GOAL = 200;
 // two stories on a loop, each a group of friends in different countries (the people pottle is for):
@@ -18,6 +18,7 @@ export function HeroPot() {
   const [line, setLine] = useState("");
   const [tone, setTone] = useState<"" | "ok" | "back">("");
   const [coins, setCoins] = useState<Coin[]>([]);
+  const [mood, setMood] = useState<Mood>("waiting"); // the mascot acts out the story
   const count = useRef<HTMLSpanElement>(null);
   const [sym, setSym] = useState("$");
   const symRef = useRef("$");
@@ -48,33 +49,34 @@ export function HeroPot() {
     }
 
     if (reduce) {
-      tick(140); setLine("7 friends in"); return () => { alive = false; };
+      tick(140); setLine("7 friends in"); setMood("happy"); return () => { alive = false; };
     }
 
     (async () => {
       while (alive) {
         symRef.current = "$"; setSym("$"); if (count.current) count.current.textContent = "$0";
-        setTone(""); setLine("sarah's gift");
+        setTone(""); setLine("sarah's gift"); setMood("waiting");
+        await wait(900);
         for (const [who, city, amt] of HIT) {
           await visible(); if (!alive) return;
-          coin(`${who} · ${city} · $${amt}`, "in");
-          await wait(380); tick(total + amt); setLine(`${who} is in`);
+          coin(`${who} · ${city} · $${amt}`, "in"); setMood("look");
+          await wait(380); tick(total + amt); setLine(`${who} is in`); setMood("happy");
           await wait(620);
         }
-        setTone("ok"); setLine("it's on. $200 to maya.");
-        await wait(2200); tick(0); setTone(""); await wait(700);
+        setTone("ok"); setLine("it's on. $200 to maya."); setMood("stars");
+        await wait(2200); tick(0); setTone(""); setMood("waiting"); await wait(700);
 
         // the counter only redraws when a coin lands, so switch its symbol with the story
         symRef.current = "€"; setSym("€"); if (count.current) count.current.textContent = "€0";
         setLine("trip to lisbon");
         for (const [who, city, amt] of MISS) {
           await visible(); if (!alive) return;
-          coin(`${who} · ${city} · €${amt}`, "in");
-          await wait(380); tick(total + amt); setLine(`${who} is in`);
+          coin(`${who} · ${city} · €${amt}`, "in"); setMood("look");
+          await wait(380); tick(total + amt); setLine(`${who} is in`); setMood("happy");
           await wait(620);
         }
-        setLine("time's up."); await wait(1100);
-        setTone("back"); setLine("everyone got it back.");
+        setLine("time's up."); setMood("worried"); await wait(1100);
+        setTone("back"); setLine("everyone got it back."); setMood("calm");
         for (const [who, , amt] of [...MISS].reverse()) {
           coin(`€${amt} → ${who}`, "out");
           tick(total - amt);
@@ -95,7 +97,7 @@ export function HeroPot() {
             <i /><em>{c.label}</em>
           </span>
         ))}
-        <PotArt level={level} />
+        <Mascot mood={mood} level={level} />
       </div>
       <div className="count" aria-hidden="true"><span ref={count}>$0</span> <small>of {sym}{GOAL}</small></div>
       <div className={`hint heroline ${tone}`} aria-hidden="true">{line}</div>

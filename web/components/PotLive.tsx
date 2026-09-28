@@ -4,7 +4,7 @@ import { useRef, useState, type MutableRefObject } from "react";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { money, type Person, type Status } from "@/lib/pot";
 import type { Currency } from "@/lib/config";
-import { PotArt } from "./PotArt";
+import { Mascot, type Mood } from "./Mascot";
 
 export type PotFeed = {
   /** someone chipped in while the page was open */
@@ -22,17 +22,21 @@ type Coin = { id: number; label?: string; kind: "in" | "out" | "burst"; x: numbe
  * then reacts live to new chip-ins pushed through `feedRef`. the numbers on the page never animate
  * away from the truth; only the pot does.
  */
-export function PotLive({ people, goal, level, status, currency, feedRef }: {
+export function PotLive({ people, goal, level, status, currency, feedRef, deadline }: {
   people: Person[];
   goal: number;
   level: number;
   status: Status;
   currency: Currency;
+  deadline?: number; // unix seconds, for a worried look when time is short
   feedRef: MutableRefObject<PotFeed | null>;
 }) {
   const [fill, setFill] = useState(level);
   const [coins, setCoins] = useState<Coin[]>([]);
   const [glow, setGlow] = useState(status === "reached" || status === "released");
+  const [moment, setMoment] = useState<Mood | null>(null); // a short reaction: watching a coin, happy it landed
+  const [refunded, setRefunded] = useState(status === "refunding");
+  const [openedAt] = useState(() => Date.now()); // read once: a pot page is not left open for days
   const seqRef = useRef(0);
 
   useMountEffect(() => {
@@ -49,14 +53,16 @@ export function PotLive({ people, goal, level, status, currency, feedRef }: {
     const api: PotFeed = {
       drop(label, to) {
         add({ label, kind: "in", x: x(), delay: 0 });
-        later(380, () => setFill(to));
+        setMoment("look");
+        later(380, () => { setFill(to); setMoment("happy"); });
+        later(1500, () => setMoment(null));
       },
       celebrate() {
         setGlow(true);
         for (let i = 0; i < 7; i++) add({ kind: "burst", x: 20 + i * 10, delay: i * 45 }, 1100);
       },
       refund(to) {
-        setGlow(false);
+        setGlow(false); setRefunded(true);
         for (let i = 0; i < 3; i++) add({ kind: "out", x: x(), delay: i * 160 });
         later(200, () => setFill(to));
       },
@@ -83,6 +89,9 @@ export function PotLive({ people, goal, level, status, currency, feedRef }: {
   });
 
   const empty = status === "open" && level === 0 && coins.length === 0;
+  // the mascot's mood follows the pot: a short reaction if something just happened, otherwise its state
+  const short = status === "open" && level < 1 && !!deadline && deadline * 1000 - openedAt < 24 * 3600_000;
+  const mood: Mood = moment ?? (glow ? "stars" : refunded ? "calm" : empty ? "waiting" : short ? "worried" : "idle");
 
   return (
     <div className="potstage">
@@ -94,7 +103,7 @@ export function PotLive({ people, goal, level, status, currency, feedRef }: {
             {c.label && <em>{c.label}</em>}
           </span>
         ))}
-        <PotArt level={fill} />
+        <Mascot mood={mood} level={fill} />
       </div>
     </div>
   );

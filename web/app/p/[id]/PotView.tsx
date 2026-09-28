@@ -217,7 +217,7 @@ export function PotView({ initial }: { initial: PotData }) {
           </div>
           <div className="err" role="alert">{!open && err}</div>
         </div>
-        <PotLive people={initial.people} goal={pot.goal} level={pot.goal ? pot.raised / pot.goal : 0} status={initial.status} currency={initial.currency} feedRef={feedRef} />
+        <PotLive people={initial.people} goal={pot.goal} level={pot.goal ? pot.raised / pot.goal : 0} status={initial.status} currency={initial.currency} feedRef={feedRef} deadline={pot.deadline} />
       </section>
       <div className="shell potfoot"><Link className="btn sm ghost" href="/new">make your own pot</Link></div>
 
