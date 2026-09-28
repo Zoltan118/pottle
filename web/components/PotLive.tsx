@@ -103,7 +103,7 @@ export function PotLive({ people, goal, level, status, currency, feedRef, deadli
             {c.label && <em>{c.label}</em>}
           </span>
         ))}
-        <Mascot mood={mood} level={fill} />
+        <Mascot mood={mood} level={fill} track />
       </div>
     </div>
   );

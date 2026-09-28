@@ -17,6 +17,7 @@ import { ShareIcon } from "@/components/Icons";
 import { CountUp, type Counter } from "@/components/CountUp";
 import { Celebrate } from "@/components/Celebrate";
 import { YoureIn } from "@/components/YoureIn";
+import { Mascot, type Mood } from "@/components/Mascot";
 
 
 export function PotView({ initial }: { initial: PotData }) {
@@ -113,6 +114,9 @@ export function PotView({ initial }: { initial: PotData }) {
       qc.invalidateQueries({ queryKey: [pot.currency === "eur" ? "eur" : "bal", cur.address] });
     } catch (e) { setErr(message(e)); } finally { setBusy(""); }
   }
+  // the mascot in the chip-in sheet reacts to what you do: excited at "the rest", holding its breath
+  // while paying, a wince if it fails
+  const sheetMood: Mood = busy === "pay" || busy === "signin" ? "hold" : err ? "wince" : valid && amount === left ? "happy" : "idle";
   const closeSheet = () => { setOpen(false); setErr(""); setShort(0); setHave(0); setDone(null); };
   const decided = new Date(pot.deadline * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -244,7 +248,10 @@ export function PotView({ initial }: { initial: PotData }) {
             </div>
           </>
         ) : (<>
-        <h2 className="giant">you&apos;re in?</h2>
+        <div className="sheet-head">
+          <div className="sheet-masc"><Mascot mood={sheetMood} level={pot.goal ? pot.raised / pot.goal : 0} track /></div>
+          <h2 className="giant">you&apos;re in?</h2>
+        </div>
         <input className="bigin" placeholder="your name" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
           {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => setPicked(a)}>{m(a)}</button>)}

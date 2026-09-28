@@ -16,7 +16,7 @@ export default async function Image() {
           <div style={{ display: "flex", fontSize: 150, fontWeight: 800, letterSpacing: -8, lineHeight: 0.9 }}>chip in.</div>
           <div style={{ display: "flex", fontSize: 78, fontWeight: 800, letterSpacing: -3.5, color: C.ribbonText, marginTop: 14 }}>or get it back.</div>
         </div>
-        <Pot level={0.62} size={270} />
+        <Pot level={0.62} size={250} face="happy" />
       </div>
       <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: C.muted }}>a pot for the group chat. hit the goal or everyone gets it back.</div>
     </Frame>,

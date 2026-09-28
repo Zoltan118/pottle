@@ -43,7 +43,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               {`${names.length} friend${names.length === 1 ? "" : "s"} chipped in. it went to ${pot.organiserName}.`}
             </div>
           </div>
-          <Pot level={1} size={250} />
+          <Pot level={1} size={230} face="stars" />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24 }}>
           <span style={{ fontSize: 88, fontWeight: 800, letterSpacing: -4, lineHeight: 1 }}>{m(pot.raised)}</span>
@@ -70,7 +70,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             {refunded ? "missed. everyone got their money back" : <>{`${pot.organiserName} is collecting`}</>}
           </div>
         </div>
-        <Pot level={refunded ? 0 : level} size={250} />
+        <Pot level={refunded ? 0 : level} size={230} face={refunded ? "calm" : pot.status === "reached" ? "stars" : "idle"} />
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>

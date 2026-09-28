@@ -41,17 +41,28 @@ function wrapUri(wrap: Wrap) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${OG.width}" height="${OG.height}">${body}</svg>`)}`;
 }
 
-/** the pot mark, filled to `level` (0 to 1) */
-export function Pot({ level, size, color = C.ink }: { level: number; size: number; color?: string }) {
+type Face = "idle" | "happy" | "stars" | "calm";
+
+/** the pot at a fill level (0 to 1). with a `face` it is pottle the mascot: eyes, blush and feet */
+export function Pot({ level, size, color = C.ink, face }: { level: number; size: number; color?: string; face?: Face }) {
   const l = Math.max(0, Math.min(1, level));
   const shown = l === 0 ? 0 : Math.max(0.08, l); // a sliver is always visible once anyone is in
   const top = 80 - shown * 46; // the fill rises inside the round body (y 34 to 80)
+  const eye = (x: number) => {
+    const ink = face === "stars" ? C.ink : color;
+    if (face === "happy") return <path d={`M${x - 3.4} 50.4 Q${x} 45.6 ${x + 3.4} 50.4`} fill="none" stroke={ink} strokeWidth="2.4" strokeLinecap="round" />;
+    if (face === "calm") return <path d={`M${x - 3.2} 48.4 Q${x} 51.8 ${x + 3.2} 48.4`} fill="none" stroke={ink} strokeWidth="2.4" strokeLinecap="round" />;
+    if (face === "stars") return <path d={`M${x} 44.8 ${x + 1.3} 47.7 ${x + 4.2} 49 ${x + 1.3} 50.3 ${x} 53.2 ${x - 1.3} 50.3 ${x - 4.2} 49 ${x - 1.3} 47.7Z`} fill={ink} />;
+    return <circle cx={x} cy="49" r="3.2" fill={ink} />;
+  };
   return (
-    <svg width={size} height={size} viewBox="0 0 96 96">
+    <svg width={size} height={face ? size * 108 / 96 : size} viewBox={`0 0 96 ${face ? 108 : 96}`}>
       <defs><clipPath id="inner"><circle cx="48" cy="57" r="23" /></clipPath></defs>
+      {face && <g><rect x="31" y="86" width="12" height="10" rx="5" fill={color} /><rect x="53" y="86" width="12" height="10" rx="5" fill={color} /></g>}
       <rect x="17" y="17" width="62" height="12" rx="6" fill={color} />
       {shown > 0 && <rect x="20" y={top} width="56" height={82 - top} fill={C.gold} clipPath="url(#inner)" />}
       <circle cx="48" cy="57" r="27" fill="none" stroke={color} strokeWidth="8" />
+      {face && <g><ellipse cx="33" cy="60" rx="3.6" ry="2.2" fill="#E0487A" fillOpacity=".5" /><ellipse cx="63" cy="60" rx="3.6" ry="2.2" fill="#E0487A" fillOpacity=".5" />{eye(40)}{eye(56)}</g>}
     </svg>
   );
 }

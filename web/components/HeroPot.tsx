@@ -97,7 +97,7 @@ export function HeroPot() {
             <i /><em>{c.label}</em>
           </span>
         ))}
-        <Mascot mood={mood} level={level} />
+        <Mascot mood={mood} level={level} track />
       </div>
       <div className="count" aria-hidden="true"><span ref={count}>$0</span> <small>of {sym}{GOAL}</small></div>
       <div className={`hint heroline ${tone}`} aria-hidden="true">{line}</div>
