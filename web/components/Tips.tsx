@@ -6,7 +6,7 @@ import { useMountEffect } from "@/hooks/useMountEffect";
 /**
  * one tooltip for the whole app. any element with data-tip gets it.
  * waits 380ms the first time, then opens instantly while you move between tips.
- * mouse hovers, touch taps, keyboard focus.
+ * mouse hovers, touch taps, keyboard focus, and screen readers read it as the element's description.
  */
 export function Tips() {
   const ref = useRef<HTMLDivElement>(null);
@@ -32,10 +32,19 @@ export function Tips() {
     const fout = (e: FocusEvent) => { if ((e.target as Element).closest?.("[data-tip]")) hide(); };
     const click = (e: MouseEvent) => {
       const el = (e.target as Element).closest?.("[data-tip]");
-      if (el && el.matches(".tipdot, .tipword, .face")) { if (cur === el) hide(); else show(el, true); }
+      if (el && el.matches(".tipdot, .tipword, .face, .goesto")) { if (cur === el) hide(); else show(el, true); }
       else if (cur) hide();
     };
     const scroll = () => cur && hide();
+    // screen readers get the same text: every tip is also the element's description, kept in step
+    // as tips change with the numbers on the page
+    const describe = () => document.querySelectorAll("[data-tip]").forEach((el) => {
+      const t = el.getAttribute("data-tip") ?? "";
+      if (el.getAttribute("aria-description") !== t) el.setAttribute("aria-description", t);
+    });
+    describe();
+    const mo = new MutationObserver(describe);
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-tip"] });
     document.addEventListener("pointerover", over); document.addEventListener("pointerout", out);
     document.addEventListener("focusin", fin); document.addEventListener("focusout", fout);
     document.addEventListener("click", click); addEventListener("scroll", scroll, { passive: true });
@@ -43,6 +52,7 @@ export function Tips() {
       document.removeEventListener("pointerover", over); document.removeEventListener("pointerout", out);
       document.removeEventListener("focusin", fin); document.removeEventListener("focusout", fout);
       document.removeEventListener("click", click); removeEventListener("scroll", scroll);
+      mo.disconnect();
     };
   });
   return <div className="tip" ref={ref} role="tooltip" />;

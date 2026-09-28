@@ -1,29 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { HomeScreenTip } from "@/components/HomeScreenTip";
+import { useRef, useState } from "react";
 import { useWallet } from "@/app/providers";
+import { walletStore } from "@/lib/walletStore";
+import { useMountEffect } from "@/hooks/useMountEffect";
 import { createPot } from "@/lib/wallet";
 import { missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
-import { MAX_POT, WRAPS, type Wrap } from "@/lib/pot";
+import { MAX_POT, money, WRAPS, type Wrap } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES, MAX_TITLE_BYTES } from "@/lib/text";
 
-const UNTIL = ["friday", "sunday", "1 week", "2 weeks"] as const;
+const UNTIL = ["tonight", "tomorrow", "friday", "1 week", "pick a date"] as const;
 type Until = (typeof UNTIL)[number];
+const HOUR = 3600_000;
+const MAX_AHEAD = 89 * 86400_000; // the contract allows 90 days; a day of margin for slow clocks
 
-/** friday and sunday mean the next one at 18:00 local, at least an hour away */
-function deadlineFor(u: Until): number {
-  const now = new Date();
-  if (u === "1 week" || u === "2 weeks") return Math.floor(now.getTime() / 1000) + (u === "1 week" ? 7 : 14) * 86400;
-  const target = u === "friday" ? 5 : 0;
+/** a quick pick under "for?" also suggests when the pot should be decided */
+const SUGGEST: Record<string, Until> = { dinner: "tonight", birthday: "pick a date", "leaving gift": "pick a date", trip: "1 week" };
+
+/** "yyyy-mm-dd" in local time, the format a date input speaks */
+const toInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+/** a picked day is decided at 18:00 local, the same hour as tomorrow, friday and a week out */
+const atSix = (day: string) => new Date(`${day}T18:00`);
+
+/**
+ * when a pot is decided. tonight is 23:59 today, every other day is 18:00, and every option is
+ * at least an hour away, so nobody makes a pot that is over before the link is shared
+ */
+function deadlineFor(u: Until, picked: string, now = new Date()): Date {
   const d = new Date(now);
-  d.setHours(18, 0, 0, 0);
-  d.setDate(d.getDate() + ((target - d.getDay() + 7) % 7));
-  if (d.getTime() - now.getTime() < 3600_000) d.setDate(d.getDate() + 7);
-  return Math.floor(d.getTime() / 1000);
+  if (u === "pick a date") return atSix(picked);
+  if (u === "tonight") d.setHours(23, 59, 0, 0);
+  else {
+    d.setHours(18, 0, 0, 0);
+    d.setDate(d.getDate() + (u === "tomorrow" ? 1 : u === "1 week" ? 7 : (5 - d.getDay() + 7) % 7));
+    if (u === "friday" && d.getTime() - now.getTime() < HOUR) d.setDate(d.getDate() + 7);
+  }
+  return d.getTime() - now.getTime() < HOUR ? new Date(now.getTime() + HOUR) : d;
 }
-const dateLabel = (u: Until) =>
-  new Date(deadlineFor(u) * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const dateLabel = (d: Date) =>
+  d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 const WRAP_LIST: { id: Wrap; label: string }[] = [
   { id: "confetti", label: "confetti" }, { id: "stripes", label: "ribbon" }, { id: "gingham", label: "picnic" }, { id: "plain", label: "plain" },
@@ -37,6 +55,16 @@ export function CreateFlow() {
   const [goal, setGoal] = useState("");
   const [currency, setCurrency] = useState<Currency>("usd");
   const [until, setUntil] = useState<Until | null>(null);
+  const [untilTouched, setUntilTouched] = useState(false);
+  // "pick a date" starts on tomorrow at 18:00, and cannot go under an hour or past the contract's limit
+  const [openedAt] = useState(() => Date.now()); // the clock is read once, not on every render
+  // starts empty: a quick tap-through must never make a birthday pot that ends tomorrow by accident
+  const [picked, setPicked] = useState("");
+  // the earliest day whose 18:00 is still an hour away, and the last day inside the contract's limit
+  const minPick = toInput(new Date(openedAt + HOUR + 6 * HOUR)), maxPick = toInput(new Date(openedAt + MAX_AHEAD));
+  const pickedAt = atSix(picked).getTime();
+  const pickedOk = !Number.isNaN(pickedAt) && pickedAt - openedAt >= HOUR && pickedAt - openedAt <= MAX_AHEAD;
+  const deadline = until ? deadlineFor(until, picked, new Date(openedAt)) : null;
   const [wrap, setWrap] = useState<Wrap>("confetti");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,16 +72,18 @@ export function CreateFlow() {
   const [potId, setPotId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const valid = [title.trim().length > 0, +goal > 0 && +goal <= MAX_POT, !!until, true, name.trim().length > 0][step] ?? true;
+  const valid = [title.trim().length > 0, +goal > 0 && +goal <= MAX_POT, !!until && (until !== "pick a date" || pickedOk), true, name.trim().length > 0][step] ?? true;
   const link = potId ? `${typeof location !== "undefined" ? location.origin : ""}/p/${potId}` : "";
 
   async function create() {
-    if (!w.address) return w.signIn();
     setBusy(true); setErr("");
+    // not signed in yet: sign in, then create the pot without another tap
+    if (!walletStore.get().address && !(await w.signIn())) { setBusy(false); return; }
     try {
-      const c = await w.client();
-      const id = await createPot(c, { goal: +goal, deadline: deadlineFor(until!), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
-      setPotId(id); setStep(5);
+      const c = await walletStore.get().client(); // the live wallet, not this render's copy
+      const id = await createPot(c, { goal: +goal, deadline: Math.floor(deadlineFor(until!, picked).getTime() / 1000), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
+      created.current = true;
+      setPotId(id); setStep(5); history.replaceState(null, "", "/new");
     } catch (e) {
       setErr(e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong");
     } finally { setBusy(false); }
@@ -61,20 +91,44 @@ export function CreateFlow() {
 
   function next() {
     if (!valid) return;
-    if (step === 4) create(); else setStep(step + 1);
+    if (step === 4) create(); else go(step + 1);
+  }
+
+  // each step is a history entry, so a swipe back or the browser's back goes back one step and keeps
+  // what was typed, instead of leaving the page and losing the pot. once the pot exists, back leaves
+  const created = useRef(false);
+  const router = useRouter();
+  // the step lives in the address (/new?step=2): next.js keeps its own data in history entries, so a
+  // marker there would be dropped, but the address survives
+  const stepFromUrl = () => { const n = Number(new URLSearchParams(location.search).get("step")); return n >= 0 && n <= 4 ? n : 0; };
+  function go(n: number) { setStep(n); history.pushState(null, "", `/new?step=${n}`); }
+  useMountEffect(() => {
+    if (location.search) history.replaceState(null, "", "/new"); // a reload or a shared link starts at the first step
+    const onPop = () => {
+      if (created.current) { router.push("/"); return; }
+      setStep(stepFromUrl());
+    };
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
+  });
+
+  /** phones: the share sheet (whatsapp, messages) with the link ready. desktops copy it */
+  async function share() {
+    if (navigator.share) { try { await navigator.share({ title, text: `chip in for ${title.trim()}`, url: link }); } catch {} return; }
+    copy();
   }
 
   async function copy() {
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}
   }
 
-  const nextLabel = step < 4 ? "next →" : busy ? "creating…" : w.address ? "create pot" : "sign in";
+  const nextLabel = step < 4 ? "next →" : busy ? (w.address ? "creating…" : w.ready ? "signing in…" : "one sec…") : w.address ? "create pot" : "sign in and create";
 
   return (
     <main className="view">
       <div className="shell">
         <nav className="bar">
-          <button className="iconbtn" onClick={() => setStep(Math.max(0, step - 1))} aria-label="back" style={{ visibility: step === 0 || step === 5 ? "hidden" : "visible" }}>←</button>
+          <button className="iconbtn" onClick={() => history.back()} aria-label="back" style={{ visibility: step === 0 || step === 5 ? "hidden" : "visible" }}>←</button>
           <div className="steps" aria-hidden="true">{[0, 1, 2, 3, 4].map((i) => <i key={i} className={i < step || step === 5 ? "done" : ""} />)}</div>
           <Link className="iconbtn" href="/" aria-label="close">×</Link>
         </nav>
@@ -84,14 +138,14 @@ export function CreateFlow() {
         <section className="flow">
           <h1 className="giant q">for?</h1>
           <input className="bigin" placeholder="sarah's gift" autoFocus value={title} onChange={(e) => setTitle(fitBytes(e.target.value, MAX_TITLE_BYTES))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="what the pot is for" enterKeyHint="next" />
-          <div className="chips">{["birthday", "leaving gift", "trip", "dinner"].map((t) => <button key={t} className="chip" onClick={() => setTitle(t)}>{t}</button>)}</div>
+          <div className="chips">{["birthday", "leaving gift", "trip", "dinner"].map((t) => <button key={t} className="chip" onClick={() => { setTitle(t); if (!untilTouched) setUntil(SUGGEST[t] ?? null); }}>{t}</button>)}</div>
         </section>
       )}
 
       {step === 1 && (
         <section className="flow">
           <h1 className="giant q">goal?</h1>
-          <label className="money"><span>{TOKEN[currency].symbol}</span><input className="bigin" inputMode="numeric" placeholder="50" maxLength={String(MAX_POT).length} autoFocus value={goal} onChange={(e) => setGoal(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="goal in dollars" enterKeyHint="next" /></label>
+          <label className="money"><span>{TOKEN[currency].symbol}</span><input className="bigin" inputMode="decimal" placeholder="50" autoFocus value={goal} onChange={(e) => { const v = e.target.value.replace(",", "."); if (/^\d{0,5}(\.\d{0,2})?$/.test(v)) setGoal(v); }} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="goal in dollars" enterKeyHint="next" /></label>
           <div className="chips">{["20", "50", "75", "100"].map((g) => <button key={g} className="chip" aria-pressed={goal === g} onClick={() => setGoal(g)}>{TOKEN[currency].symbol}{g}</button>)}</div>
           <div className="cur" role="group" aria-label="currency">
             <button className="chip" aria-pressed={currency === "usd"} onClick={() => setCurrency("usd")} data-tip="friends chip in usdc">$ dollars</button>
@@ -105,8 +159,17 @@ export function CreateFlow() {
         <section className="flow">
           <h1 className="giant q">until?</h1>
           <div className="chips" role="group" aria-label="deadline">
-            {UNTIL.map((u) => <button key={u} className="chip" aria-pressed={until === u} data-tip={dateLabel(u)} onClick={() => setUntil(u)}>{u}</button>)}
+            {UNTIL.map((u) => <button key={u} className="chip" aria-pressed={until === u} onClick={() => { setUntil(u); setUntilTouched(true); }}>{u}</button>)}
           </div>
+          {until === "pick a date" && (
+            <input className="when" type="date" value={picked} min={minPick} max={maxPick} onChange={(e) => setPicked(e.target.value)} aria-label="decided on" />
+          )}
+          <p className="hint" style={{ margin: 0 }}>
+            {!deadline ? "the pot is decided at this time. hit the goal by then, or everyone gets their money back."
+              : until === "pick a date" && !picked ? "type the day it happens. it's decided at 18:00 that day."
+              : until === "pick a date" && !pickedOk ? "pick a day from today to 90 days ahead."
+              : <>decided <b>{dateLabel(deadline)}</b>. hit {money(+goal, currency)} by then or everyone gets it back.</>}
+          </p>
         </section>
       )}
 
@@ -132,8 +195,13 @@ export function CreateFlow() {
       {step === 5 && (
         <section className="flow">
           <h1 className="giant q">ready.</h1>
+          <p className="hint" style={{ margin: 0 }}>send it to the group. you&apos;ll see everyone who chips in on the pot, and in your pots under your balance.</p>
           <div className="linkbox"><code>{link.replace(/^https?:\/\//, "")}</code><button className="btn sm" onClick={copy}>{copied ? "copied" : "copy"}</button></div>
-          <div><a className="btn lg ghost" href={link}>open pot</a></div>
+          <div className="ready-acts">
+            <button className="btn lg" onClick={share}>share with the group</button>
+            <a className="btn lg ghost" href={link}>open pot</a>
+          </div>
+          <HomeScreenTip />
         </section>
       )}
 

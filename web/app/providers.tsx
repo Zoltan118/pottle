@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WALLETS_ON } from "@/lib/config";
+import { StaleReload } from "@/components/StaleReload";
 
 export { useWallet, type WalletApi } from "@/lib/walletStore";
 
@@ -15,6 +16,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
+      <StaleReload />
       {WALLETS_ON && <DynamicHost />}
     </QueryClientProvider>
   );

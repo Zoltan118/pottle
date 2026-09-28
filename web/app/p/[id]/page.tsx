@@ -15,7 +15,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
   if (!pot) return { title: "pottle" };
   const title = `${pot.title} · pottle`;
-  const description = `${money(pot.raised, pot.currency)} of ${money(pot.goal, pot.currency)}. chip in, or get it back.`;
+  // the text under the link in a group chat: who is collecting, how far along, and the promise
+  const m = (d: number) => money(d, pot.currency);
+  const description =
+    pot.status === "released" ? `${pot.organiserName} collected ${m(pot.raised)} for ${pot.title}. thank you, everyone.`
+    : pot.status === "refunding" ? `${pot.title} missed its goal, so everyone gets their money back.`
+    : `${pot.organiserName} is collecting for ${pot.title}: ${m(pot.raised)} of ${m(pot.goal)} so far. hit it and it goes to ${pot.organiserName}, miss it and everyone gets their money back.`;
   return { title, description, openGraph: { title, description }, twitter: { card: "summary_large_image", title, description } };
 }
 

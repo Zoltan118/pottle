@@ -45,7 +45,14 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -2 }}>pottle</div>
           <div style={{ fontSize: 32, color: muted }}>{state}</div>
         </div>
-        <div style={{ fontSize: 104, fontWeight: 800, letterSpacing: -5, lineHeight: 0.95, display: "flex" }}>{pot?.title ?? "chip in. or get it back."}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ fontSize: 104, fontWeight: 800, letterSpacing: -5, lineHeight: 0.95, display: "flex" }}>{pot?.title ?? "chip in. or get it back."}</div>
+          {pot && (
+            <div style={{ fontSize: 34, color: muted, display: "flex" }}>
+              {pot.status === "refunding" ? "missed. everyone gets their money back" : `${pot.organiserName} is collecting · back to you if it misses`}
+            </div>
+          )}
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <div style={{ display: "flex", height: 28, borderRadius: 99, background: "#3A2F4C", overflow: "hidden" }}>
             <div style={{ width: `${Math.max(4, pct * 100)}%`, background: gold, borderRadius: 99 }} />

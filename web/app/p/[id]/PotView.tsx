@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
+import { walletStore } from "@/lib/walletStore";
 import { Nav } from "@/components/Nav";
 import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
@@ -44,9 +45,18 @@ export function PotView({ initial }: { initial: PotData }) {
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<number | "other">(20);
   const [typed, setTyped] = useState("");
-  const [busy, setBusy] = useState<"" | "pay" | "settle">("");
+  const [busy, setBusy] = useState<"" | "signin" | "pay" | "settle">("");
   const [err, setErr] = useState("");
   const [short, setShort] = useState(0); // how much the payer is missing, offered as "add money"
+  const [have, setHave] = useState(0); // what the payer holds, when it is less than they picked
+  const [done, setDone] = useState<{ amount: number; hit: boolean } | null>(null); // the "you're in" moment
+
+  // the payer's balance in this pot's currency, shared with the nav's balance pill
+  const bal = useQuery({
+    queryKey: [pot.currency === "eur" ? "eur" : "bal", w.address],
+    queryFn: () => balanceOf(w.address!, pot.currency),
+    enabled: !!w.address,
+  });
 
   const m = (d: number) => money(d, pot.currency);
   const isOrganiser = (a: string) => a.toLowerCase() === pot.organiser.toLowerCase();
@@ -54,9 +64,11 @@ export function PotView({ initial }: { initial: PotData }) {
   const latest = fresh ?? paid.at(-1)?.name;
   // one-tap amounts fitted to what the pot still needs (the last is exactly "the rest"), or any amount typed in
   const { left, room, picks } = chipOptions(pot.goal, pot.raised, MAX_POT);
-  const fallback = picks.includes(20) ? 20 : (picks.filter((a) => a <= 20).at(-1) ?? picks[0] ?? 0);
+  // the starting pick: $20 or the nearest below it, and never more than a signed-in payer holds
+  const affordable = bal.data === undefined ? picks : picks.filter((a) => a <= bal.data!);
+  const fallback = affordable.includes(20) ? 20 : (affordable.filter((a) => a <= 20).at(-1) ?? affordable[0] ?? picks[0] ?? 0);
   const other = picked === "other";
-  const amount = other ? Number(typed) || 0 : picks.includes(picked) ? picked : fallback;
+  const amount = other ? Number(typed) || 0 : picks.includes(picked) && affordable.includes(picked) ? picked : fallback;
   const tooSmall = amount > 0 && amount < MIN_CHIP && amount !== left;
   const tooBig = amount > room;
   const valid = amount > 0 && !tooSmall && !tooBig;
@@ -66,22 +78,33 @@ export function PotView({ initial }: { initial: PotData }) {
     e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong";
 
   async function pay() {
-    if (!w.address) return w.signIn();
-    if (!valid) return;
-    setBusy("pay"); setErr(""); setShort(0);
+    if (!valid) return; // the amount is checked before sign-in, not after
+    setErr(""); setShort(0); setHave(0);
+    // not signed in yet: sign in, then carry on paying without another tap
+    if (!walletStore.get().address) {
+      setBusy("signin");
+      const signedIn = await w.signIn();
+      if (!signedIn) { setBusy(""); return; }
+    }
+    setBusy("pay");
     try {
-      const bal = await balanceOf(w.address, pot.currency);
-      if (bal < amount) {
-        setShort(Math.ceil((amount - bal) * 100) / 100);
-        throw new Error(`you have ${m(Math.floor(bal * 100) / 100)}, ${m(amount)} needed.${ONRAMP_ON ? "" : ` add ${TOKEN[pot.currency].name.toLowerCase()} on arc to chip in.`}`);
+      const cur = walletStore.get(); // after an await, read the live wallet, not this render's copy
+      const held = await balanceOf(cur.address!, pot.currency);
+      if (held < amount) {
+        setShort(Math.ceil((amount - held) * 100) / 100);
+        setHave(Math.floor(held * 100) / 100);
+        throw new Error(`you have ${m(Math.floor(held * 100) / 100)}, ${m(amount)} needed.${ONRAMP_ON ? "" : ` add ${TOKEN[pot.currency].name.toLowerCase()} on arc to chip in.`}`);
       }
-      const c = await w.client();
+      const c = await cur.client();
       const nm = fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) || "friend";
       await chipIn(c, { id: pot.id, amount, name: nm, currency: pot.currency });
-      setOpen(false); setName("");
+      setDone({ amount, hit: pot.raised + amount >= pot.goal }); setName("");
       refreshed();
+      qc.invalidateQueries({ queryKey: [pot.currency === "eur" ? "eur" : "bal", cur.address] });
     } catch (e) { setErr(message(e)); } finally { setBusy(""); }
   }
+  const closeSheet = () => { setOpen(false); setErr(""); setShort(0); setHave(0); setDone(null); };
+  const decided = new Date(pot.deadline * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   async function doSettle(kind: "release" | "refund") {
     setBusy("settle"); setErr("");
@@ -93,6 +116,12 @@ export function PotView({ initial }: { initial: PotData }) {
   }
 
   const refundedAll = pot.status === "refunding" && pot.raised === 0;
+  // the outcome, right under the amount, so a finished pot says what happened before anything else
+  const finishedLine =
+    pot.status === "reached" ? <p className="state ok">goal hit.</p>
+    : pot.status === "released" ? <p className="state ok">it&apos;s on. {m(pot.raised)} went to {pot.organiserName}.</p>
+    : pot.status === "refunding" ? <p className="state back">{refundedAll ? "missed. everyone got their money back." : "missed the goal. refunds are on their way."}</p>
+    : null;
   const [qr, setQr] = useState<string | null>(null);
   const [shared, setShared] = useState("");
   const url = () => `${location.origin}/p/${pot.id}`;
@@ -119,21 +148,26 @@ export function PotView({ initial }: { initial: PotData }) {
       <section className="shell potpage">
         <div className="plate">
           <h1 className="giant">{pot.title}</h1>
-          <div className="amount">{m(pot.raised)}<small>of {m(pot.goal)}</small></div>
-          <button className="goesto" data-tip={`${pot.organiserName} made this pot. hit ${m(pot.goal)} and all of it goes to ${pot.organiserName} for ${pot.title}. miss it and everyone gets their money back.`}>
-            {pot.status === "released" ? "went to" : "goes to"} <b>{pot.organiserName}</b>
+          <div className="amount">{m(pot.raised)} <small>of {m(pot.goal)}</small></div>
+          {/* screen readers hear each chip-in as it lands */}
+          <p className="sr-only" role="status" aria-live="polite">{fresh ? `${fresh} chipped in. ${m(pot.raised)} of ${m(pot.goal)}.` : ""}</p>
+          {finishedLine}
+          <button className="goesto" data-tip={pot.status === "refunding"
+            ? `the pot missed its goal of ${m(pot.goal)}, so nobody got it. everyone who chipped in gets their money back.`
+            : `${pot.organiserName} made this pot. hit ${m(pot.goal)} and all of it goes to ${pot.organiserName} for ${pot.title}. miss it and everyone gets their money back.`}>
+            {pot.status === "released" ? <>went to <b>{pot.organiserName}</b></> : pot.status === "refunding" ? <>goes back to <b>everyone</b></> : <>goes to <b>{pot.organiserName}</b></>}
           </button>
           <div className="meta">
-            <span><b>{paid.length}</b> in</span>
+            <span><b>{paid.length}</b> {pot.status === "refunding" ? (paid.length === 1 ? "was" : "were") : ""} in</span>
             <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>
-            <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.${NETWORK === "mainnet" ? ` pottle is in beta with no third-party audit yet, so each pot holds at most ${m(MAX_POT)}.` : ""}`}>safe?</button>
+            {!(pot.status === "released" || refundedAll) && <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.${NETWORK === "mainnet" ? ` pottle is in beta with no third-party audit yet, so each pot holds at most ${m(MAX_POT)}.` : ""}`}>safe?</button>}
           </div>
 
-          <div className="faces" aria-label={`${paid.length} people in`}>
+          <div className="faces" role="group" aria-label={`${paid.length} people ${pot.status === "refunding" ? "were" : ""} in`}>
             {paid.slice(0, 8).map((p) => (
-              <span key={p.address} className={`face${p.name === fresh ? " new" : ""}${isOrganiser(p.address) ? " org" : ""}`} data-tip={`${p.name}${isOrganiser(p.address) ? " · organiser" : ""} · ${m(p.amount)}`} tabIndex={0}>{p.name[0]}</span>
+              <span key={p.address} role="img" aria-label={`${p.name}${isOrganiser(p.address) ? ", organiser" : ""}, ${p.amount > 0 ? m(p.amount) : "refunded"}`} className={`face${p.name === fresh ? " new" : ""}${isOrganiser(p.address) ? " org" : ""}`} data-tip={`${p.name}${isOrganiser(p.address) ? " · organiser" : ""} · ${p.amount > 0 ? m(p.amount) : "refunded"}`} tabIndex={0}>{p.name[0]}</span>
             ))}
-            {paid.length > 8 && <span className="face more" data-tip={paid.slice(8).map((p) => p.name).join(", ")} tabIndex={0}>+{paid.length - 8}</span>}
+            {paid.length > 8 && <span className="face more" role="img" aria-label={`and ${paid.length - 8} more: ${paid.slice(8).map((p) => p.name).join(", ")}`} data-tip={paid.slice(8).map((p) => p.name).join(", ")} tabIndex={0}>+{paid.length - 8}</span>}
             {pot.status === "open" && Array.from({ length: Math.min(missing, 3) }, (_, i) => <span key={i} className="face out" aria-hidden="true">?</span>)}
           </div>
 
@@ -155,7 +189,6 @@ export function PotView({ initial }: { initial: PotData }) {
           )}
           {pot.status === "reached" && (
             <>
-              <p className="state ok">goal hit.</p>
               <button className="btn lg wide" onClick={() => doSettle("release")} disabled={!!busy}>{busy ? "sending…" : `send it to ${pot.organiserName}`}</button>
               {payoutStuck(pot) && (
                 <button className="btn sm ghost" onClick={() => doSettle("refund")} disabled={!!busy}
@@ -163,15 +196,11 @@ export function PotView({ initial }: { initial: PotData }) {
               )}
             </>
           )}
-          {pot.status === "released" && <p className="state ok">it&apos;s on. {m(pot.raised)} went to {pot.organiserName}.</p>}
-          {pot.status === "refunding" && (refundedAll
-            ? <p className="state back">missed. everyone got their money back.</p>
-            : <>
-                <p className="state back">missed the goal.</p>
-                <button className="btn lg wide" onClick={() => doSettle("refund")} disabled={!!busy}>{busy ? "refunding…" : "refund everyone"}</button>
-              </>)}
+          {pot.status === "refunding" && !refundedAll && (
+            <button className="btn lg wide" onClick={() => doSettle("refund")} disabled={!!busy}>{busy ? "refunding…" : "refund everyone"}</button>
+          )}
           <div className="acts">
-            {(pot.status === "open" || pot.status === "reached") && <button className="btn sm ghost" onClick={nudge} data-tip="send the group a reminder">{shared === "nudge" ? "copied" : "nudge"}</button>}
+            {pot.status === "open" && <button className="btn sm ghost" onClick={nudge} data-tip="send the group a reminder">{shared === "nudge" ? "copied" : "nudge"}</button>}
             {pot.status === "released" && <button className="btn sm" onClick={thanks} data-tip="share the thank-you card">{shared === "thanks" ? "copied" : "share the thank-you"}</button>}
             <button className="btn sm ghost" onClick={showQr} data-tip="scan to chip in">qr</button>
           </div>
@@ -183,13 +212,27 @@ export function PotView({ initial }: { initial: PotData }) {
 
       <Sheet open={!!qr} onClose={() => setQr(null)} label="scan to chip in">
         <h2 className="giant">scan.</h2>
-        {qr && <div className="qr" dangerouslySetInnerHTML={{ __html: qr }} />}
+        {qr && <div className="qr" role="img" aria-label={`qr code that opens ${pot.title} on pottle`} dangerouslySetInnerHTML={{ __html: qr }} />}
         <p className="hint" style={{ margin: 0 }}>{pot.title} · {m(pot.raised)} of {m(pot.goal)}</p>
       </Sheet>
 
-      <Sheet open={open} onClose={() => { setOpen(false); setErr(""); setShort(0); }} label="chip in">
+      <Sheet open={open} onClose={closeSheet} label="chip in">
+        {done ? (
+          <>
+            <h2 className="giant">you&apos;re in.</h2>
+            <p className="where">
+              {done.hit
+                ? <><b>{m(done.amount)}</b> in, and that hit the goal. it goes to <b>{pot.organiserName}</b>.</>
+                : <><b>{m(done.amount)}</b> in for {pot.title}. if the pot hits {m(pot.goal)} by <b>{decided}</b>, it goes to <b>{pot.organiserName}</b>. if it doesn&apos;t, it comes back to you automatically.</>}
+            </p>
+            <div className="acts">
+              <button className="btn lg" onClick={nudge}>{shared === "nudge" ? "copied" : "tell the group"}</button>
+              <button className="btn lg ghost" onClick={closeSheet}>done</button>
+            </div>
+          </>
+        ) : (<>
         <h2 className="giant">you&apos;re in?</h2>
-        <input className="bigin" placeholder="your name" value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
+        <input className="bigin" placeholder="your name" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
           {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => setPicked(a)}>{m(a)}</button>)}
           <button className="chip" aria-pressed={other} onClick={() => setPicked("other")}>other</button>
@@ -211,13 +254,20 @@ export function PotView({ initial }: { initial: PotData }) {
             ? <>this is your pot. your {m(amount)} comes back to you with the rest if it hits {m(pot.goal)}.</>
             : <>{m(left)} to go. it goes to <b>{pot.organiserName}</b> if the pot hits {m(pot.goal)}, back to you if it doesn&apos;t.</>}
         </p>
-        <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on || (!!w.address && !valid)}>
-          {busy === "pay" ? "paying…" : !w.address ? "sign in to pay" : valid ? `pay ${m(amount)}` : "pick an amount"}
+        {!w.address && (
+          <p className="hint" style={{ margin: 0 }}>you pay in digital {pot.currency === "eur" ? "euros (eurc)" : "dollars (usdc)"}. sign in with your email and pottle sets it up, no app needed.</p>
+        )}
+        <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on || !valid}>
+          {busy === "pay" ? "paying…" : busy === "signin" ? (w.ready ? "signing in…" : "one sec…") : !valid ? "pick an amount" : w.address ? `pay ${m(amount)}` : `sign in to pay ${m(amount)}`}
         </button>
         <div className="err" role="alert">{open && err}</div>
+        {open && have >= MIN_CHIP && !ONRAMP_ON && (
+          <button className="btn sm ghost" onClick={() => { setPicked("other"); setTyped(String(have)); setErr(""); setShort(0); setHave(0); }}>chip in {m(have)} instead</button>
+        )}
         {open && short > 0 && ONRAMP_ON && (
           <AddMoney currency={pot.currency} amount={short} label={`add ${m(short)} by card`} onDone={() => { setShort(0); setErr(""); }} />
         )}
+        </>)}
       </Sheet>
     </main>
   );

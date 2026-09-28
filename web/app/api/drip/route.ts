@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   if (pool < REFILL_BELOW) void refill(account.address);
   if (pool < DRIP + HAS_ENOUGH) {
     console.warn(`[pottle] drip empty, relayer ${account.address} holds ${Number(pool) / 1e6} usdc`);
-    return NextResponse.json({ error: "faucet is empty, try faucet.circle.com" }, { status: 503 });
+    return NextResponse.json({ error: "the free test dollars ran out for now" }, { status: 503 });
   }
 
   const wallet = createWalletClient({ account, chain, transport: http() });

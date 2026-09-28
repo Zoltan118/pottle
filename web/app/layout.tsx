@@ -2,8 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { Providers } from "./providers";
 import { Tips } from "@/components/Tips";
-import { TestnetStrip } from "@/components/NetSwitch";
-import { NETWORK, SITE } from "@/lib/config";
+import { SITE } from "@/lib/config";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], axes: ["opsz"], variable: "--font-display" }); // opsz keeps giant type tight
@@ -19,24 +18,21 @@ export const metadata: Metadata = {
   appleWebApp: { title: "pottle", statusBarStyle: "default" },
 };
 
-// safari's toolbar and the status bar match the top of the page: the paper, or the testnet strip
+// safari's toolbar and the status bar take the page's own paper colour, light and dark
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: NETWORK === "mainnet"
-    ? [
-        { media: "(prefers-color-scheme: light)", color: "#F6F3FA" },
-        { media: "(prefers-color-scheme: dark)", color: "#15101E" },
-      ]
-    : "#F2B32A",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F6F3FA" },
+    { media: "(prefers-color-scheme: dark)", color: "#15101E" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>
-        <TestnetStrip />
         <Providers>{children}</Providers>
         <Tips />
       </body>

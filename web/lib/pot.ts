@@ -51,8 +51,9 @@ export async function readPot(id: number): Promise<PotData | null> {
     wrap: WRAPS[pot.wrap] ?? "confetti",
     currency: CURRENCIES[pot.currency] ?? "usd",
     people: people
-      .map((address, i) => ({ address, name: names[i], amount: toUsd(amounts[i]) }))
-      .filter((p) => p.amount > 0 || s === "released"),
+      // everyone who took part stays listed, including people already refunded (amount 0), so a
+      // missed pot still shows who was in rather than looking like nobody came
+      .map((address, i) => ({ address, name: names[i], amount: toUsd(amounts[i]) })),
   };
 }
 

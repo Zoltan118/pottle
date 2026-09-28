@@ -67,12 +67,13 @@ export function PotLive({ people, goal, level, status, currency, feedRef }: {
       // replay the history: the first eight friends drop in by name, anyone after that pours in at the end
       setFill(0);
       let sum = 0;
-      people.slice(0, 8).forEach((p, i) => {
+      const inPot = people.filter((p) => p.amount > 0); // refunded people have nothing left to drop in
+      inPot.slice(0, 8).forEach((p, i) => {
         sum += p.amount;
         const to = sum / goal;
         later(250 + i * 420, () => api.drop(`${p.name} · ${money(p.amount, currency)}`, to));
       });
-      const replayEnd = 250 + Math.min(people.length, 8) * 420;
+      const replayEnd = 250 + Math.min(inPot.length, 8) * 420;
       later(replayEnd, () => setFill(level));
       if (status === "reached" || status === "released") later(replayEnd + 300, () => api.celebrate());
       if (status === "refunding" && level === 0) later(300, () => api.refund(0));

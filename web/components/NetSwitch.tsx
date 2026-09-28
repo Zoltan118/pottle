@@ -13,14 +13,3 @@ export function NetSwitch() {
     </span>
   );
 }
-
-/** a thin bar across the top of every testnet page, so test dollars are never mistaken for real ones */
-export function TestnetStrip() {
-  if (NETWORK === "mainnet") return null;
-  return (
-    <div className="teststrip" role="note">
-      <span>test mode · free test dollars</span>
-      {OTHER_SITE && <a className="teststrip-go" href={OTHER_SITE}>go live →</a>}
-    </div>
-  );
-}

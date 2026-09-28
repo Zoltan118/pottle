@@ -10,6 +10,7 @@ import { money, potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/p
 import { Logo } from "./Mark";
 import { NetSwitch } from "./NetSwitch";
 import { Sheet } from "./Sheet";
+import { HomeScreenTip } from "./HomeScreenTip";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -77,17 +78,20 @@ export function Nav({ action }: { action?: React.ReactNode }) {
         <div className="bar-right">
           <NetSwitch />
           {action}
-          {w.on && w.ready && (w.address ? (
+          {w.on && (!w.ready && w.wasSignedIn && !w.waiting ? (
+            <span className="me" aria-label="loading your account"><i />…</span>
+          ) : w.address ? (
             <button className="me" onClick={() => setOpen(true)} aria-label="your account" data-tip={drip.isFetching ? "sending you $10 of test usdc" : undefined}>
               <i />{chip}
             </button>
           ) : (
-            <button className="btn sm ghost" onClick={w.signIn}>sign in</button>
+            // shown straight away: a tap before sign-in has loaded is remembered, and it opens when ready
+            <button className="btn sm ghost" onClick={() => void w.signIn()} aria-busy={w.waiting}>{w.waiting && !w.ready ? "one sec…" : "sign in"}</button>
           ))}
         </div>
       </nav>
 
-      <Sheet open={open} onClose={() => setOpen(false)} label="your account">
+      <Sheet open={open} onClose={() => setOpen(false)} label="your account" closeButton={false}>
         <div className="acct-top">
           <button className="addr" onClick={() => w.address && copy(w.address, "addr")} aria-label="copy your address">
             <i />{w.address ? short(w.address) : ""}<span>{copied === "addr" ? "copied" : "copy"}</span>
@@ -102,7 +106,9 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           ? <AddMoney active={open} onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
           : NETWORK === "testnet" && (
               <p className="hint acct-note">
-                {drip.error ? `${drip.error.message}. test usdc: faucet.circle.com` : "testnet. new wallets get $10 of test usdc"}
+                {drip.error
+                  ? <>{drip.error.message}. copy your address above and get free test usdc at <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com ↗</a> (pick arc testnet).</>
+                  : "testnet. new wallets get $10 of test usdc"}
               </p>
             )}
 
@@ -119,13 +125,16 @@ export function Nav({ action }: { action?: React.ReactNode }) {
             <div className="acct-pot" key={p.id}>
               <Link href={potPath(p.id)} onClick={() => setOpen(false)} className="acct-pot-main">
                 <b>{p.title}</b>
-                <span>{money(p.raised, p.currency)} of {money(p.goal, p.currency)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase() ? " · paid to you" : " · you're in"}</span>
+                <span>{money(p.raised, p.currency)} of {money(p.goal, p.currency)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase()
+                    ? (p.status === "released" ? " · paid to you" : p.status === "refunding" ? " · yours, refunded" : " · yours")
+                    : (p.status === "refunding" ? " · refunded to you" : " · you're in")}</span>
               </Link>
               <button className="btn sm" onClick={() => share(p)}>{copied === `pot-${p.id}` ? "copied" : "share"}</button>
             </div>
           ))}
         </div>
 
+        <HomeScreenTip lead="use it like an app:" />
         <button className="btn lg ghost wide" onClick={() => { setOpen(false); w.signOut(); }}>sign out</button>
       </Sheet>
     </div>
