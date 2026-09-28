@@ -641,10 +641,26 @@ html { scroll-behavior: smooth; }
 .sticker-grid li { display: grid; justify-items: center; gap: 8px; padding: 12px; border-radius: 24px; background: var(--surface); box-shadow: 0 0 0 2px var(--line); }
 .sticker-grid img { width: 100%; height: auto; display: block; }
 .sticker-grid .btn { width: 100%; }
-.sticker-how { display: grid; gap: 10px; max-width: 64ch; }
-.sticker-how h2 { margin: 0; font-family: var(--display); font-size: 28px; letter-spacing: -.02em; }
-.sticker-how p { margin: 0; color: var(--muted); font-weight: 600; line-height: 1.5; }
-.sticker-how b { color: var(--ink); }
+.sticker-tap { appearance: none; border: 0; background: none; padding: 0; margin: 0; width: 100%; display: grid; justify-items: center; gap: 8px; cursor: pointer; color: inherit; font: inherit; transition: transform 160ms var(--out); }
+.sticker-tap:active { transform: scale(.97); }
+.sticker-tap .btn { width: 100%; }
+/* the steps for the phone in your hand: three numbered lines, the first one is the grid below */
+.sticker-steps { display: grid; gap: 14px; }
+.sticker-steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.sticker-steps li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; font-weight: 700; font-size: 17px; line-height: 1.35; }
+.sticker-steps li span { width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 17px; }
+.sticker-or { margin: 0; color: var(--muted); font-weight: 600; }
+.sticker-note { margin: 0; color: var(--muted); font-weight: 600; font-size: 15px; line-height: 1.5; }
+.sticker-note a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.sticker-spread { text-align: center; }
+.sticker-make { justify-self: center; }
+/* a laptop: a qr code carries the page to a phone */
+.sticker-carry { display: grid; grid-template-columns: 132px 1fr; gap: 22px; align-items: center; padding: 18px; border-radius: 24px; background: var(--surface); box-shadow: 0 0 0 2px var(--line); max-width: 640px; }
+.sticker-carry p { margin: 0 0 12px; color: var(--muted); font-weight: 600; line-height: 1.45; }
+.sticker-carry b { color: var(--ink); }
+.sticker-carry-acts { display: flex; flex-wrap: wrap; gap: 10px; }
+.sticker-qr { width: 132px; height: 132px; background: #fff; border-radius: 14px; padding: 10px; }
+.sticker-qr svg { width: 100%; height: 100%; display: block; }
 @media (max-width: 860px) { .sticker-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 480px) { .sticker-grid { grid-template-columns: repeat(2, 1fr); } }
 .sticker-link { justify-self: center; text-decoration: underline; text-underline-offset: 3px; padding-block: 10px; margin-block: -10px; }
