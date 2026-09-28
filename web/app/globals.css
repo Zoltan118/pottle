@@ -146,6 +146,7 @@ a { color: inherit; }
   .specs .ico { grid-column: 2; grid-row: 1 / span 2; }
 }
 .hero-note { flex-basis: 100%; margin: 0; font-size: 15px; font-weight: 700; color: var(--muted); }
+.hero-note span { display: inline-block; } /* each sentence stays whole: a line break only ever falls between them */
 .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding-block: 8px 72px; }
 .feat { border-radius: 28px; box-shadow: inset 0 0 0 2px var(--ink); padding: 10px; display: grid; min-height: 220px; }
 .feat-in { background: var(--paper); border-radius: 20px; padding: 20px; display: grid; gap: 8px; align-content: end; box-shadow: 0 0 0 2px var(--ink); }
@@ -219,7 +220,9 @@ a { color: inherit; }
 .acts { display: flex; gap: 10px; flex-wrap: wrap; }
 .acts .btn { flex: 1 1 0; min-width: 0; } /* equal widths, whatever each label holds */
 .acts .btn:not(.ghost) { flex-basis: 100%; }
-.qr { background: #FFFFFF; border-radius: 24px; padding: 18px; width: min(320px, 100%); justify-self: center; }
+/* sized to the screen's height as well as its width, so the scan sheet always fits without scrolling.
+   260px is still easy for a phone camera from arm's length */
+.qr { background: #FFFFFF; border-radius: 20px; padding: 14px; width: min(260px, 100%, 40svh); justify-self: center; }
 .qr svg { display: block; width: 100%; height: auto; }
 .err { color: var(--ribbon-text); font-weight: 700; font-size: 16px; min-height: 1.4em; }
 .plate .err:empty { min-height: 0; margin-top: calc(-1 * var(--plate-gap, 22px)); }
@@ -277,7 +280,8 @@ body:has(.sheet.on) { overflow: hidden; }
 /* short screens (small phones, landscape): a smaller heading, so the pay button is not pushed off */
 @media (max-height: 600px) { .sheet { gap: 14px; padding-top: 20px; } .sheet .giant { font-size: 40px; } .sheet-x { top: 12px; } }
 /* a sheet never grows past the screen; its own content scrolls */
-.sheet { max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
+.sheet { max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.sheet::-webkit-scrollbar { display: none; } /* it can still scroll on a tiny screen, without a bar down the edge */
 
 /* account sheet */
 .acct-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }

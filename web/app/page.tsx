@@ -49,7 +49,7 @@ export default function Home() {
           <div className="hero-actions">
             <Link className="btn lg" href="/new">make a pot</Link>
             {NETWORK === "mainnet" && OTHER_SITE && <a className="btn lg ghost" href={OTHER_SITE}>try it free</a>}
-            <p className="hero-note">no app. friends just need an email.</p>
+            <p className="hero-note"><span>friends chip in from the link.</span> <span>just an email, nothing to download.</span></p>
           </div>
         </div>
         <HeroPot />
