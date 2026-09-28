@@ -246,6 +246,7 @@ export function PotView({ initial }: { initial: PotData }) {
               <button className="btn lg" onClick={shareToGroup}><ShareIcon />{shared === "share" ? "copied" : "tell the group"}</button>
               <button className="btn lg ghost" onClick={closeSheet}>done</button>
             </div>
+            <Link className="hint sticker-link" href="/stickers">get the pottle stickers for the chat →</Link>
           </>
         ) : (<>
         <div className="sheet-head">

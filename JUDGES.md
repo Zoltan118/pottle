@@ -2,8 +2,8 @@
 
 pottle runs as two sites from the same code:
 
-- **https://pottle-mainnet.vercel.app**, arc mainnet with real usdc (the deployment this submission is about)
-- **https://pottle-testnet.vercel.app**, arc testnet with free test dollars
+- **https://pottle.xyz**, arc mainnet with real usdc (the deployment this submission is about)
+- **https://test.pottle.xyz**, arc testnet with free test dollars
 
 everything below uses the **testnet** site, so nothing costs you anything. about three minutes.
 the `live | test` switch in the nav moves between the two. the testnet contract is the version
@@ -11,7 +11,7 @@ before the $100 beta cap, so test pots can go up to 10,000; everything else is t
 
 ## 1. make a pot (one minute)
 
-1. open **https://pottle-testnet.vercel.app** on your phone or laptop
+1. open **https://test.pottle.xyz** on your phone or laptop
 2. tap **sign in** and use any email. dynamic sends a code and makes you a wallet
 3. your balance pill shows **+$10…** and then **$10**. that is test usdc, sent to new wallets
    automatically so you never need a faucet

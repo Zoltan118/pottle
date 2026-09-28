@@ -122,6 +122,7 @@ export default function Home() {
           {OTHER_SITE && <a href={OTHER_SITE}>{NETWORK === "mainnet" ? "try it free" : "go live"}<ArrowOutIcon /></a>}
           <a href={REPO} target="_blank" rel="noreferrer">github<ArrowOutIcon /></a>
           {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<ArrowOutIcon /></a>}
+          <Link href="/stickers">stickers</Link>
           <a className="foot-up" href="#top" aria-label="back to top"><span className="foot-up-word">back to top</span><UpIcon /></a>
         </nav>
         {NETWORK === "mainnet" && <p className="foot-note">beta · no third-party audit</p>}

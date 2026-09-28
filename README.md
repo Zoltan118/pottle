@@ -11,8 +11,8 @@ to the organiser. miss it and everyone gets back exactly what they put in, autom
 people for weeks. pottle holds the money in a contract instead, so nobody fronts anything, nobody
 chases anybody, and nobody (not the organiser, not us) can take it out early.
 
-- live on **arc mainnet**, real usdc: **https://pottle-mainnet.vercel.app**
-- try it free on **arc testnet**, free test dollars: **https://pottle-testnet.vercel.app** (new wallets get $10)
+- live on **arc mainnet**, real usdc: **https://pottle.xyz**
+- try it free on **arc testnet**, free test dollars: **https://test.pottle.xyz** (new wallets get $10)
 - both run the same code; the `live | test` switch in the nav moves between them
 - contracts: see [deployments](#deployments)
 - **trying it as a reviewer: [`JUDGES.md`](JUDGES.md)**

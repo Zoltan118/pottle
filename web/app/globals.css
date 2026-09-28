@@ -633,3 +633,18 @@ html { scroll-behavior: smooth; }
 .sheet-head .giant { padding-right: 0; }
 .sheet-masc { width: 58px; flex: none; }
 .sheet-masc svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* stickers page */
+.stickers { display: grid; gap: 22px; padding-block: 16px 64px; }
+.stickers .giant { font-size: clamp(56px, 11vw, 140px); }
+.sticker-grid { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.sticker-grid li { display: grid; justify-items: center; gap: 8px; padding: 12px; border-radius: 24px; background: var(--surface); box-shadow: 0 0 0 2px var(--line); }
+.sticker-grid img { width: 100%; height: auto; display: block; }
+.sticker-grid .btn { width: 100%; }
+.sticker-how { display: grid; gap: 10px; max-width: 64ch; }
+.sticker-how h2 { margin: 0; font-family: var(--display); font-size: 28px; letter-spacing: -.02em; }
+.sticker-how p { margin: 0; color: var(--muted); font-weight: 600; line-height: 1.5; }
+.sticker-how b { color: var(--ink); }
+@media (max-width: 860px) { .sticker-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px) { .sticker-grid { grid-template-columns: repeat(2, 1fr); } }
+.sticker-link { justify-self: center; text-decoration: underline; text-underline-offset: 3px; padding-block: 10px; margin-block: -10px; }
