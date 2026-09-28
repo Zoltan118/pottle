@@ -14,12 +14,17 @@ import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, 
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
 import { NETWORK, TOKEN } from "@/lib/config";
 import { ShareIcon } from "@/components/Icons";
+import { CountUp, type Counter } from "@/components/CountUp";
+import { Celebrate } from "@/components/Celebrate";
+import { YoureIn } from "@/components/YoureIn";
 
 
 export function PotView({ initial }: { initial: PotData }) {
   const w = useWallet();
   const qc = useQueryClient();
   const feedRef = useRef<PotFeed | null>(null);
+  const counters = useRef(new Set<Counter>()); // the totals on the page, which roll to each new amount
+  const [party, setParty] = useState(false); // goal hit while the page was open
   const [fresh, setFresh] = useState<string | null>(null);
   const { data: pot = initial } = useQuery({
     queryKey: ["pot", initial.id],
@@ -34,8 +39,12 @@ export function PotView({ initial }: { initial: PotData }) {
           if (p.amount > before) { feedRef.current.drop(`${p.name} · ${money(p.amount - before, next.currency)}`, level); setFresh(p.name); }
         }
         if (next.raised < prev.raised) feedRef.current.refund(level);
-        if ((next.status === "reached" || next.status === "released") && prev.status === "open") setTimeout(() => feedRef.current?.celebrate(), 500);
+        if ((next.status === "reached" || next.status === "released") && prev.status === "open") {
+          setTimeout(() => feedRef.current?.celebrate(), 500);
+          setParty(true);
+        }
       }
+      if (prev && next.raised !== prev.raised) counters.current.forEach((c) => c.to(next.raised));
       return next;
     },
     initialData: initial,
@@ -50,7 +59,7 @@ export function PotView({ initial }: { initial: PotData }) {
   const [err, setErr] = useState("");
   const [short, setShort] = useState(0); // how much the payer is missing, offered as "add money"
   const [have, setHave] = useState(0); // what the payer holds, when it is less than they picked
-  const [done, setDone] = useState<{ amount: number; hit: boolean } | null>(null); // the "you're in" moment
+  const [done, setDone] = useState<{ amount: number; hit: boolean; before: number; name: string } | null>(null); // the "you're in" moment
 
   // the payer's balance in this pot's currency, shared with the nav's balance pill
   const bal = useQuery({
@@ -99,7 +108,7 @@ export function PotView({ initial }: { initial: PotData }) {
       const c = await cur.client();
       const nm = fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) || "friend";
       await chipIn(c, { id: pot.id, amount, name: nm, currency: pot.currency });
-      setDone({ amount, hit: pot.raised + amount >= pot.goal }); setName("");
+      setDone({ amount, hit: pot.raised + amount >= pot.goal, before: pot.raised, name: nm }); setName("");
       refreshed();
       qc.invalidateQueries({ queryKey: [pot.currency === "eur" ? "eur" : "bal", cur.address] });
     } catch (e) { setErr(message(e)); } finally { setBusy(""); }
@@ -150,7 +159,7 @@ export function PotView({ initial }: { initial: PotData }) {
       <section className="shell potpage">
         <div className="plate">
           <h1 className="giant">{pot.title}</h1>
-          <div className="amount">{m(pot.raised)} <small>of {m(pot.goal)}</small></div>
+          <div className="amount"><CountUp value={pot.raised} format={m} counters={counters} /> <small>of {m(pot.goal)}</small></div>
           {/* screen readers hear each chip-in as it lands */}
           <p className="sr-only" role="status" aria-live="polite">{fresh ? `${fresh} chipped in. ${m(pot.raised)} of ${m(pot.goal)}.` : ""}</p>
           {finishedLine}
@@ -179,7 +188,7 @@ export function PotView({ initial }: { initial: PotData }) {
               {/* phones: the pinned bar carries the progress, so it still reads when the card has scrolled away */}
               <div className="potcta-meta" aria-hidden="true">
                 <span className="potcta-track"><i style={{ width: `${Math.min(100, pot.goal ? (pot.raised / pot.goal) * 100 : 0)}%` }} /></span>
-                <span><b>{m(pot.raised)}</b> of {m(pot.goal)} · {paid.length} in</span>
+                <span><b><CountUp value={pot.raised} format={m} counters={counters} /></b> of {m(pot.goal)} · {paid.length} in</span>
               </div>
               <div className="potcta-row">
                 <button className="btn lg ghost potcta-share" onClick={shareToGroup} aria-label="share this pot">
@@ -212,6 +221,7 @@ export function PotView({ initial }: { initial: PotData }) {
       </section>
       <div className="shell potfoot"><Link className="btn sm ghost" href="/new">make your own pot</Link></div>
 
+      {party && <Celebrate onDone={() => setParty(false)} />}
       <Sheet open={!!qr} onClose={() => setQr(null)} label="scan to chip in">
         <h2 className="giant">scan.</h2>
         {qr && <div className="qr" role="img" aria-label={`qr code that opens ${pot.title} on pottle`} dangerouslySetInnerHTML={{ __html: qr }} />}
@@ -222,6 +232,7 @@ export function PotView({ initial }: { initial: PotData }) {
         {done ? (
           <>
             <h2 className="giant">you&apos;re in.</h2>
+            <YoureIn label={`${done.name} · ${m(done.amount)}`} before={done.before} after={done.before + done.amount} goal={pot.goal} format={m} />
             <p className="where">
               {done.hit
                 ? <><b>{m(done.amount)}</b> in, and that hit the goal. it goes to <b>{pot.organiserName}</b>.</>

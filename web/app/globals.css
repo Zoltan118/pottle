@@ -497,3 +497,31 @@ html { scroll-behavior: smooth; }
 @media (max-width: 360px) { .bar .me { font-size: 14px; gap: 6px; padding-right: 10px; } .bar .me i { width: 22px; height: 22px; } }
 /* on pot pages the wrap's pattern runs behind the nav; the controls get a solid fill so it never shows through them */
 .bar .netswitch, .bar .btn.ghost, .bar .me { background-color: var(--paper); }
+
+/* you're in: a small pot in the sheet, your coin drops in and the total rolls up */
+.youre-in { display: grid; justify-items: center; gap: 6px; padding-top: 30px; }
+.youre-in-pot { width: min(150px, 38vw, 22svh); }
+.youre-in-count { font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+.youre-in-count small { font-size: .5em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+
+/* goal hit: coins burst across the whole screen, then fall away. it never takes a tap */
+.party { position: fixed; inset: 0; z-index: 70; pointer-events: none; display: grid; place-items: center; overflow: hidden; }
+.party i { position: absolute; left: 50%; top: 58%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; background: var(--marigold); box-shadow: inset 0 0 0 4px rgba(35, 26, 51, .16); opacity: 0; animation: party-coin 1500ms cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes party-coin {
+  0% { opacity: 0; transform: translate(0, 0) scale(.5); }
+  12% { opacity: 1; }
+  55% { opacity: 1; transform: translate(var(--x), var(--y)) scale(1) rotate(160deg); }
+  100% { opacity: 0; transform: translate(calc(var(--x) * 1.1), calc(var(--y) + 70vh)) scale(.9) rotate(320deg); }
+}
+.party b { position: relative; font-family: var(--display); font-weight: 800; font-size: clamp(64px, 16vw, 160px); letter-spacing: -.05em; color: var(--mint); background: var(--paper); padding: 4px 28px 14px; border-radius: 28px; box-shadow: 0 0 0 3px var(--ink); animation: party-word 2600ms var(--out) both; }
+@keyframes party-word { 0% { opacity: 0; transform: scale(.6); } 14% { opacity: 1; transform: scale(1.04); } 22% { transform: scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: scale(.96); } }
+@media (prefers-reduced-motion: reduce) { .party i { display: none; } .party b { animation: none !important; } }
+
+/* the create flow: each question slides in from the way you are going, back slides the other way */
+.slide-fwd { animation: slide-fwd 300ms var(--out) both; }
+.slide-back { animation: slide-back 300ms var(--out) both; }
+@keyframes slide-fwd { from { opacity: 0; transform: translateX(28px); } }
+@keyframes slide-back { from { opacity: 0; transform: translateX(-28px); } }
+/* the wrap step: the page takes on the chosen wrap, fading in over the last one */
+.wrapbg { position: fixed; inset: 0; z-index: -1; animation: wrap-in 420ms ease both; }
+@keyframes wrap-in { from { opacity: 0; } }

@@ -52,6 +52,8 @@ const WRAP_LIST: { id: Wrap; label: string }[] = [
 export function CreateFlow() {
   const w = useWallet();
   const [step, setStep] = useState(0);
+  const [dir, setDir] = useState<"" | "fwd" | "back">(""); // the first question does not slide in
+  const stepNow = useRef(0); // the step on screen, for the back button to know which way it went
   const [title, setTitle] = useState("");
   const [goal, setGoal] = useState("");
   const [currency, setCurrency] = useState<Currency>("usd");
@@ -102,12 +104,15 @@ export function CreateFlow() {
   // the step lives in the address (/new?step=2): next.js keeps its own data in history entries, so a
   // marker there would be dropped, but the address survives
   const stepFromUrl = () => { const n = Number(new URLSearchParams(location.search).get("step")); return n >= 0 && n <= 4 ? n : 0; };
-  function go(n: number) { setStep(n); history.pushState(null, "", `/new?step=${n}`); }
+  function go(n: number) { stepNow.current = n; setDir("fwd"); setStep(n); history.pushState(null, "", `/new?step=${n}`); }
   useMountEffect(() => {
     if (location.search) history.replaceState(null, "", "/new"); // a reload or a shared link starts at the first step
     const onPop = () => {
       if (created.current) { router.push("/"); return; }
-      setStep(stepFromUrl());
+      const n = stepFromUrl();
+      setDir(n < stepNow.current ? "back" : "fwd");
+      stepNow.current = n;
+      setStep(n);
     };
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
@@ -136,7 +141,7 @@ export function CreateFlow() {
       </div>
 
       {step === 0 && (
-        <section className="flow">
+        <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">for?</h1>
           <input className="bigin" placeholder="sarah's gift" autoFocus value={title} onChange={(e) => setTitle(fitBytes(e.target.value, MAX_TITLE_BYTES))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="what the pot is for" enterKeyHint="next" />
           <div className="chips">{["birthday", "leaving gift", "trip", "dinner"].map((t) => <button key={t} className="chip" onClick={() => { setTitle(t); if (!untilTouched) setUntil(SUGGEST[t] ?? null); }}>{t}</button>)}</div>
@@ -144,7 +149,7 @@ export function CreateFlow() {
       )}
 
       {step === 1 && (
-        <section className="flow">
+        <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">goal?</h1>
           <label className="money"><span>{TOKEN[currency].symbol}</span><input className="bigin" inputMode="decimal" placeholder="50" autoFocus value={goal} onChange={(e) => { const v = e.target.value.replace(",", "."); if (/^\d{0,5}(\.\d{0,2})?$/.test(v)) setGoal(v); }} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="goal in dollars" enterKeyHint="next" /></label>
           <div className="chips">{["20", "50", "75", "100"].map((g) => <button key={g} className="chip" aria-pressed={goal === g} onClick={() => setGoal(g)}>{TOKEN[currency].symbol}{g}</button>)}</div>
@@ -157,7 +162,7 @@ export function CreateFlow() {
       )}
 
       {step === 2 && (
-        <section className="flow">
+        <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">until?</h1>
           <div className="chips" role="group" aria-label="deadline">
             {UNTIL.map((u) => <button key={u} className="chip" aria-pressed={until === u} onClick={() => { setUntil(u); setUntilTouched(true); }}>{u}</button>)}
@@ -174,8 +179,9 @@ export function CreateFlow() {
         </section>
       )}
 
+      {step === 3 && <div key={wrap} className={`wrapbg w-${wrap}`} aria-hidden="true" />}
       {step === 3 && (
-        <section className="flow">
+        <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">wrap?</h1>
           <div className="wraps" role="group" aria-label="pot wrap">
             {WRAP_LIST.map((x) => <button key={x.id} className={`wrapchoice w-${x.id}`} aria-pressed={wrap === x.id} aria-label={x.label} data-tip={x.label} onClick={() => setWrap(x.id)} />)}
@@ -184,7 +190,7 @@ export function CreateFlow() {
       )}
 
       {step === 4 && (
-        <section className="flow">
+        <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">you?</h1>
           <input className="bigin" placeholder="your name" autoFocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
           <p className="hint" style={{ margin: 0 }}>the pot is paid to you, to buy the gift. chip in your own share too if you&apos;re part of it.</p>
@@ -194,7 +200,7 @@ export function CreateFlow() {
       )}
 
       {step === 5 && (
-        <section className="flow">
+        <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">ready.</h1>
           <p className="hint" style={{ margin: 0 }}>send it to the group. you&apos;ll see everyone who chips in on the pot, and in your pots under your balance.</p>
           <div className="linkbox"><code>{link.replace(/^https?:\/\//, "")}</code><button className="btn sm" onClick={copy}><CopyIcon done={copied} />{copied ? "copied" : "copy"}</button></div>
