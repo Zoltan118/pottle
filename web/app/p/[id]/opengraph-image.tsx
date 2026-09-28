@@ -1,69 +1,98 @@
 import { ImageResponse } from "next/og";
 import { money, readPot, timeLeft } from "@/lib/pot";
-import { ogFont } from "@/lib/ogfont";
+import { C, Frame, OG, ogFonts, Pill, Pot, titleSize, Wordmark } from "@/lib/ogart";
 
 export const alt = "a pottle pot";
-export const size = { width: 1200, height: 630 };
+export const size = OG;
 export const contentType = "image/png";
 
-// the group-chat preview: the one surface most people see before they open the pot
+// the group-chat preview: the one surface most people see before they open the pot. it looks like
+// the pot page itself: the pot's own wrap, a paper card, the pot filled to the real amount
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const pot = await readPot(Number((await params).id)).catch(() => null);
-  const bold = await ogFont(800);
-  const ink = "#231A33", paper = "#F1ECF7", muted = "#B3A9C4", gold = "#F2B32A";
-  const pct = pot ? Math.min(1, pot.raised / pot.goal) : 0;
-  const state = !pot ? "" : pot.status === "released" ? "it's on" : pot.status === "refunding" ? "refunded" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline);
-
-  // after a pot pays out, its preview becomes the thank-you card
-  if (pot && pot.status === "released") {
-    const names = pot.people.map((p) => p.name);
-    const shown = names.slice(0, 12).join(" · ") + (names.length > 12 ? ` · +${names.length - 12}` : "");
+  const fonts = await ogFonts();
+  if (!pot) {
     return new ImageResponse(
-      (
-        <div style={{ width: "100%", height: "100%", background: ink, color: paper, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, fontFamily: "Bricolage" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -2 }}>pottle</div>
-            <div style={{ fontSize: 32, color: gold }}>thank you</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div style={{ fontSize: 92, fontWeight: 800, letterSpacing: -4, lineHeight: 0.95, display: "flex" }}>
-              {`${names.length} friend${names.length === 1 ? "" : "s"} chipped in ${money(pot.raised, pot.currency)}`}
-            </div>
-            <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1.5, color: gold, display: "flex" }}>{`for ${pot.title}`}</div>
-          </div>
-          <div style={{ fontSize: 30, color: muted, display: "flex" }}>{shown}</div>
-        </div>
-      ),
-      { ...size, fonts: bold ? [{ name: "Bricolage", data: bold, weight: 800, style: "normal" }] : [] },
+      <Frame wrap="confetti">
+        <Wordmark size={52} />
+        <div style={{ display: "flex", flex: 1, alignItems: "center", fontSize: 96, fontWeight: 800, letterSpacing: -4 }}>chip in. or get it back.</div>
+      </Frame>,
+      { ...size, fonts },
     );
   }
 
-  return new ImageResponse(
-    (
-      <div style={{ width: "100%", height: "100%", background: ink, color: paper, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, fontFamily: "Bricolage" }}>
+  const m = (d: number) => money(d, pot.currency);
+  const level = pot.goal ? pot.raised / pot.goal : 0;
+  const people = pot.people.filter((p) => p.amount > 0 || pot.status === "released");
+  const faces = people.slice(0, 6);
+
+  // paid out: the thank-you card. the same layout as an open pot, now full, with everyone's names
+  if (pot.status === "released") {
+    const names = pot.people.map((p) => p.name);
+    const shown = names.slice(0, 10).join(" · ") + (names.length > 10 ? ` · +${names.length - 10}` : "");
+    return new ImageResponse(
+      <Frame wrap={pot.wrap}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -2 }}>pottle</div>
-          <div style={{ fontSize: 32, color: muted }}>{state}</div>
+          <Wordmark />
+          <Pill tone="ok">thank you</Pill>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 104, fontWeight: 800, letterSpacing: -5, lineHeight: 0.95, display: "flex" }}>{pot?.title ?? "chip in. or get it back."}</div>
-          {pot && (
-            <div style={{ fontSize: 34, color: muted, display: "flex" }}>
-              {pot.status === "refunding" ? "missed. everyone gets their money back" : `${pot.organiserName} is collecting · back to you if it misses`}
+        <div style={{ display: "flex", flex: 1, alignItems: "center", gap: 36 }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 18 }}>
+            <div style={{ display: "flex", fontSize: titleSize(pot.title), fontWeight: 800, letterSpacing: -titleSize(pot.title) * 0.045, lineHeight: 0.95 }}>{pot.title}</div>
+            <div style={{ display: "flex", fontSize: 34, fontWeight: 800, color: C.ribbonText, letterSpacing: -0.6 }}>
+              {`${names.length} friend${names.length === 1 ? "" : "s"} chipped in. it went to ${pot.organiserName}.`}
             </div>
-          )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div style={{ display: "flex", height: 28, borderRadius: 99, background: "#3A2F4C", overflow: "hidden" }}>
-            <div style={{ width: `${Math.max(4, pct * 100)}%`, background: gold, borderRadius: 99 }} />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 40, color: "#D9D1E4" }}>
-            <span>{pot ? `${pot.people.length} in` : ""}</span>
-            <span>{pot ? `${money(pot.raised, pot.currency)} of ${money(pot.goal, pot.currency)}` : ""}</span>
+          <Pot level={1} size={250} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24 }}>
+          <span style={{ fontSize: 88, fontWeight: 800, letterSpacing: -4, lineHeight: 1 }}>{m(pot.raised)}</span>
+          <div style={{ display: "flex", fontSize: 28, fontWeight: 600, color: C.muted, textAlign: "right" }}>{shown}</div>
+        </div>
+      </Frame>,
+      { ...size, fonts },
+    );
+  }
+
+  const refunded = pot.status === "refunding";
+  const state = refunded ? "refunded" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline);
+  return new ImageResponse(
+    <Frame wrap={pot.wrap}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Wordmark />
+        <Pill tone={refunded ? "back" : pot.status === "reached" ? "ok" : "ink"}>{state}</Pill>
+      </div>
+
+      <div style={{ display: "flex", flex: 1, alignItems: "center", gap: 36 }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 18 }}>
+          <div style={{ display: "flex", fontSize: titleSize(pot.title), fontWeight: 800, letterSpacing: -titleSize(pot.title) * 0.045, lineHeight: 0.95 }}>{pot.title}</div>
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 800, color: C.muted, letterSpacing: -0.6 }}>
+            {refunded ? "missed. everyone got their money back" : <>{`${pot.organiserName} is collecting`}</>}
+          </div>
+        </div>
+        <Pot level={refunded ? 0 : level} size={250} />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+          <span style={{ fontSize: 88, fontWeight: 800, letterSpacing: -4, lineHeight: 1 }}>{m(pot.raised)}</span>
+          <span style={{ fontSize: 38, fontWeight: 600, color: C.muted }}>{`of ${m(pot.goal)}`}</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
+          <div style={{ display: "flex" }}>
+            {faces.map((p, i) => (
+              <div key={p.address} style={{ display: "flex", width: 54, height: 54, marginLeft: i ? -12 : 0, borderRadius: 99, background: C.ink, color: C.paper, border: `3px solid ${C.paper}`, alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800 }}>{p.name[0]}</div>
+            ))}
+            {people.length > faces.length && (
+              <div style={{ display: "flex", width: 54, height: 54, marginLeft: -12, borderRadius: 99, background: C.gold, color: C.ink, border: `3px solid ${C.paper}`, alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>{`+${people.length - faces.length}`}</div>
+            )}
+          </div>
+          <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: C.muted }}>
+            {refunded ? `${pot.people.length} ${pot.people.length === 1 ? "was" : "were"} in` : `${people.length} in · back to you if it misses`}
           </div>
         </div>
       </div>
-    ),
-    { ...size, fonts: bold ? [{ name: "Bricolage", data: bold, weight: 800, style: "normal" }] : [] },
+    </Frame>,
+    { ...size, fonts },
   );
 }
