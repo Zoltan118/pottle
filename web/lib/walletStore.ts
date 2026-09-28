@@ -64,7 +64,10 @@ export const walletStore = {
   set(next: Omit<WalletApi, "signIn" | "waiting" | "wasSignedIn">) {
     const prev = current;
     let waiting = prev.waiting;
-    if (next.address && waiting) { waiting = false; settle(next.address); } // signed in: carry on with what was asked
+    // signed in: carry on with what was asked, but only once dynamic has finished and closed its window.
+    // the address arrives while dynamic is still completing sign-in and creating the wallet; starting a
+    // payment then interrupts that flow, and dynamic restarts at the code step with the boxes empty
+    if (next.address && waiting && !next.authOpen) { waiting = false; settle(next.address); }
     else if (waiting && prev.authOpen && !next.authOpen && !next.address) { waiting = false; settle(null); } // closed without signing in
     // remember for next time, but only once the sdk has settled, so a load in progress never clears it
     if (next.ready) writeHint(!!next.address);
