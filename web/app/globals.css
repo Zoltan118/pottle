@@ -381,12 +381,23 @@ body:has(.sheet.on) { overflow: hidden; }
 }
 .logo { min-height: 44px; }
 /* live | test: the same app on mainnet and testnet, one tap apart */
-.netswitch { display: inline-flex; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--ink); padding: 3px; flex: none; }
-.netswitch > * { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: -.01em; border-radius: 999px; padding: 8px 12px; text-decoration: none; line-height: 1; color: var(--ink); min-height: 40px; display: inline-flex; align-items: center; }
-.netswitch .on { background: var(--ink); color: var(--paper); }
-@media (hover: hover) and (pointer: fine) { .netswitch a:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); } }
-.netswitch a:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
-@media (max-width: 400px) { .netswitch > * { padding: 7px 10px; font-size: 14px; } }
+/* live | test: two equal halves and an ink pill that slides to the side you pick */
+.netswitch { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--ink); padding: 3px; flex: none; isolation: isolate; }
+.netswitch > :where(:not(.netswitch-pill):not(.netswitch-soon)) { position: relative; z-index: 1; justify-content: center; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: -.01em; border-radius: 999px; padding: 8px 12px; text-decoration: none; line-height: 1; color: var(--ink); min-height: 40px; display: inline-flex; align-items: center; transition: color 200ms ease; }
+.netswitch .on { color: var(--paper); }
+.netswitch button.soon { appearance: none; border: 0; background: none; cursor: pointer; color: color-mix(in srgb, var(--ink) 55%, transparent); }
+.netswitch-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 999px; background: var(--ink); transition: transform 220ms var(--out); }
+.netswitch[data-side="test"] .netswitch-pill { transform: translateX(100%); }
+/* "live" is not out yet: the pill leans toward it and springs back */
+.netswitch-pill[data-nudge] { animation: netswitch-nudge 360ms var(--out); }
+@keyframes netswitch-nudge { 0%, 100% { translate: 0; } 30% { translate: -14% 0; } 60% { translate: 5% 0; } }
+.netswitch-soon { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; white-space: nowrap; pointer-events: none; font-family: var(--display); font-weight: 800; font-size: 14px; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 8px 12px; opacity: 0; }
+.netswitch-soon[data-show] { animation: netswitch-soon 2200ms var(--out) forwards; }
+@keyframes netswitch-soon { 0% { opacity: 0; transform: translateY(-4px); } 10%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@media (hover: hover) and (pointer: fine) { .netswitch a:not(.on):hover, .netswitch button.soon:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); } }
+.netswitch a:focus-visible, .netswitch button:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+@media (max-width: 400px) { .netswitch > :where(:not(.netswitch-pill):not(.netswitch-soon)) { padding: 7px 10px; font-size: 14px; } }
+@media (prefers-reduced-motion: reduce) { .netswitch-pill { transition: none; } .netswitch-pill[data-nudge] { animation: none; } .netswitch-soon[data-show] { animation-duration: 2200ms; animation-timing-function: steps(1); } }
 @media (max-width: 520px) {
   .wraps { gap: 8px; }
   .wrapchoice { border-radius: 16px; }
@@ -500,7 +511,8 @@ html { scroll-behavior: smooth; }
 }
 /* every nav control is one height, so their centres line up */
 .bar .netswitch { padding: 2px; }
-.bar .netswitch > * { min-height: 40px; }
+.bar .netswitch-pill { top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px); }
+.bar .netswitch > :where(:not(.netswitch-pill):not(.netswitch-soon)) { min-height: 40px; }
 .bar .btn.sm, .bar .me { min-height: 44px; padding-block: 0; box-sizing: border-box; }
 .bar .me { padding-left: 9px; }
 @media (max-width: 360px) { .bar .me { font-size: 14px; gap: 6px; padding-right: 10px; } .bar .me i { width: 22px; height: 22px; } }

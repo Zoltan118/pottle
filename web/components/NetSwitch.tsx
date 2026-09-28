@@ -1,15 +1,11 @@
-import { NETWORK, OTHER_SITE } from "@/lib/config";
+import { LIVE_SOON, NETWORK, OTHER_SITE } from "@/lib/config";
+import { NetSwitchToggle } from "./NetSwitchToggle";
 
-/** live | test. the same app runs as two sites; this links to the other one. hidden until that site is set */
+/** live | test. the same app runs as two sites; this switches to the other one. hidden until there is one */
 export function NetSwitch() {
-  if (!OTHER_SITE) return null;
   const live = NETWORK === "mainnet";
-  return (
-    <span className="netswitch" role="group" aria-label="live or test">
-      {live ? <span className="on" aria-current="true">live</span>
-        : <a href={OTHER_SITE} data-tip="the live app, with real usdc on arc">live</a>}
-      {live ? <a href={OTHER_SITE} data-tip="try it free with test dollars">test</a>
-        : <span className="on" aria-current="true">test</span>}
-    </span>
-  );
+  // before mainnet launches both sites run the testnet app, so "live" has nowhere real to go yet
+  const soon = !live && LIVE_SOON;
+  if (!OTHER_SITE && !soon) return null;
+  return <NetSwitchToggle on={live ? "live" : "test"} other={soon ? undefined : OTHER_SITE} soon={soon} />;
 }

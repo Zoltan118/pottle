@@ -41,3 +41,5 @@ export const SITE =
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
 /** the same app on the other network, e.g. the free testnet site linked from mainnet. optional */
 export const OTHER_SITE = process.env.NEXT_PUBLIC_OTHER_SITE_URL || undefined;
+/** set while the mainnet site is not live yet: "live" shows as coming soon instead of linking to a site that is also on testnet */
+export const LIVE_SOON = process.env.NEXT_PUBLIC_LIVE_SOON === "1";
