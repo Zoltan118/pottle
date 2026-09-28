@@ -120,6 +120,10 @@ a { color: inherit; }
 .foot-links { grid-area: links; display: flex; gap: 8px; }
 .foot-links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding-inline: 16px; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--ink); font-family: var(--display); font-weight: 800; font-size: 16px; text-decoration: none; color: var(--ink); }
 .foot-links a:first-child { background: var(--ink); color: var(--paper); }
+/* back to top: an outlined circle on wide screens, a full row like the others on phones */
+.foot-links .foot-up { width: 44px; padding: 0; justify-content: center; }
+.foot-up-word { display: none; }
+.fold:focus { outline: none; }
 @media (hover: hover) and (pointer: fine) { .foot-links a:not(:first-child):hover { background: color-mix(in srgb, var(--ink) 8%, transparent); } }
 .foot-links a:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
 .foot:not(:has(.foot-note)) { grid-template-areas: "brand links"; }
@@ -176,6 +180,8 @@ a { color: inherit; }
   .foot:not(:has(.foot-note)) { grid-template-areas: "brand" "links"; }
   .foot-links { display: grid; grid-template-columns: 1fr; gap: 10px; }
   .foot-links a { justify-content: space-between; min-height: 52px; padding-inline: 20px; font-size: 18px; }
+  .foot-links .foot-up { width: auto; padding-inline: 20px; justify-content: space-between; }
+  .foot-up-word { display: inline; }
   .endcta .btn { width: 100%; }
 }
 
@@ -200,7 +206,10 @@ a { color: inherit; }
 .chip:active { transform: scale(.96); }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 /* "next" stays on screen on short phones: it rides the bottom edge whenever the step is taller than the screen */
-.flownav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px calc(20px + env(safe-area-inset-bottom, 0px)); position: sticky; bottom: 0; z-index: 5; background: var(--paper); }
+/* "next" floats at the bottom edge on short phones. the bar itself is see-through, so on the wrap
+   step the chosen pattern runs all the way down behind the button */
+.flownav { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-block: 12px calc(20px + env(safe-area-inset-bottom, 0px)); position: sticky; bottom: 0; z-index: 5; pointer-events: none; }
+.flownav > * { pointer-events: auto; }
 .ready-acts { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 560px) { .ready-acts .btn { flex: 1 1 100%; } }
 .steps { display: flex; gap: 6px; }

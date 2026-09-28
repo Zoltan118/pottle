@@ -31,6 +31,11 @@ export const ArrowOutIcon = ({ className }: P) => (
   <svg {...svg} className={base("out", className)}><g className="ico-nudge"><path d="M7 17 17 7" /><path d="M7 7h10v10" /></g></svg>
 );
 
+/** back to top: the arrow lifts */
+export const UpIcon = ({ className }: P) => (
+  <svg {...svg} className={base("up", className)}><g className="ico-lift"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></g></svg>
+);
+
 /** close: a quarter turn */
 export const CloseIcon = ({ className }: P) => (
   <svg {...svg} className={base("close", className)}><g className="ico-turn"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></g></svg>

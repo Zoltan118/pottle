@@ -214,7 +214,8 @@ export function CreateFlow() {
 
       {step < 5 && (
         <div className="shell flownav">
-          <span className="hint">{step + 1} of 5</span>
+          {/* the dashes at the top show progress; screen readers get it in words */}
+          <span className="sr-only">step {step + 1} of 5</span>
           <button className="btn lg" onClick={next} disabled={!valid || busy}>{nextLabel}</button>
         </div>
       )}

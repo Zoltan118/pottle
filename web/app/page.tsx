@@ -3,7 +3,7 @@ import { Nav } from "@/components/Nav";
 import { HeroPot } from "@/components/HeroPot";
 import { BigMark, Logo } from "@/components/Mark";
 import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO } from "@/lib/config";
-import { ArrowOutIcon } from "@/components/Icons";
+import { ArrowOutIcon, UpIcon } from "@/components/Icons";
 
 const ONRAMP = !!process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL;
 
@@ -41,7 +41,8 @@ export default function Home() {
   return (
     <main className="view">
       {/* the first screen: nav and hero together fill exactly one screen, so the next section never peeks in */}
-      <div className="fold">
+      {/* id "top": the footer's back-to-top link lands here, and focus with it */}
+      <div className="fold" id="top" tabIndex={-1}>
       <Nav action={<Link className="btn sm hide-sm" href="/new">make a pot</Link>} />
       <section className="shell hero">
         <div className="hero-text">
@@ -121,6 +122,7 @@ export default function Home() {
           {OTHER_SITE && <a href={OTHER_SITE}>{NETWORK === "mainnet" ? "try it free" : "go live"}<ArrowOutIcon /></a>}
           <a href={REPO} target="_blank" rel="noreferrer">github<ArrowOutIcon /></a>
           {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<ArrowOutIcon /></a>}
+          <a className="foot-up" href="#top" aria-label="back to top"><span className="foot-up-word">back to top</span><UpIcon /></a>
         </nav>
         {NETWORK === "mainnet" && <p className="foot-note">beta · no third-party audit</p>}
       </footer>
