@@ -21,7 +21,7 @@ export const STICKERS: Sticker[] = [
   { id: "tick-tock", caption: "tick tock", face: "worried", level: 0.35, extra: "clock" },
   { id: "got-it-back", caption: "got it back", face: "calm", level: 0 },
   { id: "hmm", caption: "hmm?", face: "confused", level: 0.4, tilt: -8, extra: "question" },
-  { id: "almost", caption: "almost there", face: "wide", level: 0.85 },
+  { id: "so-close", caption: "so close!", face: "wide", level: 0.85 },
   { id: "pottle", caption: "pottle", face: "wink", level: 0.6, tilt: 3, color: RIBBON },
 ];
 
