@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { HeroPot } from "@/components/HeroPot";
 import { BigMark, Logo } from "@/components/Mark";
-import { explorerAddress, LIVE_SOON, NETWORK, OTHER_SITE, POTTLE, REPO } from "@/lib/config";
+import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO } from "@/lib/config";
+import { OtherSiteLink } from "@/components/OtherSiteLink";
 import { ArrowOutIcon, UpIcon } from "@/components/Icons";
 
 const ONRAMP = !!process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL;
@@ -119,7 +120,7 @@ export default function Home() {
           <span className="foot-tag">chip in, or get it back.</span>
         </div>
         <nav className="foot-links" aria-label="links">
-          {OTHER_SITE && !(NETWORK !== "mainnet" && LIVE_SOON) && <a href={OTHER_SITE}>{NETWORK === "mainnet" ? "try it free" : "go live"}<ArrowOutIcon /></a>}
+          {OTHER_SITE && <OtherSiteLink site={OTHER_SITE} mainnet={NETWORK === "mainnet"} />}
           <a href={REPO} target="_blank" rel="noreferrer">github<ArrowOutIcon /></a>
           {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<ArrowOutIcon /></a>}
           <Link href="/stickers">stickers</Link>
