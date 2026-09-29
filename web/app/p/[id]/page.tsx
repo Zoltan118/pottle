@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { settlePot } from "@/lib/settle";
-import { money, readPot } from "@/lib/pot";
+import { money, readPot, parsePotId } from "@/lib/pot";
 import { POTTLE } from "@/lib/config";
 import { PotView } from "./PotView";
 import { Mascot } from "@/components/Mascot";
@@ -10,7 +10,7 @@ import { Mascot } from "@/components/Mascot";
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const pot = await readPot(Number((await params).id)).catch((e) => {
+  const pot = await readPot(parsePotId((await params).id)).catch((e) => {
     console.error("[pottle] metadata read failed:", e instanceof Error ? e.message : e);
     return null;
   });
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PotPage({ params }: Props) {
-  const id = Number((await params).id);
+  const id = parsePotId((await params).id);
   if (!POTTLE) {
     return (
       <main className="view"><section className="flow"><h1 className="giant q">soon.</h1>

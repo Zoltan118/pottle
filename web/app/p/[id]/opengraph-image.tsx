@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { money, readPot, timeLeft } from "@/lib/pot";
+import { money, readPot, timeLeft, parsePotId } from "@/lib/pot";
 import { C, Frame, OG, ogFonts, Pill, Pot, titleSize, Wordmark } from "@/lib/ogart";
 
 export const alt = "a pottle pot";
@@ -9,7 +9,7 @@ export const contentType = "image/png";
 // the group-chat preview: the one surface most people see before they open the pot. it looks like
 // the pot page itself: the pot's own wrap, a paper card, the pot filled to the real amount
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const pot = await readPot(Number((await params).id)).catch(() => null);
+  const pot = await readPot(parsePotId((await params).id)).catch(() => null);
   const fonts = await ogFonts();
   if (!pot) {
     return new ImageResponse(

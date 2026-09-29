@@ -3,13 +3,14 @@ import { createWalletClient, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { pottleAbi } from "./abi";
 import { chain, POTTLE } from "./config";
-import { PAYOUT_GRACE, publicClient } from "./pot";
+import { publicClient } from "./pot";
 import { withNonceRetry } from "./retry";
 
 // pays pots out and refunds them without anyone pressing a button. the relayer only pays the
 // network fee; the contract decides where the money goes, so this can never send it anywhere else.
 
-const STATUS = ["none", "open", "reached", "released", "refunding"] as const;
+// the contract's order. "refunded" means nothing is left to do (the older testnet contract never says it)
+const STATUS = ["none", "open", "reached", "released", "refunding", "refunded"] as const;
 
 function relayer() {
   const key = process.env.RELAYER_PRIVATE_KEY;
@@ -24,39 +25,59 @@ export async function settlePot(id: number): Promise<"released" | "refunded" | "
   if (!r || !POTTLE) return "nothing";
   const [pot, status] = await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "getPot", args: [BigInt(id)] });
   const s = STATUS[Number(status)];
-  let fn: "release" | "refundAll" | null = s === "reached" ? "release" : s === "refunding" && pot.raised > 0n ? "refundAll" : null;
-  if (!fn) return "nothing";
+  if ((s !== "reached" && s !== "refunding") || pot.raised === 0n) return "nothing";
+  // a pot at its goal pays out first. if that fails (for example a blocklisted organiser) and refunds are
+  // open (30 days after the deadline, or once anyone has had money back), refund everyone instead.
+  // both are simulated, so the relayer never sends a transaction that would do nothing
+  const order: ("release" | "refundAll")[] = pot.raised >= pot.goal ? ["release", "refundAll"] : ["refundAll"];
+  let fn: "release" | "refundAll" = order[0];
   let request;
-  try {
-    ({ request } = await publicClient.simulateContract({ account: r.account, address: POTTLE, abi: pottleAbi, functionName: fn, args: [BigInt(id)] }));
-  } catch (e) {
-    // a pot that hit its goal but cannot pay out (for example a blocklisted organiser) becomes
-    // refundable 30 days after its deadline. then refund everyone instead
-    const stuck = fn === "release" && Date.now() / 1000 >= Number(pot.deadline) + PAYOUT_GRACE;
-    if (!stuck) throw e;
-    fn = "refundAll";
-    ({ request } = await publicClient.simulateContract({ account: r.account, address: POTTLE, abi: pottleAbi, functionName: fn, args: [BigInt(id)] }));
+  for (let i = 0; ; i++) {
+    fn = order[i];
+    try {
+      ({ request } = await publicClient.simulateContract({ account: r.account, address: POTTLE, abi: pottleAbi, functionName: fn, args: [BigInt(id)] }));
+      break;
+    } catch (e) {
+      if (i === order.length - 1) throw e;
+    }
   }
   const hash = await withNonceRetry(() => r.wallet.writeContract(request));
   await publicClient.waitForTransactionReceipt({ hash });
   return fn === "release" ? "released" : "refunded";
 }
 
-/** scans the newest pots and settles every one that is due. used by the scheduled job */
-export async function settleDue(scan = 300, maxTx = 20) {
-  if (!POTTLE || !relayer()) return { scanned: 0, settled: [] as { id: number; did: string }[], off: true };
+/**
+ * scans every pot and settles the ones that are due. used by the scheduled job.
+ *
+ * the audit found this could starve: it only looked at the newest 300 pots and spent its 20 slots on
+ * pots it could do nothing with (empty or unpayable), so older pots stopped settling. now it reads the
+ * status of every pot, skips the ones with nothing to do (the contract says "refunded" for those), counts
+ * only transactions it actually sends, and starts each run at a different place in the due list so a pot
+ * that keeps failing can never hold the others up. it stops at maxTx sends or when time runs short
+ */
+export async function settleDue(maxTx = 20, budgetMs = 45_000) {
+  if (!POTTLE || !relayer()) return { scanned: 0, due: 0, settled: [] as { id: number; did: string }[], off: true };
+  const started = Date.now();
   const count = Number(await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "potCount" }));
-  const ids = Array.from({ length: Math.min(scan, count) }, (_, i) => count - i);
-  const statuses = await publicClient.multicall({
-    contracts: ids.map((id) => ({ address: POTTLE!, abi: pottleAbi, functionName: "statusOf" as const, args: [BigInt(id)] as const })),
-    allowFailure: true,
-  });
-  const due = ids.filter((_, i) => {
-    const s = statuses[i].status === "success" ? STATUS[Number(statuses[i].result)] : "none";
-    return s === "reached" || s === "refunding";
-  });
+  const ids = Array.from({ length: count }, (_, i) => i + 1);
+  const due: number[] = [];
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    const statuses = await publicClient.multicall({
+      contracts: chunk.map((id) => ({ address: POTTLE!, abi: pottleAbi, functionName: "statusOf" as const, args: [BigInt(id)] as const })),
+      allowFailure: true,
+    });
+    chunk.forEach((id, k) => {
+      const s = statuses[k].status === "success" ? STATUS[Number(statuses[k].result)] : "none";
+      if (s === "reached" || s === "refunding") due.push(id);
+    });
+  }
+  // a different starting point each run (the run's minute), so nothing is always last in line
+  const shift = due.length ? Math.floor(Date.now() / 60_000) % due.length : 0;
+  const order = [...due.slice(shift), ...due.slice(0, shift)];
   const settled: { id: number; did: string }[] = [];
-  for (const id of due.slice(0, maxTx)) {
+  for (const id of order) {
+    if (settled.length >= maxTx || Date.now() - started > budgetMs) break;
     try {
       const did = await settlePot(id);
       if (did !== "nothing") settled.push({ id, did });
@@ -64,5 +85,5 @@ export async function settleDue(scan = 300, maxTx = 20) {
       console.warn(`[pottle] settle ${id} failed:`, e instanceof Error ? e.message : e);
     }
   }
-  return { scanned: ids.length, settled, off: false };
+  return { scanned: ids.length, due: due.length, settled, off: false };
 }

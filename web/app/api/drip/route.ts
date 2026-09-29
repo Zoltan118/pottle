@@ -52,9 +52,20 @@ export async function POST(req: Request) {
   }
 
   const wallet = createWalletClient({ account, chain, transport: http() });
-  recent.set(sub, Date.now()); // before sending, so two requests at the same instant cannot both be paid
-  const hash = await wallet.writeContract({ address: USDC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
-  await publicClient.waitForTransactionReceipt({ hash });
+  // recorded before sending, so two requests on this instance cannot both be paid. instances do not
+  // share memory, so this is best effort; the "already holds $1" rule is the real limit, and it is
+  // testnet money. a failed send is forgotten, so the person can try again straight away
+  recent.set(sub, Date.now());
+  let hash: Hex;
+  try {
+    hash = await wallet.writeContract({ address: USDC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new Error("drip transfer reverted");
+  } catch (e) {
+    recent.delete(sub);
+    console.warn("[pottle] drip send failed:", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "could not send test dollars, try again" }, { status: 502 });
+  }
 
   // euro pots need eurc. send €10 too when the relayer has some to spare (refill it at faucet.circle.com)
   let eur = 0;

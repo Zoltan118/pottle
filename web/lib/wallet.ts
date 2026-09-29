@@ -1,19 +1,41 @@
 "use client";
 
 import type { WalletApi } from "@/app/providers";
-import { parseSignature, toHex, type Address, type Hex } from "viem";
+import { encodeAbiParameters, keccak256, parseSignature, toBytes, toHex, type Address, type Hex } from "viem";
 import { erc20Abi, pottleAbi } from "./abi";
 import { chain, CURRENCIES, POTTLE, TOKEN, type Currency } from "./config";
 import { publicClient } from "./pot";
 
-async function relay(body: object): Promise<Hex | null> {
+type Relayed = { hash: Hex } | { selfPay: true } | { skip: string };
+
+async function relay(body: object): Promise<Relayed> {
   const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  if (r.status === 503) return null; // relay off, fall back to the user's own wallet
-  const j = await r.json();
-  if (j.selfPay) return null; // relay declined to sponsor this one (small amount, limits, reserve)
+  if (r.status === 503) return { selfPay: true }; // relay off, fall back to the user's own wallet
+  const j = await r.json().catch(() => ({}));
+  if (j.selfPay) return { selfPay: true }; // relay declined or could not send: the user's own wallet can
+  if (r.status === 409 || r.status === 429) return { skip: j.error || "nothing to do" }; // not due, or already on its way
   if (!r.ok) throw new Error(j.error || "relay failed");
-  return j.hash as Hex;
+  return { hash: j.hash as Hex };
 }
+
+/** a transaction only counts once it is mined and succeeded; a reverted one is an error, not a success */
+async function confirmed(hash: Hex) {
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") throw new Error("the transaction did not go through");
+  return hash;
+}
+
+/** dollars or euros to token units, through whole cents so the amount always lands on the contract's cent grid */
+const units = (d: number) => BigInt(Math.round(d * 100)) * 10_000n;
+
+/** the eip-3009 nonce, computed here the same way the contract does, so no rpc can hand us one for another pot */
+export const authNonce = (id: number, name: string, salt: Hex) =>
+  keccak256(encodeAbiParameters([{ type: "uint256" }, { type: "bytes32" }, { type: "bytes32" }], [BigInt(id), keccak256(toBytes(name)), salt]));
+
+// a signed chip-in that has not landed yet, kept so a retry reuses it rather than signing a second
+// authorization that would stay valid alongside the first (and could be charged too)
+type Signed = { salt: Hex; validBefore: bigint; v: number; r: Hex; s: Hex };
+const pending = new Map<string, Signed>();
 
 type Client = Awaited<ReturnType<WalletApi["client"]>>;
 
@@ -35,9 +57,10 @@ export async function createPot(c: Client, a: { goal: number; deadline: number; 
   if (!POTTLE) throw new Error("pottle is not deployed yet");
   const hash = await c.writeContract({
     address: POTTLE, abi: pottleAbi, functionName: "create", chain, account: c.account,
-    args: [BigInt(Math.round(a.goal * 1e6)), BigInt(a.deadline), a.wrap, CURRENCIES.indexOf(a.currency), a.title, a.name],
+    args: [units(a.goal), BigInt(a.deadline), a.wrap, CURRENCIES.indexOf(a.currency), a.title, a.name],
   });
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") throw new Error("the pot was not created");
   const pottle = POTTLE.toLowerCase();
   const log = receipt.logs.find((l) => l.address.toLowerCase() === pottle);
   if (!log?.topics[1]) throw new Error("pot not found in receipt");
@@ -48,34 +71,38 @@ export async function createPot(c: Client, a: { goal: number; deadline: number; 
 export async function chipIn(c: Client, a: { id: number; amount: number; name: string; currency: Currency }) {
   if (!POTTLE) throw new Error("pottle is not deployed yet");
   const from = c.account.address;
-  const value = BigInt(Math.round(a.amount * 1e6));
-  const salt = toHex(crypto.getRandomValues(new Uint8Array(32)));
-  const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
-  const nonce = await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "authNonce", args: [BigInt(a.id), a.name, salt] });
+  const value = units(a.amount);
+  const key = `${chain.id}:${a.id}:${from}:${value}:${a.name}`;
+  let signed = pending.get(key);
+  if (!signed || signed.validBefore < BigInt(Math.floor(Date.now() / 1000) + 180)) {
+    const salt = toHex(crypto.getRandomValues(new Uint8Array(32)));
+    const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
+    const signature = await c.signTypedData({
+      account: c.account,
+      // the pot's own token checks this signature, so it is signed for that token (usdc or eurc)
+      domain: { name: TOKEN[a.currency].name, version: "2", chainId: chain.id, verifyingContract: TOKEN[a.currency].address },
+      types: {
+        ReceiveWithAuthorization: [
+          { name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" },
+          { name: "validAfter", type: "uint256" }, { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" },
+        ],
+      },
+      primaryType: "ReceiveWithAuthorization",
+      message: { from, to: POTTLE, value, validAfter: 0n, validBefore, nonce: authNonce(a.id, a.name, salt) },
+    });
+    const { r, s, v, yParity } = parseSignature(signature);
+    signed = { salt, validBefore, v: v !== undefined ? Number(v) : 27 + yParity, r, s };
+    pending.set(key, signed);
+  }
+  const { salt, validBefore, v: vNum, r, s } = signed;
 
-  const signature = await c.signTypedData({
-    account: c.account,
-    // the pot's own token checks this signature, so it is signed for that token (usdc or eurc)
-    domain: { name: TOKEN[a.currency].name, version: "2", chainId: chain.id, verifyingContract: TOKEN[a.currency].address },
-    types: {
-      ReceiveWithAuthorization: [
-        { name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" },
-        { name: "validAfter", type: "uint256" }, { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" },
-      ],
-    },
-    primaryType: "ReceiveWithAuthorization",
-    message: { from, to: POTTLE, value, validAfter: 0n, validBefore, nonce },
+  const relayed = await relay({ kind: "chip", id: a.id, from, amount: value.toString(), name: a.name, validBefore: validBefore.toString(), salt, v: vNum, r, s });
+  const hash = "hash" in relayed ? relayed.hash : await c.writeContract({
+    address: POTTLE, abi: pottleAbi, functionName: "chipInWithAuthorization", chain, account: c.account,
+    args: [BigInt(a.id), from, value, a.name, 0n, validBefore, salt, vNum, r, s],
   });
-  const { r, s, v, yParity } = parseSignature(signature);
-  const vNum = v !== undefined ? Number(v) : 27 + yParity;
-
-  const hash =
-    (await relay({ kind: "chip", id: a.id, from, amount: value.toString(), name: a.name, validBefore: validBefore.toString(), salt, v: vNum, r, s })) ??
-    (await c.writeContract({
-      address: POTTLE, abi: pottleAbi, functionName: "chipInWithAuthorization", chain, account: c.account,
-      args: [BigInt(a.id), from, value, a.name, 0n, validBefore, salt, vNum, r, s],
-    }));
-  await publicClient.waitForTransactionReceipt({ hash });
+  await confirmed(hash);
+  pending.delete(key);
   return hash;
 }
 
@@ -89,7 +116,7 @@ export async function settle(kind: "release" | "refund", id: number, c?: Client)
       address: pottle, abi: pottleAbi, functionName: kind === "release" ? "release" : "refundAll", chain, account: c.account, args: [BigInt(id)],
     });
   };
-  const hash = (await relay({ kind, id })) ?? (await own());
-  await publicClient.waitForTransactionReceipt({ hash });
-  return hash;
+  const relayed = await relay({ kind, id });
+  if ("skip" in relayed) return null; // already settled, or on its way: the page just refreshes
+  return confirmed("hash" in relayed ? relayed.hash : await own());
 }

@@ -15,5 +15,11 @@ export function allow(key: string, max: number, windowMs: number): boolean {
   return true;
 }
 
+/**
+ * the visitor's ip. on vercel, x-vercel-forwarded-for and x-real-ip are set by vercel's edge and cannot
+ * be forged by the visitor; x-forwarded-for is only a fallback for running elsewhere, where the
+ * first entry is whatever the client sent
+ */
 export const clientIp = (req: Request) =>
-  req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+  req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") ||
+  req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";

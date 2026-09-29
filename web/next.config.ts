@@ -13,7 +13,10 @@ const nextConfig: NextConfig = {
     return [{
       source: "/:path*",
       headers: [
-        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        // no plugins, no <base> rewriting and no form posts to other sites. scripts are not locked down
+        // here: dynamic's sign-in and circle's onramp load their own, and a script-src that breaks sign-in
+        // would be worse than none. that trade-off is written up in AUDIT.md
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" },
         { key: "X-Frame-Options", value: "DENY" },
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

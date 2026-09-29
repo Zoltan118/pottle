@@ -524,6 +524,25 @@ export const pottleAbi = [
   },
   {
     "type": "function",
+    "name": "refundsStarted",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "release",
     "inputs": [
       {

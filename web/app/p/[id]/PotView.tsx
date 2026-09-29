@@ -10,10 +10,10 @@ import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
 import { Sheet } from "@/components/Sheet";
 import { balanceOf, chipIn, settle } from "@/lib/wallet";
-import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, type PotData } from "@/lib/pot";
+import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, toCents, type PotData } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
-import { NETWORK, TOKEN } from "@/lib/config";
-import { ShareIcon } from "@/components/Icons";
+import { explorerAddress, NETWORK, TOKEN } from "@/lib/config";
+import { ShareIcon, ArrowOutIcon } from "@/components/Icons";
 import { CountUp, type Counter } from "@/components/CountUp";
 import { Celebrate } from "@/components/Celebrate";
 import { YoureIn } from "@/components/YoureIn";
@@ -55,6 +55,10 @@ export function PotView({ initial }: { initial: PotData }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<number | "other">(20);
+  const [userPicked, setUserPicked] = useState(false); // once someone taps an amount, it stays theirs
+  // the one-tap amounts are frozen while the sheet is open, so a chip-in landing meanwhile can't swap
+  // the amount under the payer's thumb (and Enter can't pay a number they never saw)
+  const [frozenPicks, setFrozenPicks] = useState<number[] | null>(null);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState<"" | "signin" | "pay" | "settle">("");
   const [err, setErr] = useState("");
@@ -74,14 +78,16 @@ export function PotView({ initial }: { initial: PotData }) {
   const paid = pot.people;
   const latest = fresh ?? paid.at(-1)?.name;
   // one-tap amounts fitted to what the pot still needs (the last is exactly "the rest"), or any amount typed in
-  const { left, room, picks } = chipOptions(pot.goal, pot.raised, MAX_POT);
+  const live = chipOptions(pot.goal, pot.raised, MAX_POT);
+  const { left, room } = live;
+  const picks = open && frozenPicks ? frozenPicks : live.picks;
   // the starting pick: $20 or the nearest below it, and never more than a signed-in payer holds
   const affordable = bal.data === undefined ? picks : picks.filter((a) => a <= bal.data!);
   const fallback = affordable.includes(20) ? 20 : (affordable.filter((a) => a <= 20).at(-1) ?? affordable[0] ?? picks[0] ?? 0);
   const other = picked === "other";
-  const amount = other ? Number(typed) || 0 : picks.includes(picked) && affordable.includes(picked) ? picked : fallback;
-  const tooSmall = amount > 0 && amount < MIN_CHIP && amount !== left;
-  const tooBig = amount > room;
+  const amount = other ? Number(typed) || 0 : picks.includes(picked) && (userPicked || affordable.includes(picked)) ? picked : fallback;
+  const tooSmall = amount > 0 && toCents(amount) < toCents(MIN_CHIP) && toCents(amount) !== toCents(left);
+  const tooBig = toCents(amount) > toCents(room);
   const valid = amount > 0 && !tooSmall && !tooBig;
   const missing = amount ? Math.max(0, Math.ceil((pot.goal - pot.raised) / amount)) : 0;
   const refreshed = () => qc.invalidateQueries({ queryKey: ["pot", pot.id] });
@@ -117,7 +123,7 @@ export function PotView({ initial }: { initial: PotData }) {
   // the mascot in the chip-in sheet reacts to what you do: excited at "the rest", holding its breath
   // while paying, a wince if it fails
   const sheetMood: Mood = busy === "pay" || busy === "signin" ? "hold" : err ? "wince" : valid && amount === left ? "happy" : "idle";
-  const closeSheet = () => { setOpen(false); setErr(""); setShort(0); setHave(0); setDone(null); };
+  const closeSheet = () => { setOpen(false); setFrozenPicks(null); setUserPicked(false); setErr(""); setShort(0); setHave(0); setDone(null); };
   const decided = new Date(pot.deadline * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   async function doSettle(kind: "release" | "refund") {
@@ -169,9 +175,15 @@ export function PotView({ initial }: { initial: PotData }) {
           {finishedLine}
           <button className="goesto" data-tip={pot.status === "refunding"
             ? `the pot missed its goal of ${m(pot.goal)}, so nobody got it. everyone who chipped in gets their money back.`
-            : `${pot.organiserName} made this pot. hit ${m(pot.goal)} and all of it goes to ${pot.organiserName} for ${pot.title}. miss it and everyone gets their money back.`}>
+            : `${pot.organiserName} made this pot. hit ${m(pot.goal)} and all of it goes to ${pot.organiserName}'s wallet, ${pot.organiser.slice(0, 6)}…${pot.organiser.slice(-4)}, for ${pot.title}. miss it and everyone gets their money back.`}>
             {pot.status === "released" ? <>went to <b>{pot.organiserName}</b></> : pot.status === "refunding" ? <>goes back to <b>everyone</b></> : <>goes to <b>{pot.organiserName}</b></>}
           </button>
+          {/* the name is whatever the organiser typed; the wallet is the part nobody can copy */}
+          {pot.status !== "refunding" && (
+            <a className="orgwallet" href={explorerAddress(pot.organiser)} target="_blank" rel="noreferrer" data-tip={`the wallet this pot pays out to. check it is ${pot.organiserName}'s before you chip in`}>
+              wallet {pot.organiser.slice(0, 6)}…{pot.organiser.slice(-4)}<ArrowOutIcon />
+            </a>
+          )}
           <div className="meta">
             <span><b>{paid.length}</b> {pot.status === "refunding" ? (paid.length === 1 ? "was" : "were") : ""} in</span>
             <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>
@@ -198,7 +210,7 @@ export function PotView({ initial }: { initial: PotData }) {
                 <button className="btn lg ghost potcta-share" onClick={shareToGroup} aria-label="share this pot">
                   <ShareIcon />
                 </button>
-                <button className="btn lg wide" onClick={() => setOpen(true)}>{valid ? <>i&apos;m in · {m(amount)}</> : <>i&apos;m in</>}</button>
+                <button className="btn lg wide" onClick={() => { setFrozenPicks(live.picks); setOpen(true); }}>{valid ? <>i&apos;m in · {m(amount)}</> : <>i&apos;m in</>}</button>
               </div>
             </div>
           )}
@@ -255,7 +267,7 @@ export function PotView({ initial }: { initial: PotData }) {
         </div>
         <input className="bigin" placeholder="your name" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
-          {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => setPicked(a)}>{m(a)}</button>)}
+          {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => { setPicked(a); setUserPicked(true); }}>{m(a)}</button>)}
           <button className="chip" aria-pressed={other} onClick={() => setPicked("other")}>other</button>
         </div>
         {other && (
@@ -267,7 +279,7 @@ export function PotView({ initial }: { initial: PotData }) {
           </label>
         )}
         <p className="where">
-          {tooBig ? <>this pot can take at most <b>{m(room)}</b> more.</>
+          {tooBig ? <>{room > 0 ? <>this pot can take at most <b>{m(room)}</b> more.</> : <>this pot is full now.</>}</>
             : tooSmall ? <>at least {m(MIN_CHIP)}, please.</>
             : amount > 0 && amount === left ? <>that&apos;s exactly what&apos;s left. it hits the goal and goes to <b>{pot.organiserName}</b>.</>
             : amount > left && left > 0 ? <>that&apos;s {m(Math.round((amount - left) * 100) / 100)} over the goal. the extra goes to <b>{pot.organiserName}</b> too.</>

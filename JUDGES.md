@@ -48,7 +48,7 @@ itself out when its page is opened. 15 checks. it needs a funded testnet key in 
 ## the code worth reading
 
 - [`contracts/src/Pottle.sol`](contracts/src/Pottle.sol): the whole contract, about 300 lines
-- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 36 tests, including fuzzing and
+- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 44 tests, including fuzzing and
   signature binding, and [`PottleInvariant.t.sol`](contracts/test/PottleInvariant.t.sol) for random
   sequences
 - [`AUDIT.md`](AUDIT.md): our own security review

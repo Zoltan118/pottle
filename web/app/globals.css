@@ -128,6 +128,9 @@ a { color: inherit; }
 .foot-links a:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
 .foot:not(:has(.foot-note)) { grid-template-areas: "brand links"; }
 .foot-note { grid-area: note; margin: 0; color: var(--muted); font-size: 14px; font-weight: 700; }
+.orgwallet { display: inline-flex; align-items: center; gap: 4px; align-self: start; font-size: 14px; font-weight: 700; color: var(--muted); text-decoration: none; font-variant-numeric: tabular-nums; padding-block: 12px; margin-block: -12px; }
+.orgwallet svg { width: 14px; height: 14px; }
+@media (hover: hover) and (pointer: fine) { .orgwallet:hover { color: var(--ink); } }
 .tipword { border: 0; background: none; padding: 0; cursor: help; font-weight: 700; color: inherit; text-decoration: underline dotted 2px; text-underline-offset: 4px; }
 
 /* landing: safe, features, faq */

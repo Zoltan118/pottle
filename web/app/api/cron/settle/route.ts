@@ -2,7 +2,9 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { settleDue } from "@/lib/settle";
 
-// called on a schedule (github actions every 30 minutes, see .github/workflows/settle.yml).
+// called on a schedule: github actions every 10 minutes (.github/workflows/settle.yml), and vercel's own cron
+// once a day (web/vercel.json) as a backup, since github switches schedules off in a repo with no commits
+// for 60 days. vercel sends "Bearer $CRON_SECRET" by itself when CRON_SECRET is set on the project.
 // pays out every pot that hit its goal and refunds every pot past its deadline.
 export const maxDuration = 60;
 

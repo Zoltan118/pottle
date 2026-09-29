@@ -10,9 +10,11 @@ export async function verifyUser(req: Request): Promise<{ sub: string; wallets: 
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer /, "");
   if (!token || !jwks) return null;
   try {
-    const { payload } = await jwtVerify(token, jwks, { algorithms: ["RS256"] });
+    // an expiry is required (a token without one would never run out), and the issuer must end in
+    // "/<our environment id>", not merely contain it
+    const { payload } = await jwtVerify(token, jwks, { algorithms: ["RS256"], requiredClaims: ["exp", "sub", "iss"] });
     const scope = String(payload.scope ?? "").split(" ");
-    if (!String(payload.iss ?? "").endsWith(DYNAMIC_ENV!) || !scope.includes("user:basic") || !payload.sub) return null;
+    if (!String(payload.iss).endsWith(`/${DYNAMIC_ENV!}`) || !scope.includes("user:basic") || !payload.sub) return null;
     const creds = (payload.verified_credentials ?? []) as { address?: string }[];
     return { sub: payload.sub, wallets: creds.map((c) => c.address?.toLowerCase()).filter(Boolean) as string[] };
   } catch {

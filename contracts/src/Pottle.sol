@@ -60,7 +60,8 @@ contract Pottle {
         Open, // taking money
         Reached, // goal hit, waiting for anyone to call release
         Released, // paid out to the organiser
-        Refunding // deadline passed below goal, contributors can take their money back
+        Refunding, // refunds are open and someone still has money in the pot
+        Refunded // refunds are open and every cent has gone back: nothing left to do
     }
 
     uint256 public potCount;
@@ -70,6 +71,9 @@ contract Pottle {
     mapping(uint256 => mapping(address => string)) public nameOf;
     mapping(uint256 => mapping(address => uint256)) public chipped;
     mapping(address => uint256[]) internal _potsOf; // pots someone made or joined, oldest first
+    /// @notice true once anyone has had money back from a pot. from then on it only refunds: a late
+    /// payout would hand the organiser the shares of the people who had not claimed yet
+    mapping(uint256 => bool) public refundsStarted;
 
     uint256 private locked = 1;
 
@@ -118,7 +122,9 @@ contract Pottle {
         nonReentrant
         returns (uint256 id)
     {
-        if (goal == 0 || goal > MAX_POT) revert BadGoal();
+        // whole cents only. with the goal and every chip-in on the cent grid, a pot below its goal always
+        // has room for one more MIN_CHIP under the cap, so nobody can strand it just short of its goal
+        if (goal == 0 || goal > MAX_POT || goal % MIN_CHIP != 0) revert BadGoal();
         if (wrap > MAX_WRAP || currency > 1) revert BadText();
         if (deadline <= block.timestamp || deadline > block.timestamp + MAX_DURATION) revert BadDeadline();
         _text(title, MAX_TITLE);
@@ -177,7 +183,7 @@ contract Pottle {
         Pot storage p = _pots[id];
         if (p.organiser == address(0)) revert NoSuchPot();
         if (p.released || block.timestamp >= p.deadline) revert PotClosed();
-        if (amount < MIN_CHIP) revert TooSmall();
+        if (amount < MIN_CHIP || amount % MIN_CHIP != 0) revert TooSmall();
         if (uint256(p.raised) + amount > MAX_POT) revert OverCap();
         _text(name, MAX_NAME);
 
@@ -200,7 +206,7 @@ contract Pottle {
     function release(uint256 id) external nonReentrant {
         Pot storage p = _pots[id];
         if (p.organiser == address(0)) revert NoSuchPot();
-        if (p.released) revert PotClosed();
+        if (p.released || refundsStarted[id]) revert PotClosed();
         if (p.raised < p.goal) revert GoalNotReached();
 
         p.released = true;
@@ -220,19 +226,22 @@ contract Pottle {
 
         chipped[id][msg.sender] = 0;
         p.raised -= uint128(amount);
+        refundsStarted[id] = true;
         if (!tokenOf(id).transfer(msg.sender, amount)) revert TransferFailed();
         emit Refunded(id, msg.sender, amount);
     }
 
     /// @notice Refund everyone in a pot that missed its goal. Anyone can call this; it is how
     /// the app makes refunds automatic. A contributor whose transfer fails is skipped and
-    /// keeps their balance, so they can still claim it themselves.
+    /// keeps their balance, so they can still claim it themselves. Reverts when it would refund
+    /// nobody, so nobody can make a sponsor pay for calls that do nothing.
     function refundAll(uint256 id) external nonReentrant {
         Pot storage p = _pots[id];
         if (!_refunding(p)) revert NotRefunding();
 
         IFiatToken token = tokenOf(id);
         address[] storage people = _people[id];
+        uint256 paid;
         for (uint256 i; i < people.length; ++i) {
             address to = people[i];
             uint256 amount = chipped[id][to];
@@ -245,6 +254,7 @@ contract Pottle {
                 ok = sent;
             } catch {}
             if (ok) {
+                ++paid;
                 emit Refunded(id, to, amount);
             } else {
                 chipped[id][to] = amount;
@@ -252,6 +262,8 @@ contract Pottle {
                 emit RefundFailed(id, to, amount);
             }
         }
+        if (paid == 0) revert NothingToRefund();
+        refundsStarted[id] = true;
     }
 
     // ---------------------------------------------------------------- views
@@ -260,8 +272,9 @@ contract Pottle {
         Pot storage p = _pots[id];
         if (p.organiser == address(0)) return Status.None;
         if (p.released) return Status.Released;
+        // the same rule the refund functions use, so the status never says "reached" while refunds are open
+        if (_refunding(p) || refundsStarted[id]) return p.raised == 0 ? Status.Refunded : Status.Refunding;
         if (p.raised >= p.goal) return Status.Reached;
-        if (block.timestamp >= p.deadline) return Status.Refunding;
         return Status.Open;
     }
 

@@ -27,7 +27,7 @@ contract Handler is Test {
     function potCount() external view returns (uint256) { return ids.length; }
 
     function create(uint256 who, uint128 goal, uint64 len, bool euro) external {
-        goal = uint128(bound(goal, 1e4, 100e6));
+        goal = uint128(bound(goal, 1, 10_000)) * 1e4; // whole cents, as the contract requires
         len = uint64(bound(len, 1, 90 days));
         vm.prank(actors[who % 4]);
         ids.push(pottle.create(goal, uint64(block.timestamp) + len, 0, euro ? 1 : 0, "pot", "org"));
@@ -36,7 +36,7 @@ contract Handler is Test {
     function chip(uint256 who, uint256 pick, uint128 amount) external {
         if (ids.length == 0) return;
         uint256 id = ids[pick % ids.length];
-        amount = uint128(bound(amount, 1e4, 60e6));
+        amount = uint128(bound(amount, 1, 6_000)) * 1e4;
         vm.prank(actors[who % 4]);
         try pottle.chipIn(id, amount, "friend") {} catch {}
     }
@@ -108,6 +108,35 @@ contract PottleInvariantTest is Test {
         for (uint256 i; i < handler.potCount(); ++i) {
             (Pottle.Pot memory p,,,,) = pottle.getPot(handler.ids(i));
             assertLe(p.raised, pottle.MAX_POT());
+        }
+    }
+
+    /// P-2: every pot stays on the cent grid, so one below its goal always has room for a last chip-in
+    function invariant_openPotsCanAlwaysFinish() public view {
+        for (uint256 i; i < handler.potCount(); ++i) {
+            (Pottle.Pot memory p,,,,) = pottle.getPot(handler.ids(i));
+            assertEq(p.raised % pottle.MIN_CHIP(), 0);
+            if (p.raised < p.goal) assertGe(p.goal - p.raised, pottle.MIN_CHIP());
+        }
+    }
+
+    /// the status never contradicts the refund rule, and a paid-out pot never reopens
+    function invariant_statusMatchesRefundable() public view {
+        for (uint256 i; i < handler.potCount(); ++i) {
+            uint256 id = handler.ids(i);
+            Pottle.Status st = pottle.statusOf(id);
+            bool r = pottle.refundable(id);
+            if (st == Pottle.Status.Reached || st == Pottle.Status.Open || st == Pottle.Status.Released) assertFalse(r);
+            if (r) assertTrue(st == Pottle.Status.Refunding || st == Pottle.Status.Refunded);
+        }
+    }
+
+    /// once refunds start, the organiser never gets paid from that pot
+    function invariant_noPayoutAfterRefunds() public view {
+        for (uint256 i; i < handler.potCount(); ++i) {
+            uint256 id = handler.ids(i);
+            (Pottle.Pot memory p,,,,) = pottle.getPot(id);
+            if (pottle.refundsStarted(id)) assertFalse(p.released);
         }
     }
 }

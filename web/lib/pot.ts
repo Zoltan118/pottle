@@ -5,7 +5,10 @@ import { chain, CURRENCIES, NETWORK, POTTLE, TOKEN, type Currency } from "./conf
 export const publicClient = createPublicClient({ chain, transport: http() });
 
 export type Status = "none" | "open" | "reached" | "released" | "refunding";
-const STATUS: Status[] = ["none", "open", "reached", "released", "refunding"];
+// the contract's order. its sixth status, "refunded" (refunds open and nothing left in the pot), reads as
+// "refunding" with raised 0 here, which the pages already show as "everyone got their money back".
+// the older testnet contract never returns it, so both contracts read the same
+const STATUS: Status[] = ["none", "open", "reached", "released", "refunding", "refunding"];
 
 export type Person = { address: Address; name: string; amount: number };
 export type PotData = {
@@ -21,6 +24,20 @@ export type PotData = {
   currency: Currency;
   people: Person[];
 };
+
+/**
+ * a pot id from a url: plain digits only, so "/p/0x10" or "/p/1e1" cannot open pot 16 or 10 under a
+ * second address. anything else reads as no pot
+ */
+export const parsePotId = (raw: string) => (/^[1-9]\d{0,15}$/.test(raw) ? Number(raw) : NaN);
+
+/**
+ * titles and names are whatever anyone wrote on chain. before they reach a page, a preview or a share
+ * message: invisible and direction-changing characters go (they can make one pot's name read like
+ * another's), and newlines and runs of spaces become one space
+ */
+export const cleanText = (t: string) =>
+  t.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g, "").replace(/\s+/g, " ").trim() || "untitled";
 
 /** token units (6 decimals) to a plain number of dollars or euros */
 const toUsd = (v: bigint) => Number(v) / 1e6;
@@ -41,9 +58,9 @@ export async function readPot(id: number): Promise<PotData | null> {
   if (s === "none") return null;
   return {
     id,
-    title: pot.title,
+    title: cleanText(pot.title),
     organiser: pot.organiser,
-    organiserName: pot.organiserName,
+    organiserName: cleanText(pot.organiserName),
     goal: toUsd(pot.goal),
     raised: toUsd(pot.raised),
     deadline: Number(pot.deadline),
@@ -53,7 +70,7 @@ export async function readPot(id: number): Promise<PotData | null> {
     people: people
       // everyone who took part stays listed, including people already refunded (amount 0), so a
       // missed pot still shows who was in rather than looking like nobody came
-      .map((address, i) => ({ address, name: names[i], amount: toUsd(amounts[i]) })),
+      .map((address, i) => ({ address, name: cleanText(names[i]), amount: toUsd(amounts[i]) })),
   };
 }
 
@@ -68,22 +85,25 @@ export async function readPotsOf(address: Address, limit = 20): Promise<PotData[
 
 export const potPath = (id: number) => `/p/${id}`;
 
-const cents = (d: number) => Math.round(d * 100) / 100;
+/** whole cents as an integer. every amount the sheet compares goes through this, never through float maths */
+export const toCents = (d: number) => Math.round(d * 100);
 
 /**
  * what the chip-in sheet offers for a pot that has `raised` of `goal`, and can take at most `max` in total:
  * - `left`: what it still needs to hit the goal
  * - `room`: the most anyone can add right now (the beta cap on mainnet)
  * - `picks`: up to three one-tap amounts, the last of them always exactly "the rest" when that fits
- * anything else is typed in by hand
+ * anything else is typed in by hand. computed in whole cents: in dollars, 100 - 58.7 is 41.2999..., which
+ * used to round "the rest" out of reach on a $100 pot
  */
 export function chipOptions(goal: number, raised: number, max: number) {
-  const left = Math.max(0, cents(goal - raised));
-  const room = Math.max(0, Math.floor((max - raised) * 100) / 100);
-  const base = [5, 10, 20, 50].filter((a) => a <= room);
-  const picks = left > 0 && left <= room
+  const leftC = Math.max(0, toCents(goal) - toCents(raised));
+  const roomC = Math.max(0, toCents(max) - toCents(raised));
+  const left = leftC / 100, room = roomC / 100;
+  const base = [5, 10, 20, 50].filter((a) => toCents(a) <= roomC);
+  const picks = leftC > 0 && leftC <= roomC
     // when a lot is still needed, the one-tap amounts stay at or under half of it, so a friend isn't nudged to cover it all
-    ? [...base.filter((a) => a < left && (left < 40 || a <= left / 2)), left].slice(-3)
+    ? [...base.filter((a) => toCents(a) < leftC && (left < 40 || a <= left / 2)), left].slice(-3)
     : base.slice(0, 3);
   return { left, room, picks };
 }

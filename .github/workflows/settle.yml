@@ -8,6 +8,8 @@ on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch:
+# it only calls the two sites over https, so it needs no access to the repo at all
+permissions: {}
 jobs:
   settle:
     runs-on: ubuntu-latest

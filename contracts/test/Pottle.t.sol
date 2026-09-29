@@ -259,9 +259,10 @@ contract PottleTest is Test {
     // ---------------------------------------------------------------- invariant-ish fuzz
 
     function testFuzz_moneyIsConserved(uint128 a, uint128 b, bool hit) public {
-        a = uint128(bound(a, 1e4, 49e6));
-        b = uint128(bound(b, 1e4, 49e6));
-        uint256 id = _pot(hit ? a + b : a + b + 1);
+        // whole cents, as the contract requires
+        a = uint128(bound(a, 1, 4900)) * 1e4;
+        b = uint128(bound(b, 1, 4900)) * 1e4;
+        uint256 id = _pot(hit ? a + b : a + b + 1e4);
         _chip(mert, id, a, "mert");
         _chip(ayla, id, b, "ayla");
         if (hit) {
@@ -447,9 +448,10 @@ contract PottleTest is Test {
         vm.prank(mert);
         pottle.claimRefund(id);
         assertEq(usdc.balanceOf(mert), 1_000e6);
-        // once someone has taken money back, the pot is below its goal and can no longer pay out
+        // once someone has taken money back, the pot only refunds: a late payout would hand the
+        // organiser the shares of the people who had not claimed yet
         usdc.setBlocked(deniz, false);
-        vm.expectRevert(Pottle.GoalNotReached.selector);
+        vm.expectRevert(Pottle.PotClosed.selector);
         pottle.release(id);
         pottle.refundAll(id);
         assertEq(usdc.balanceOf(ayla), 1_000e6);
@@ -527,6 +529,110 @@ contract PottleTest is Test {
         bad.setPot(id);
         vm.expectRevert(Pottle.Reentrancy.selector);
         p2.chipIn(id, 10e6, "mert");
+    }
+
+    // ---------------------------------------------------------------- audit fixes (2026-09-29)
+
+    /// P-2: goals and chip-ins are whole cents, so no chip-in can leave a gap under the minimum
+    function test_audit_offGridGoalAndChipAreRefused() public {
+        vm.prank(deniz);
+        vm.expectRevert(Pottle.BadGoal.selector);
+        pottle.create(100e6 - 1, deadline, 0, 0, "gift", "deniz");
+        uint256 id = _pot(100e6);
+        vm.prank(mert);
+        vm.expectRevert(Pottle.TooSmall.selector);
+        pottle.chipIn(id, 1e6 + 1, "mert"); // $1.000001: the attack that stranded a $100 pot
+    }
+
+    /// P-2: a $100 pot can always be finished, however the chip-ins before it were sized
+    function testFuzz_audit_hundredDollarPotCanAlwaysFinish(uint128 a, uint128 b) public {
+        uint256 id = _pot(100e6);
+        a = uint128(bound(a, 1, 5_000)) * 1e4;
+        b = uint128(bound(b, 1, 4_999)) * 1e4;
+        _chip(mert, id, a, "mert");
+        _chip(ayla, id, b, "ayla");
+        (Pottle.Pot memory p,,,,) = pottle.getPot(id);
+        uint128 rest = p.goal - p.raised;
+        assertGe(rest, pottle.MIN_CHIP()); // there is always room for one more chip-in
+        _chip(ece, id, rest, "ece");
+        pottle.release(id);
+        assertEq(usdc.balanceOf(deniz), 100e6);
+    }
+
+    /// P-1: refundAll cannot be sent for nothing, so nobody can make a sponsor pay for no-ops
+    function test_audit_refundAllRevertsWhenItWouldRefundNobody() public {
+        uint256 empty = _pot(50e6);
+        uint256 id = _pot(50e6);
+        _chip(mert, id, 10e6, "mert");
+        vm.warp(deadline);
+        vm.expectRevert(Pottle.NothingToRefund.selector);
+        pottle.refundAll(empty); // expired with nobody in it
+        pottle.refundAll(id);
+        vm.expectRevert(Pottle.NothingToRefund.selector);
+        pottle.refundAll(id); // everyone already has their money back
+    }
+
+    /// P-1: a refundAll where every transfer fails also reverts, instead of burning gas on nothing
+    function test_audit_refundAllRevertsWhenEveryTransferFails() public {
+        uint256 id = _pot(50e6);
+        _chip(mert, id, 10e6, "mert");
+        usdc.setBlocked(mert, true);
+        vm.warp(deadline);
+        vm.expectRevert(Pottle.NothingToRefund.selector);
+        pottle.refundAll(id);
+        assertEq(pottle.chipped(id, mert), 10e6); // still owed, still claimable once unblocked
+    }
+
+    /// P-3: a pot with nothing left in it says so, so the settle job can skip it
+    function test_audit_finishedPotsReportRefunded() public {
+        uint256 empty = _pot(50e6);
+        uint256 id = _pot(50e6);
+        _chip(mert, id, 10e6, "mert");
+        vm.warp(deadline);
+        assertEq(uint256(pottle.statusOf(empty)), uint256(Pottle.Status.Refunded));
+        assertEq(uint256(pottle.statusOf(id)), uint256(Pottle.Status.Refunding));
+        pottle.refundAll(id);
+        assertEq(uint256(pottle.statusOf(id)), uint256(Pottle.Status.Refunded));
+    }
+
+    /// the status matches the refund rule: after the grace period a stuck pot reads Refunding, not Reached
+    function test_audit_statusAfterGraceMatchesRefundable() public {
+        uint256 id = _stuckPot();
+        assertEq(uint256(pottle.statusOf(id)), uint256(Pottle.Status.Reached));
+        vm.warp(deadline + 31 days);
+        assertTrue(pottle.refundable(id));
+        assertEq(uint256(pottle.statusOf(id)), uint256(Pottle.Status.Refunding));
+    }
+
+    /// once anyone has money back, a late payout cannot hand the organiser the others' shares,
+    /// even when the pot is still at or above its goal
+    function test_audit_noPayoutOnceRefundsStarted() public {
+        uint256 id = _pot(40e6);
+        _chip(mert, id, 20e6, "mert");
+        _chip(ayla, id, 40e6, "ayla"); // overfunded: 60 against a goal of 40
+        usdc.setBlocked(deniz, true);
+        vm.warp(deadline + 31 days);
+        vm.prank(mert);
+        pottle.claimRefund(id); // 40 left, still at the goal
+        usdc.setBlocked(deniz, false);
+        vm.expectRevert(Pottle.PotClosed.selector);
+        pottle.release(id);
+        pottle.refundAll(id);
+        assertEq(usdc.balanceOf(ayla), 1_000e6);
+        assertEq(usdc.balanceOf(deniz), 0);
+    }
+
+    /// the test token now matches circle's: a high-s (malleated) signature is refused
+    function test_audit_malleatedSignatureIsRefused() public {
+        uint256 id = _pot(50e6);
+        uint256 vb = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _sign(ecePk, id, 10e6, "ece", bytes32(uint256(7)), vb);
+        bytes32 s2 = bytes32(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - uint256(s));
+        uint8 v2 = v == 27 ? 28 : 27;
+        vm.expectRevert(bytes("invalid signature s"));
+        pottle.chipInWithAuthorization(id, ece, 10e6, "ece", 0, vb, bytes32(uint256(7)), v2, r, s2);
+        pottle.chipInWithAuthorization(id, ece, 10e6, "ece", 0, vb, bytes32(uint256(7)), v, r, s);
+        assertEq(pottle.chipped(id, ece), 10e6);
     }
 }
 

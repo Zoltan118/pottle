@@ -66,7 +66,11 @@ contract MockUSDC {
             "\x19\x01", DOMAIN_SEPARATOR,
             keccak256(abi.encode(RECEIVE_WITH_AUTHORIZATION_TYPEHASH, from, to, value, validAfter, validBefore, nonce))
         ));
-        require(ecrecover(digest, v, r, s) == from, "bad signature");
+        // as circle's ECRecover: only the lower-s form and v of 27 or 28, so a signature has exactly one valid encoding
+        require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, "invalid signature s");
+        require(v == 27 || v == 28, "invalid signature v");
+        address signer = ecrecover(digest, v, r, s);
+        require(signer != address(0) && signer == from, "bad signature");
         authorizationState[from][nonce] = true;
         _move(from, to, value);
     }

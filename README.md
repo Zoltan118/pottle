@@ -115,7 +115,7 @@ create(goal, deadline,        |                                     |
 ## repo
 
 ```
-contracts/   foundry. src/Pottle.sol, 36 tests, invariant tests, deploy script
+contracts/   foundry. src/Pottle.sol, 44 tests, 6 invariants, deploy script
 web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id]
   app/api/relay         sponsors chip-ins, payouts and refunds (simulated first, rate limited)
   app/api/cron/settle   pays out and refunds every due pot, called by the scheduled job
@@ -141,7 +141,7 @@ is missing instead of failing quietly.
 
 ## tests
 
-- **36 contract tests** (`forge test`): payout, overfunding, refunds, the $100 beta cap, blocked addresses, the 30 day
+- **44 contract tests** (`forge test`): payout, overfunding, refunds, the $100 beta cap, blocked addresses, the 30 day
   payout grace, the 100 person cap, euro pots, a hostile re-entering token, and signature binding (a
   signature for one pot, name, amount or currency cannot be replayed on another). money conservation
   is fuzzed over 1,000 runs
