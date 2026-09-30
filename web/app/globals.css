@@ -679,3 +679,15 @@ html { scroll-behavior: smooth; }
 @media (max-width: 860px) { .sticker-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 480px) { .sticker-grid { grid-template-columns: repeat(2, 1fr); } }
 .sticker-link { justify-self: center; text-decoration: underline; text-underline-offset: 3px; padding-block: 10px; margin-block: -10px; }
+
+/* the sign-in lab (/lab/signin, testnet only) */
+.lab { max-width: 480px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 16px; }
+.lab h1 { margin: 0; font-family: var(--display); font-size: 40px; letter-spacing: -.04em; }
+.lab-env { margin: 0; font-size: 14px; font-weight: 700; color: var(--muted); }
+.lab form, .lab-done { display: grid; gap: 12px; }
+.lab label { font-weight: 700; font-size: 15px; }
+.lab input { font: inherit; font-size: 20px; font-weight: 700; padding: 14px 16px; border-radius: 16px; border: 2px solid var(--ink); background: var(--surface); color: var(--ink); }
+.lab input[autocomplete="one-time-code"] { letter-spacing: .3em; font-variant-numeric: tabular-nums; }
+.lab-done p, .lab-note { margin: 0; font-weight: 700; }
+.lab-log { margin: 0; padding: 12px 12px 12px 32px; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 2px var(--line); font: 600 13px/1.5 ui-monospace, monospace; color: var(--muted); display: grid; gap: 4px; }
+.lab-log:empty { display: none; }
