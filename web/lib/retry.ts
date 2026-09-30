@@ -7,7 +7,9 @@ export async function withNonceRetry<T>(send: () => Promise<T>): Promise<T> {
     return await send();
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    if (!/nonce|replacement transaction|already known/i.test(m)) throw e;
+    // "already known" is not in the list: it means the node already has this exact transaction, so a
+    // retry would only broadcast a second copy that reverts and burns gas
+    if (!/nonce too low|nonce has already been used|replacement transaction/i.test(m)) throw e;
     await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
     return send();
   }

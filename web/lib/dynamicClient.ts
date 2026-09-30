@@ -17,6 +17,10 @@ export type Verification = Awaited<ReturnType<Client["sendEmailOTP"]>>;
 
 let ready: Promise<Client> | null = null;
 let loaded: Client | null = null; // set once the sdk has initialised, for the one caller that must answer synchronously
+let ended: (() => void) | null = null;
+/** called when dynamic ends the session by itself (the token expired, or it logged out), so the app stops
+ * showing someone as signed in who can no longer sign */
+export const onSessionEnd = (cb: () => void) => { ended = cb; };
 
 export function loadDynamic(): Promise<Client> {
   if (!DYNAMIC_ENV) return Promise.reject(new Error("sign-in is not configured"));
@@ -42,6 +46,8 @@ export function loadDynamic(): Promise<Client> {
     });
     addWaasEvmExtension();
     await c.initializeClient();
+    c.onEvent({ event: "logout", listener: () => ended?.() });
+    c.onEvent({ event: "userChanged", listener: ({ user }: { user: unknown }) => { if (!user) ended?.(); } });
     loaded = c;
     return c;
   })().catch((e) => { ready = null; throw e; });
@@ -88,10 +94,17 @@ export async function walletClient(): Promise<WalletClient<Transport, Chain, Acc
   return wc as unknown as WalletClient<Transport, Chain, Account>;
 }
 
-/** "Bearer <dynamic session token>", which proves who the user is to pottle's own api. empty until the
- * sdk has loaded (nobody can be signed in before that) */
+/**
+ * "Bearer <dynamic session token>", which proves who the user is to pottle's own api. the sdk keeps two
+ * tokens: `token` is a minified jwt without the wallet list, the full one (`legacyToken`) carries
+ * verified_credentials, which the drip and onramp check to know the wallet is the user's. the full one
+ * is only on the sdk's internal state; that is stable because the sdk is pinned to an exact version
+ * (package.json), and it falls back to the minified one. empty until the sdk has loaded
+ */
 export function authHeader() {
-  const token = loaded?.getDefaultClient().token;
+  if (!loaded) return "";
+  const client = loaded.getDefaultClient() as unknown as { token: string | null; __core?: { state: { get(): { legacyToken?: string | null } } } };
+  const token = client.__core?.state.get().legacyToken ?? client.token;
   return token ? `Bearer ${token}` : "";
 }
 

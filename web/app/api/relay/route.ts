@@ -4,7 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { pottleAbi } from "@/lib/abi";
 import { chain, POTTLE, TOKEN } from "@/lib/config";
 import { erc20Abi } from "@/lib/abi";
-import { allow, clientIp } from "@/lib/limits";
+import { allow, clientIp, forget } from "@/lib/limits";
 import { withNonceRetry } from "@/lib/retry";
 import { publicClient } from "@/lib/pot";
 
@@ -72,6 +72,7 @@ export async function POST(req: Request) {
   }
 
   let send: () => Promise<Hex>;
+  let claimed = ""; // a per-pot settle slot, given back if nothing gets sent
   try {
     if (body.kind === "chip") {
       if (BigInt(body.amount) < MIN_SPONSORED) return selfPay("under the sponsored minimum");
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
       const due = pot.raised > 0n && (body.kind === "release" ? s === "reached" || (s === "refunding" && pot.raised >= pot.goal) : s === "refunding");
       if (!due) return NextResponse.json({ error: "nothing to do" }, { status: 409 });
       if (!allow(`pot:${body.id}:${body.kind}`, 1, 60_000)) return NextResponse.json({ error: "already on its way" }, { status: 429 });
+      claimed = `pot:${body.id}:${body.kind}`;
       const { request } = await publicClient.simulateContract({
         account, address: POTTLE, abi: pottleAbi, functionName: body.kind === "release" ? "release" : "refundAll", args: [id],
       });
@@ -101,6 +103,7 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     // the transaction itself would fail: say why, there is nothing a different sender could change
+    if (claimed) forget(claimed);
     const msg = e instanceof Error ? (e as { shortMessage?: string }).shortMessage ?? e.message : "failed";
     return NextResponse.json({ error: msg }, { status: 422 });
   }
@@ -110,6 +113,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ hash });
   } catch (e) {
     // it would have worked but the relayer could not send it (gas, nonce, rpc): the user's wallet can
+    if (claimed) forget(claimed);
     console.warn("[pottle] relay send failed:", e instanceof Error ? e.message : e);
     return selfPay("relayer could not send");
   }

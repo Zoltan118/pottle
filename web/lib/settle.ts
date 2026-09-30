@@ -42,7 +42,9 @@ export async function settlePot(id: number): Promise<"released" | "refunded" | "
     }
   }
   const hash = await withNonceRetry(() => r.wallet.writeContract(request));
-  await publicClient.waitForTransactionReceipt({ hash });
+  // a bounded wait, well inside the job's time limit, and a reverted transaction is a failure, not a settle
+  const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 20_000 });
+  if (receipt.status !== "success") throw new Error(`${fn} reverted in ${hash}`);
   return fn === "release" ? "released" : "refunded";
 }
 
@@ -55,23 +57,29 @@ export async function settlePot(id: number): Promise<"released" | "refunded" | "
  * only transactions it actually sends, and starts each run at a different place in the due list so a pot
  * that keeps failing can never hold the others up. it stops at maxTx sends or when time runs short
  */
-export async function settleDue(maxTx = 20, budgetMs = 45_000) {
-  if (!POTTLE || !relayer()) return { scanned: 0, due: 0, settled: [] as { id: number; did: string }[], off: true };
+export async function settleDue(maxTx = 20, budgetMs = 45_000, scanBudgetMs = 15_000) {
+  if (!POTTLE || !relayer()) return { scanned: 0, due: 0, unreadable: 0, settled: [] as { id: number; did: string }[], off: true };
   const started = Date.now();
   const count = Number(await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "potCount" }));
-  const ids = Array.from({ length: count }, (_, i) => i + 1);
+  // newest first, so recent pots always get looked at; the scan stops at its own time budget, and a run
+  // that could not read some statuses says so instead of treating them as "nothing due"
+  const ids = Array.from({ length: count }, (_, i) => count - i);
   const due: number[] = [];
-  for (let i = 0; i < ids.length; i += 500) {
+  let scanned = 0, unreadable = 0;
+  for (let i = 0; i < ids.length && Date.now() - started < scanBudgetMs; i += 500) {
     const chunk = ids.slice(i, i + 500);
     const statuses = await publicClient.multicall({
       contracts: chunk.map((id) => ({ address: POTTLE!, abi: pottleAbi, functionName: "statusOf" as const, args: [BigInt(id)] as const })),
       allowFailure: true,
     });
     chunk.forEach((id, k) => {
-      const s = statuses[k].status === "success" ? STATUS[Number(statuses[k].result)] : "none";
-      if (s === "reached" || s === "refunding") due.push(id);
+      if (statuses[k].status !== "success") { unreadable++; return; }
+      const st = STATUS[Number(statuses[k].result)];
+      if (st === "reached" || st === "refunding") due.push(id);
     });
+    scanned += chunk.length;
   }
+  if (unreadable) console.warn(`[pottle] settle: ${unreadable} pot statuses could not be read`);
   // a different starting point each run (the run's minute), so nothing is always last in line
   const shift = due.length ? Math.floor(Date.now() / 60_000) % due.length : 0;
   const order = [...due.slice(shift), ...due.slice(0, shift)];
@@ -85,5 +93,5 @@ export async function settleDue(maxTx = 20, budgetMs = 45_000) {
       console.warn(`[pottle] settle ${id} failed:`, e instanceof Error ? e.message : e);
     }
   }
-  return { scanned: ids.length, due: due.length, settled, off: false };
+  return { scanned, total: count, due: due.length, unreadable, settled, off: false };
 }

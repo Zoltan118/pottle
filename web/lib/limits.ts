@@ -15,6 +15,12 @@ export function allow(key: string, max: number, windowMs: number): boolean {
   return true;
 }
 
+/** gives back the last call recorded for `key`, for a slot that was claimed but not used */
+export function forget(key: string) {
+  const v = hits.get(key);
+  if (v?.length) v.pop();
+}
+
 /**
  * the visitor's ip. on vercel, x-vercel-forwarded-for and x-real-ip are set by vercel's edge and cannot
  * be forged by the visitor; x-forwarded-for is only a fallback for running elsewhere, where the

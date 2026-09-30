@@ -35,7 +35,9 @@ export const authNonce = (id: number, name: string, salt: Hex) =>
 // a signed chip-in that has not landed yet, kept so a retry reuses it rather than signing a second
 // authorization that would stay valid alongside the first (and could be charged too)
 type Signed = { salt: Hex; validBefore: bigint; v: number; r: Hex; s: Hex };
-const pending = new Map<string, Signed>();
+const pending = new Map<string, Promise<Signed>>();
+/** signing out forgets every kept signature, so nothing signed stays around for the next person on this device */
+export const forgetSignatures = () => pending.clear();
 
 type Client = Awaited<ReturnType<WalletApi["client"]>>;
 
@@ -50,6 +52,11 @@ export async function requestDrip(address: Address, authHeader: string) {
 export async function balanceOf(address: Address, c: Currency = "usd") {
   const b = await publicClient.readContract({ address: TOKEN[c].address, abi: erc20Abi, functionName: "balanceOf", args: [address] });
   return Number(b) / 1e6;
+}
+/** a balance in whole cents, floored exactly from the token units, for amounts shown to the payer */
+export async function balanceCents(address: Address, c: Currency = "usd") {
+  const b = await publicClient.readContract({ address: TOKEN[c].address, abi: erc20Abi, functionName: "balanceOf", args: [address] });
+  return Number(b / 10_000n);
 }
 export const usdcBalance = (address: Address) => balanceOf(address, "usd");
 
@@ -73,8 +80,9 @@ export async function chipIn(c: Client, a: { id: number; amount: number; name: s
   const from = c.account.address;
   const value = units(a.amount);
   const key = `${chain.id}:${a.id}:${from}:${value}:${a.name}`;
-  let signed = pending.get(key);
-  if (!signed || signed.validBefore < BigInt(Math.floor(Date.now() / 1000) + 180)) {
+  // the same chip-in asked for twice at once shares one signature, so it can never be charged twice
+  let signing = pending.get(key);
+  const fresh = async (): Promise<Signed> => {
     const salt = toHex(crypto.getRandomValues(new Uint8Array(32)));
     const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
     const signature = await c.signTypedData({
@@ -88,12 +96,22 @@ export async function chipIn(c: Client, a: { id: number; amount: number; name: s
         ],
       },
       primaryType: "ReceiveWithAuthorization",
-      message: { from, to: POTTLE, value, validAfter: 0n, validBefore, nonce: authNonce(a.id, a.name, salt) },
+      message: { from, to: POTTLE!, value, validAfter: 0n, validBefore, nonce: authNonce(a.id, a.name, salt) },
     });
     const { r, s, v, yParity } = parseSignature(signature);
-    signed = { salt, validBefore, v: v !== undefined ? Number(v) : 27 + yParity, r, s };
-    pending.set(key, signed);
+    return { salt, validBefore, v: v !== undefined ? Number(v) : 27 + yParity, r, s };
+  };
+  // a kept signature is reused only while it has a few minutes left; a failed one never is
+  const usable = async (p: Promise<Signed>) => {
+    const got = await p.catch(() => null);
+    return !!got && got.validBefore >= BigInt(Math.floor(Date.now() / 1000) + 180);
+  };
+  if (!signing || !(await usable(signing))) {
+    signing = fresh();
+    pending.set(key, signing);
+    signing.catch(() => pending.delete(key)); // a declined signature is not kept
   }
+  const signed = await signing;
   const { salt, validBefore, v: vNum, r, s } = signed;
 
   const relayed = await relay({ kind: "chip", id: a.id, from, amount: value.toString(), name: a.name, validBefore: validBefore.toString(), salt, v: vNum, r, s });
@@ -117,6 +135,7 @@ export async function settle(kind: "release" | "refund", id: number, c?: Client)
     });
   };
   const relayed = await relay({ kind, id });
-  if ("skip" in relayed) return null; // already settled, or on its way: the page just refreshes
-  return confirmed("hash" in relayed ? relayed.hash : await own());
+  // already settled, or already on its way: nothing to send. the page says which and refreshes
+  if ("skip" in relayed) return { skipped: relayed.skip };
+  return { hash: await confirmed("hash" in relayed ? relayed.hash : await own()) };
 }

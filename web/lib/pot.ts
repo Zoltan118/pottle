@@ -118,8 +118,10 @@ export const MAX_POT = 100;
 /** the contract's PAYOUT_GRACE: a pot that hit its goal but still hasn't paid out this long after its
  * deadline becomes refundable. computed here so older contracts without it keep working */
 export const PAYOUT_GRACE = 30 * 86400;
-export const payoutStuck = (p: Pick<PotData, "status" | "deadline">, now = Date.now() / 1000) =>
-  p.status === "reached" && now >= p.deadline + PAYOUT_GRACE;
+/** the goal was hit but the payout has not gone through for 30 days after the deadline. the current
+ * contract then reports "refunding" while the money is still at the goal; older ones kept "reached" */
+export const payoutStuck = (p: Pick<PotData, "status" | "deadline" | "raised" | "goal">, now = Date.now() / 1000) =>
+  (p.status === "reached" && now >= p.deadline + PAYOUT_GRACE) || (p.status === "refunding" && p.raised > 0 && p.raised >= p.goal);
 
 /** "2 days left", "5 hours left", "ended" */
 export function timeLeft(deadline: number, now = Date.now() / 1000) {

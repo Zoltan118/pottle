@@ -78,10 +78,14 @@ export function CreateFlow() {
   const valid = [title.trim().length > 0, +goal > 0 && +goal <= MAX_POT, !!until && (until !== "pick a date" || pickedOk), true, name.trim().length > 0][step] ?? true;
   const link = potId ? `${typeof location !== "undefined" ? location.origin : ""}/p/${potId}` : "";
 
+  // one pot per tap. a ref, not state: two Enter presses can land before React re-renders
+  const creating = useRef(false);
   async function create() {
+    if (creating.current || created.current) return;
+    creating.current = true;
     setBusy(true); setErr("");
     // not signed in yet: sign in, then create the pot without another tap
-    if (!walletStore.get().address && !(await w.signIn())) { setBusy(false); return; }
+    if (!walletStore.get().address && !(await w.signIn())) { setBusy(false); creating.current = false; return; }
     try {
       const c = await walletStore.get().client(); // the live wallet, not this render's copy
       const id = await createPot(c, { goal: +goal, deadline: Math.floor(deadlineFor(until!, picked).getTime() / 1000), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
@@ -89,7 +93,7 @@ export function CreateFlow() {
       setPotId(id); setStep(5); history.replaceState(null, "", "/new");
     } catch (e) {
       setErr(e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong");
-    } finally { setBusy(false); }
+    } finally { setBusy(false); creating.current = false; }
   }
 
   function next() {

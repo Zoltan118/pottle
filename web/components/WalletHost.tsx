@@ -28,7 +28,7 @@ export default function WalletHost() {
 
   return (
     <Sheet open={!!w.prompt && !w.prompt.inline} onClose={() => walletStore.cancel()} label="sign in">
-      {!!w.prompt && !w.prompt.inline && <SignIn />}
+      {!!w.prompt && !w.prompt.inline && <div className="signin-sheet"><SignIn /></div>}
     </Sheet>
   );
 }

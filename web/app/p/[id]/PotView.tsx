@@ -10,7 +10,7 @@ import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
 import { Sheet } from "@/components/Sheet";
 import { SignIn } from "@/components/SignIn";
-import { balanceOf, chipIn, settle, requestDrip } from "@/lib/wallet";
+import { balanceCents, balanceOf, chipIn, settle, requestDrip } from "@/lib/wallet";
 import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, toCents, type PotData } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
 import { explorerAddress, NETWORK, TOKEN } from "@/lib/config";
@@ -95,29 +95,33 @@ export function PotView({ initial }: { initial: PotData }) {
   const message = (e: unknown) =>
     e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong";
 
+  // one payment at a time. a ref, not state: two Enter presses can land before React re-renders
+  const paying = useRef(false);
   async function pay() {
-    if (!valid) return; // the amount is checked before sign-in, not after
+    if (paying.current || !valid) return; // the amount is checked before sign-in, not after
+    paying.current = true;
     setErr(""); setShort(0); setHave(0);
     // not signed in yet: sign in, then carry on paying without another tap
     if (!walletStore.get().address) {
       setBusy("signin");
       // the email and code fields show right here in the chip-in sheet, and paying carries on by itself after
       const signedIn = await w.signIn({ inline: true });
-      if (!signedIn) { setBusy(""); return; }
+      if (!signedIn) { setBusy(""); paying.current = false; return; }
     }
     setBusy("pay");
     try {
       const cur = walletStore.get(); // after an await, read the live wallet, not this render's copy
-      let held = await balanceOf(cur.address!, pot.currency);
+      // whole cents from the token units, so "you have" and "add" are exact to the cent
+      let heldC = await balanceCents(cur.address!, pot.currency);
       // testnet: someone who just signed in may not have had their free test dollars yet. ask, then look again
-      if (held < amount && NETWORK === "testnet") {
+      if (heldC < toCents(amount) && NETWORK === "testnet") {
         await requestDrip(cur.address!, cur.authHeader()).catch(() => 0);
-        held = await balanceOf(cur.address!, pot.currency);
+        heldC = await balanceCents(cur.address!, pot.currency);
       }
-      if (held < amount) {
-        setShort(Math.ceil((amount - held) * 100) / 100);
-        setHave(Math.floor(held * 100) / 100);
-        throw new Error(`you have ${m(Math.floor(held * 100) / 100)}, ${m(amount)} needed.${ONRAMP_ON ? "" : ` add ${TOKEN[pot.currency].name.toLowerCase()} on arc to chip in.`}`);
+      if (heldC < toCents(amount)) {
+        setShort((toCents(amount) - heldC) / 100);
+        setHave(heldC / 100);
+        throw new Error(`you have ${m(heldC / 100)}, ${m(amount)} needed.${ONRAMP_ON ? "" : ` add ${TOKEN[pot.currency].name.toLowerCase()} on arc to chip in.`}`);
       }
       const c = await cur.client();
       const nm = fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) || "friend";
@@ -125,7 +129,7 @@ export function PotView({ initial }: { initial: PotData }) {
       setDone({ amount, hit: pot.raised + amount >= pot.goal, before: pot.raised, name: nm }); setName("");
       refreshed();
       qc.invalidateQueries({ queryKey: [pot.currency === "eur" ? "eur" : "bal", cur.address] });
-    } catch (e) { setErr(message(e)); } finally { setBusy(""); }
+    } catch (e) { setErr(message(e)); } finally { setBusy(""); paying.current = false; }
   }
   // the mascot in the chip-in sheet reacts to what you do: excited at "the rest", holding its breath
   // while paying, a wince if it fails
@@ -138,7 +142,8 @@ export function PotView({ initial }: { initial: PotData }) {
     setBusy("settle"); setErr("");
     try {
       const c = w.address ? await w.client() : undefined;
-      await settle(kind, pot.id, c);
+      const r = await settle(kind, pot.id, c);
+      if ("skipped" in r && /on its way/.test(r.skipped ?? "")) setErr(kind === "release" ? "the payout is already on its way. it lands in a minute." : "refunds are already on their way. they land in a minute.");
       refreshed();
     } catch (e) { setErr(message(e)); } finally { setBusy(""); }
   }
@@ -148,7 +153,8 @@ export function PotView({ initial }: { initial: PotData }) {
   const finishedLine =
     pot.status === "reached" ? <p className="state ok">goal hit.</p>
     : pot.status === "released" ? <p className="state ok">it&apos;s on. {m(pot.raised)} went to {pot.organiserName}.</p>
-    : pot.status === "refunding" ? <p className="state back">{refundedAll ? "missed. everyone got their money back." : "missed the goal. refunds are on their way."}</p>
+    : payoutStuck(pot) ? <p className="state back">goal hit, but the payout is stuck. everyone can take their money back.</p>
+    : pot.status === "refunding" ? <p className="state back">{refundedAll ? (pot.people.length ? "missed. everyone got their money back." : "ended. nobody chipped in.") : "missed the goal. refunds are on their way."}</p>
     : null;
   const [qr, setQr] = useState<string | null>(null);
   const [shared, setShared] = useState("");
@@ -222,7 +228,7 @@ export function PotView({ initial }: { initial: PotData }) {
               </div>
             </div>
           )}
-          {pot.status === "reached" && (
+          {(pot.status === "reached" || payoutStuck(pot)) && (
             <>
               <button className="btn lg wide" onClick={() => doSettle("release")} disabled={!!busy}>{busy ? "sending…" : `send it to ${pot.organiserName}`}</button>
               {payoutStuck(pot) && (
@@ -231,7 +237,7 @@ export function PotView({ initial }: { initial: PotData }) {
               )}
             </>
           )}
-          {pot.status === "refunding" && !refundedAll && (
+          {pot.status === "refunding" && !refundedAll && !payoutStuck(pot) && (
             <button className="btn lg wide" onClick={() => doSettle("refund")} disabled={!!busy}>{busy ? "refunding…" : "refund everyone"}</button>
           )}
           <div className="acts">
@@ -276,9 +282,9 @@ export function PotView({ initial }: { initial: PotData }) {
         {signingIn ? (<>
           <p className="where">sign in to pay <b>{m(amount)}</b> into {pot.title}{name.trim() ? <> as <b>{name.trim().toLowerCase()}</b></> : null}. it carries on by itself once you&apos;re in.</p>
           <SignIn title="your email" />
-          <button className="linkbtn" onClick={() => walletStore.cancel()}>back</button>
+          <button className="linkbtn" onClick={() => { walletStore.cancel(); requestAnimationFrame(() => document.querySelector<HTMLElement>(".sheet .btn.lg.wide")?.focus()); }}>back</button>
         </>) : (<>
-        <input className="bigin" placeholder="your name" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
+        <input className="bigin" placeholder="your name" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} readOnly={!!busy} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
           {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => { setPicked(a); setUserPicked(true); }}>{m(a)}</button>)}
           <button className="chip" aria-pressed={other} onClick={() => setPicked("other")}>other</button>
@@ -288,7 +294,7 @@ export function PotView({ initial }: { initial: PotData }) {
             <span>{TOKEN[pot.currency].symbol}</span>
             <input className="bigin" inputMode="decimal" placeholder={String(Math.min(left || 10, room))} autoFocus value={typed} aria-label="amount"
               onChange={(e) => { const v = e.target.value.replace(",", "."); if (/^\d{0,5}(\.\d{0,2})?$/.test(v)) setTyped(v); }}
-              onKeyDown={(e) => e.key === "Enter" && pay()} enterKeyHint="go" />
+              onKeyDown={(e) => e.key === "Enter" && pay()} readOnly={!!busy} enterKeyHint="go" />
           </label>
         )}
         <p className="where">

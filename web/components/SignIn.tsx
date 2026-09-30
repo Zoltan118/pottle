@@ -34,7 +34,9 @@ function explain(e: unknown, step: "email" | "code") {
   if (step === "code" && /expired/.test(m)) return "that code has expired. send a new one.";
   if (step === "code" && /invalid|incorrect|wrong|verification|otp/.test(m)) return "that code didn't work. check it, or send a new one.";
   if (step === "email" && /email|invalid/.test(m)) return "that email didn't work. check it and try again.";
-  if (/network|fetch|failed to/.test(m)) return "no connection. check your signal and try again.";
+  // only blame the connection when the phone really is offline; otherwise dynamic is busy or limiting us
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return "no connection. check your signal and try again.";
+  if (/network|fetch|failed to/.test(m)) return "couldn't reach sign-in. wait a minute, then try again.";
   return "something went wrong. try again.";
 }
 
@@ -46,6 +48,7 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(0); // seconds until a new code can be sent
   const verification = useRef<dyn.Verification | null>(null);
+  const checking = useRef(false); // iphone's code autofill and an Enter can land together: check the code once
   const codeInput = useRef<HTMLInputElement>(null);
   const emailInput = useRef<HTMLInputElement>(null);
 
@@ -74,7 +77,8 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
   }
 
   async function verify(value: string) {
-    if (!verification.current || busy) return;
+    if (!verification.current || checking.current) return;
+    checking.current = true;
     setBusy(true); setErr("");
     try {
       setStep("wallet");
@@ -86,7 +90,7 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
       // only a real failure clears the code, and the field comes back ready for the next try
       setStep("code"); setCode(""); setErr(explain(x, "code"));
       requestAnimationFrame(() => codeInput.current?.focus());
-    } finally { setBusy(false); }
+    } finally { setBusy(false); checking.current = false; }
   }
 
   if (step === "wallet") {

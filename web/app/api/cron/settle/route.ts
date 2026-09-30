@@ -19,5 +19,6 @@ export async function GET(req: Request) {
   if (given.length !== want.length || !timingSafeEqual(given, want)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const result = await settleDue();
   if (result.off) return NextResponse.json({ error: "relay off" }, { status: 503 });
-  return NextResponse.json(result);
+  // statuses that could not be read are an error the scheduler should show, not a quiet "nothing due"
+  return NextResponse.json(result, { status: result.unreadable ? 502 : 200 });
 }

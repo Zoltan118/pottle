@@ -44,7 +44,12 @@ function requestSignIn(opts?: { inline?: boolean }): Promise<Address | null> {
 function signOut() {
   void dyn.signOut().catch(() => {});
   writeHint(false);
-  current = { ...current, address: undefined, userId: undefined, wasSignedIn: false };
+  try { sessionStorage.removeItem("pottle:signin-pending"); } catch {}
+  void import("./wallet").then((m) => m.forgetSignatures());
+  const w = waiters;
+  waiters = [];
+  w.forEach((r) => r(null));
+  current = { ...current, address: undefined, userId: undefined, wasSignedIn: false, waiting: false, prompt: null };
   emit();
 }
 
@@ -63,6 +68,8 @@ const initial: WalletApi = {
 // the server always renders the signed-out state; the browser starts from what it remembers
 let current: WalletApi = typeof window === "undefined" ? initial : { ...initial, wasSignedIn: readHint() };
 
+const PENDING = "pottle:signin-pending"; // the sign-in fields keep their half-done step here (components/SignIn.tsx)
+
 export const walletStore = {
   /** signed in (from the sign-in fields, or a session picked back up): tell everyone, finish what was asked */
   signedIn(s: { address: Address; userId?: string }) {
@@ -75,6 +82,8 @@ export const walletStore = {
   },
   /** the person closed the sign-in without finishing */
   cancel() {
+    // a sign-in someone closed is not brought back on the next page load
+    try { sessionStorage.removeItem(PENDING); } catch {}
     const w = waiters;
     waiters = [];
     current = { ...current, waiting: false, prompt: null };
@@ -99,6 +108,10 @@ export const walletStore = {
 };
 
 export const useWallet = () => useSyncExternalStore(walletStore.subscribe, () => current, () => initial);
+
+// dynamic ended the session by itself (token expiry): show the person as signed out, so the next
+// payment asks them to sign in instead of failing with "sign in first"
+dyn.onSessionEnd(() => { if (current.address) walletStore.signedOut(); });
 
 // development only: lets a local test load a wallet into the store without a real sign-in
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
