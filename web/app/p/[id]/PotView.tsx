@@ -184,9 +184,11 @@ export function PotView({ initial }: { initial: PotData }) {
         <div className="plate">
           <h1 className="giant">{pot.title}</h1>
           <div className="amount"><CountUp value={pot.raised} format={m} counters={counters} /> <small>of {m(pot.goal)}</small></div>
+          <span className="cardtrack" aria-hidden="true"><i style={{ width: `${Math.min(100, pot.goal ? (pot.raised / pot.goal) * 100 : 0)}%` }} /></span>
           {/* screen readers hear each chip-in as it lands */}
           <p className="sr-only" role="status" aria-live="polite">{fresh ? `${fresh} chipped in. ${m(pot.raised)} of ${m(pot.goal)}.` : ""}</p>
           {finishedLine}
+          <div className="goesrow">
           <button className="goesto" data-tip={pot.status === "refunding"
             ? `the pot missed its goal of ${m(pot.goal)}, so nobody got it. everyone who chipped in gets their money back.`
             : `${pot.organiserName} made this pot. hit ${m(pot.goal)} and all of it goes to ${pot.organiserName}'s wallet, ${pot.organiser.slice(0, 6)}…${pot.organiser.slice(-4)}, for ${pot.title}. miss it and everyone gets their money back.`}>
@@ -198,12 +200,14 @@ export function PotView({ initial }: { initial: PotData }) {
               wallet {pot.organiser.slice(0, 6)}…{pot.organiser.slice(-4)}<ArrowOutIcon />
             </a>
           )}
+          </div>
           <div className="meta">
             <span><b>{paid.length}</b> {pot.status === "refunding" ? (paid.length === 1 ? "was" : "were") : ""} in</span>
             <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>
             {!(pot.status === "released" || refundedAll) && <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.${NETWORK === "mainnet" ? ` pottle is in beta with no third-party audit yet, so each pot holds at most ${m(MAX_POT)}.` : ""}`}>safe?</button>}
           </div>
 
+          <div className="facesrow">
           <div className="faces" role="group" aria-label={`${paid.length} people ${pot.status === "refunding" ? "were" : ""} in`}>
             {paid.slice(0, 8).map((p) => (
               <span key={p.address} role="img" aria-label={`${p.name}${isOrganiser(p.address) ? ", organiser" : ""}, ${p.amount > 0 ? m(p.amount) : "refunded"}`} className={`face${p.name === fresh ? " new" : ""}${isOrganiser(p.address) ? " org" : ""}`} data-tip={`${p.name}${isOrganiser(p.address) ? " · organiser" : ""} · ${p.amount > 0 ? m(p.amount) : "refunded"}`} tabIndex={0}>{p.name[0]}</span>
@@ -212,7 +216,8 @@ export function PotView({ initial }: { initial: PotData }) {
             {pot.status === "open" && Array.from({ length: Math.min(missing, 3) }, (_, i) => <span key={i} className="face out" aria-hidden="true">?</span>)}
           </div>
 
-          {pot.status === "open" && latest && <p className="latest">latest: <b>{latest}</b></p>}
+            {pot.status === "open" && latest && <p className="latest">latest: <b>{latest}</b></p>}
+          </div>
           {pot.status === "open" && (
             <div className="potcta">
               {/* phones: the pinned bar carries the progress, so it still reads when the card has scrolled away */}
@@ -224,6 +229,7 @@ export function PotView({ initial }: { initial: PotData }) {
                 <button className="btn lg ghost potcta-share" onClick={shareToGroup} aria-label="share this pot">
                   <ShareIcon />
                 </button>
+                <button className="btn lg ghost potcta-share potcta-qr" onClick={showQr} aria-label="show the qr code">qr</button>
                 <button className="btn lg wide" onClick={() => { setFrozenPicks(live.picks); setOpen(true); }}>{valid ? <>i&apos;m in · {m(amount)}</> : <>i&apos;m in</>}</button>
               </div>
             </div>

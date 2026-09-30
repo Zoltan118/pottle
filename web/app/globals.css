@@ -700,3 +700,44 @@ html { scroll-behavior: smooth; }
 .signin-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .linkbtn { appearance: none; border: 0; background: none; padding: 12px 0; margin: -12px 0; font: inherit; font-size: 15px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .linkbtn:disabled { color: var(--muted); text-decoration: none; cursor: default; }
+
+/* the pot card's rows: "goes to" with the payout wallet, the faces with "latest" */
+.goesrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin-top: -8px; }
+.goesrow .goesto { margin-top: 0; }
+.facesrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.facesrow .latest { margin: 0; }
+.cardtrack { display: none; }
+.potcta-qr { font-family: var(--display); font-weight: 800; font-size: 18px; }
+
+/* phones: the whole pot on one screen, logo to "i'm in", from a 360x640 android up. every size here
+   follows the screen's height (svh), so a short phone, or an in-app browser with its own toolbar,
+   compresses the pot and the type instead of pushing "who's in" below the fold */
+@media (max-width: 860px) {
+  .view:has(.potpage) .bar { padding-block: 8px; }
+  .potpage { gap: clamp(6px, 1.2svh, 12px); }
+  .potpage .potstage { padding-top: clamp(30px, 5.5svh, 56px); } /* room for the coin name tags above the lid */
+  .potpage .potbtn { width: clamp(104px, min(21svh, 48vw), 210px); }
+  .potpage .plate { --plate-gap: clamp(8px, 1.5svh, 14px); padding: clamp(16px, 2.6svh, 24px); border-radius: 26px; }
+  .potpage .plate h1 { font-size: clamp(32px, min(10.5vw, 6.2svh), 56px); }
+  .potpage .amount { font-size: clamp(42px, min(13vw, 7.6svh), 68px); }
+  .cardtrack { display: block; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: calc(var(--plate-gap) * -0.4); }
+  .cardtrack i { display: block; height: 100%; border-radius: inherit; background: var(--marigold); transition: width 600ms var(--out); }
+  .goesrow { margin-top: 0; }
+  .goesrow .goesto { font-size: clamp(18px, 2.6svh, 22px); padding-block: 6px; margin-block: -6px; }
+  .potpage .meta { font-size: 15px; gap: 14px; }
+  .potpage .faces { min-height: 40px; }
+  /* the pinned bar is just the buttons: share, qr, i'm in. the progress now lives in the card */
+  .potcta { gap: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .potcta .potcta-meta { display: none; }
+  .potcta .potcta-share { width: 56px; }
+  .view:has(.potcta) { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+  /* share and qr are in the pinned bar, so the card's own copies go while the pot is open */
+  .plate:has(.potcta) .acts { display: none; }
+  /* while the pot is open the pinned bar is the call to action; the footer link would only peek out
+     from behind it. finished pots still show it */
+  .view:has(.potcta) .potfoot { display: none; }
+  /* finished pots: "share the thank-you" and qr side by side, not stacked */
+  .potpage .acts { flex-wrap: nowrap; }
+  .potpage .acts .btn:not(.ghost) { flex: 1 1 auto; }
+  .potpage .acts .btn.ghost:last-child:not(:first-child) { flex: none; width: 72px; }
+}
