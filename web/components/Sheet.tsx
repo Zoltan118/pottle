@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, type KeyboardEvent, type ReactNode, type TransitionEvent } from "react";
+import { watchKeyboard } from "@/lib/keyboard";
+import { useMountEffect } from "@/hooks/useMountEffect";
 import { CloseIcon } from "./Icons";
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -20,10 +22,43 @@ export function Sheet({ open, onClose, label, children, closeButton = true }: {
   const ref = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
 
-  // the slide starts: remember who opened the sheet. the slide ends: focus in, or hand focus back
-  function onTransitionStart(e: TransitionEvent) {
-    if (e.target === ref.current && open) opener.current = document.activeElement as HTMLElement | null;
-  }
+  // the phone keyboard. android shrinks the page, so a bottom sheet rises with it; an iphone keeps the page
+  // and covers its bottom, where the sheet and its pay button are. so the sheet follows the part of the
+  // screen that is still visible: lifted above the keyboard, and never taller than the room left
+  useMountEffect(() => {
+    return watchKeyboard(ref.current);
+  });
+
+  // android's back button and the swipe-back gesture close the sheet, like an app, instead of leaving the
+  // page: opening adds a history step (keeping next's own state in it, so its router stays calm) and back
+  // takes it away again. closing any other way removes the step, so history stays as it was
+  const pushed = useRef(false);
+  useMountEffect(() => {
+    const el = ref.current;
+    // the slide starts. a native listener: react does not wire up onTransitionStart. open or closed is read
+    // from the sheet itself, so this never sees a stale render's props
+    const onStart = (e: Event) => {
+      if (e.target !== el || (e as globalThis.TransitionEvent).propertyName !== "transform" || !el) return;
+      if (el.classList.contains("on")) {
+        opener.current = document.activeElement as HTMLElement | null; // remember who opened the sheet
+        if (!pushed.current) { history.pushState({ ...(history.state ?? {}), pottleSheet: true }, "", location.href); pushed.current = true; }
+      } else if (pushed.current) {
+        pushed.current = false;
+        if ((history.state as { pottleSheet?: boolean } | null)?.pottleSheet) history.back();
+      }
+    };
+    el?.addEventListener("transitionstart", onStart);
+    const onPop = () => {
+      if (!pushed.current || !ref.current?.classList.contains("on")) return;
+      pushed.current = false;
+      // the same path as the escape key, so the page's own close logic runs
+      ref.current.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    };
+    addEventListener("popstate", onPop);
+    return () => { el?.removeEventListener("transitionstart", onStart); removeEventListener("popstate", onPop); };
+  });
+
+  // the slide ends: focus in, or hand focus back
   function onTransitionEnd(e: TransitionEvent) {
     const el = ref.current;
     if (e.target !== el || !el) return;
@@ -50,7 +85,7 @@ export function Sheet({ open, onClose, label, children, closeButton = true }: {
     <>
       <div className={`scrim${open ? " on" : ""}`} onClick={onClose} aria-hidden="true" />
       <div ref={ref} className={`sheet${open ? " on" : ""}`} role="dialog" aria-modal="true" aria-label={label} aria-hidden={!open}
-        tabIndex={-1} onKeyDown={onKeyDown} onTransitionStart={onTransitionStart} onTransitionEnd={onTransitionEnd}>
+        tabIndex={-1} onKeyDown={onKeyDown} onTransitionEnd={onTransitionEnd}>
         {closeButton && <button className="iconbtn sheet-x" onClick={onClose} aria-label="close"><CloseIcon /></button>}
         {children}
       </div>

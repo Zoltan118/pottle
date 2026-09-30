@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HomeScreenTip } from "@/components/HomeScreenTip";
 import { useRef, useState } from "react";
+import { watchKeyboard } from "@/lib/keyboard";
 import { useWallet } from "@/app/providers";
 import { walletStore } from "@/lib/walletStore";
 import { useMountEffect } from "@/hooks/useMountEffect";
@@ -104,6 +105,10 @@ export function CreateFlow() {
   // each step is a history entry, so a swipe back or the browser's back goes back one step and keeps
   // what was typed, instead of leaving the page and losing the pot. once the pot exists, back leaves
   const created = useRef(false);
+  // phones: while the keyboard is up the page shrinks to the part still visible, so "next" sits just
+  // above the keyboard and under the field, instead of behind the keyboard
+  const viewRef = useRef<HTMLElement>(null);
+  useMountEffect(() => watchKeyboard(viewRef.current));
   const router = useRouter();
   // the step lives in the address (/new?step=2): next.js keeps its own data in history entries, so a
   // marker there would be dropped, but the address survives
@@ -135,7 +140,7 @@ export function CreateFlow() {
   const nextLabel = step < 4 ? "next →" : busy ? (w.address ? "creating…" : w.ready ? "signing in…" : "one sec…") : w.address ? "create pot" : "sign in and create";
 
   return (
-    <main className="view">
+    <main className="view" ref={viewRef}>
       <div className="shell">
         <nav className="bar">
           <button className="iconbtn" onClick={() => history.back()} aria-label="back" style={{ visibility: step === 0 || step === 5 ? "hidden" : "visible" }}><BackIcon /></button>

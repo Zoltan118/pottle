@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
 import { walletStore } from "@/lib/walletStore";
@@ -126,7 +126,8 @@ export function PotView({ initial }: { initial: PotData }) {
       const c = await cur.client();
       const nm = fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) || "friend";
       await chipIn(c, { id: pot.id, amount, name: nm, currency: pot.currency });
-      setDone({ amount, hit: pot.raised + amount >= pot.goal, before: pot.raised, name: nm }); setName("");
+      setDone({ amount, hit: pot.raised + amount >= pot.goal, before: pot.raised, name: nm });
+      if (nm !== "friend") rememberName(nm);
       refreshed();
       qc.invalidateQueries({ queryKey: [pot.currency === "eur" ? "eur" : "bal", cur.address] });
     } catch (e) { setErr(message(e)); } finally { setBusy(""); paying.current = false; }
@@ -203,7 +204,7 @@ export function PotView({ initial }: { initial: PotData }) {
           </div>
           <div className="meta">
             <span><b>{paid.length}</b> {pot.status === "refunding" ? (paid.length === 1 ? "was" : "were") : ""} in</span>
-            <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>
+            {pot.status === "open" ? <TimeLeft deadline={pot.deadline} /> : <span><b>{pot.status === "released" ? "paid out" : pot.status === "refunding" ? "ended" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline)}</b></span>}
             {!(pot.status === "released" || refundedAll) && <button className="tipword" style={{ color: "var(--muted)" }} data-tip={`nobody can take this early. hit ${m(pot.goal)} and it goes to ${pot.organiserName}. miss it and everyone gets their money back.${NETWORK === "mainnet" ? ` pottle is in beta with no third-party audit yet, so each pot holds at most ${m(MAX_POT)}.` : ""}`}>safe?</button>}
           </div>
 
@@ -230,7 +231,7 @@ export function PotView({ initial }: { initial: PotData }) {
                   <ShareIcon />
                 </button>
                 <button className="btn lg ghost potcta-share potcta-qr" onClick={showQr} aria-label="show the qr code">qr</button>
-                <button className="btn lg wide" onClick={() => { setFrozenPicks(live.picks); setOpen(true); }}>{valid ? <>i&apos;m in · {m(amount)}</> : <>i&apos;m in</>}</button>
+                <button className="btn lg wide" onClick={() => { setFrozenPicks(live.picks); if (!name) setName(recallName()); setOpen(true); }}>{valid ? <>i&apos;m in<span className="cta-amt"> · {m(amount)}</span></> : <>i&apos;m in</>}</button>
               </div>
             </div>
           )}
@@ -315,9 +316,11 @@ export function PotView({ initial }: { initial: PotData }) {
         {!w.address && (
           <p className="hint" style={{ margin: 0 }}>you pay in digital {pot.currency === "eur" ? "euros (eurc)" : "dollars (usdc)"}. sign in with your email and pottle sets it up, no app needed.</p>
         )}
-        <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on || !valid}>
-          {busy === "pay" ? "paying…" : busy === "signin" ? (w.ready ? "signing in…" : "one sec…") : !valid ? "pick an amount" : w.address ? `pay ${m(amount)}` : `sign in to pay ${m(amount)}`}
-        </button>
+        <div className="sheet-paybar">
+          <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on || !valid}>
+            {busy === "pay" ? "paying…" : busy === "signin" ? (w.ready ? "signing in…" : "one sec…") : !valid ? "pick an amount" : w.address ? `pay ${m(amount)}` : <>sign in to pay<span className="cta-amt"> {m(amount)}</span></>}
+          </button>
+        </div>
         </>)}
         <div className="err" role="alert">{open && err}</div>
         {open && have >= MIN_CHIP && !ONRAMP_ON && (
@@ -330,4 +333,22 @@ export function PotView({ initial }: { initial: PotData }) {
       </Sheet>
     </main>
   );
+}
+
+// the name someone chipped in under, kept on this device so the next pot does not ask again.
+// it is already public on the chain, so nothing is kept here that the pot page does not show
+const NAME_KEY = "pottle:name";
+function recallName() { try { return fitBytes(localStorage.getItem(NAME_KEY) ?? "", MAX_NAME_BYTES); } catch { return ""; } }
+function rememberName(n: string) { try { localStorage.setItem(NAME_KEY, n); } catch {} }
+
+/** "2 days left", and a tap shows the exact moment in the reader's own time zone. the exact time is only
+ * known in the browser (the server does not know where the reader is), so it joins after hydration */
+const noSubscribe = () => () => {};
+function TimeLeft({ deadline }: { deadline: number }) {
+  const exact = useSyncExternalStore(noSubscribe,
+    () => new Date(deadline * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+    () => "");
+  const left = timeLeft(deadline);
+  if (!exact) return <span><b>{left}</b></span>;
+  return <button className="tipword" data-tip={`${left === "ended" ? "ended" : "ends"} ${exact}`}><b>{left}</b></button>;
 }

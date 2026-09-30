@@ -29,8 +29,10 @@ body { background: var(--paper); color: var(--ink); font-family: var(--body); fo
 button, input { font: inherit; color: inherit; }
 a { color: inherit; }
 
-.view { min-height: 100dvh; display: flex; flex-direction: column; }
-.shell { width: 100%; max-width: 1180px; margin: 0 auto; padding-inline: 20px; }
+/* viewport-fit=cover: the notch and the rounded corners are ours to keep clear of. top matters from the
+   home screen, the sides in landscape */
+.view { min-height: 100dvh; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.shell { width: 100%; max-width: 1180px; margin: 0 auto; padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px)); }
 
 /* nav */
 /* both wrap, so at large text sizes the nav buttons move to a second line instead of being cut off */
@@ -213,6 +215,19 @@ a { color: inherit; }
    step the chosen pattern runs all the way down behind the button */
 .flownav { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-block: 12px calc(20px + env(safe-area-inset-bottom, 0px)); position: sticky; bottom: 0; z-index: 5; pointer-events: none; }
 .flownav > * { pointer-events: auto; }
+/* make a pot with the keyboard up: the page is exactly the visible part, the question starts at the top
+   and scrolls if it must, and "next" is the last thing above the keyboard */
+.view.kb:has(.flownav) { min-height: 0; height: var(--vvh, 100dvh); overflow: hidden; }
+.view.kb .bar { padding-block: 8px; }
+.view.kb .flow { align-content: start; grid-auto-rows: max-content; min-height: 0; overflow-y: auto; padding-block: 4px 8px; gap: 12px; }
+/* the suggestions become one row you can swipe, so a whole row shows, never half of a second one */
+/* more than fits above the keyboard scrolls, and fades out at the bottom edge instead of being cut */
+.view.kb .flow { mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent); }
+.view.kb .flow .chips, .view.kb .flow .cur { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -20px; padding-inline: 20px; }
+.view.kb .flow .chips > *, .view.kb .flow .cur > * { flex: none; }
+.view.kb .flow .chips .chip { font-size: 18px; padding: 10px 18px; }
+.view.kb .flow .q { font-size: clamp(48px, 11vw, 72px); }
+.view.kb .flownav { padding-block: 8px 10px; }
 .ready-acts { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 560px) { .ready-acts .btn { flex: 1 1 100%; } }
 .steps { display: flex; gap: 6px; }
@@ -253,8 +268,8 @@ a { color: inherit; }
 
 
 /* pot page */
-.potpage { flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 24px; padding-block: 16px 48px; }
-.plate { --plate-gap: 22px; background: var(--paper); border-radius: 32px; padding: clamp(22px, 4vw, 40px); display: grid; gap: var(--plate-gap); box-shadow: 0 0 0 2px var(--ink); }
+.potpage { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 24px; padding-block: 16px 48px; }
+.plate { --plate-gap: 22px; background: var(--paper); border-radius: 32px; padding: clamp(22px, 4vw, 40px); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--plate-gap); box-shadow: 0 0 0 2px var(--ink); }
 .plate h1 { font-size: clamp(52px, 8vw, 104px); }
 .amount { font-family: var(--display); font-weight: 800; letter-spacing: -.045em; line-height: .9; font-size: clamp(64px, 10vw, 128px); font-variant-numeric: tabular-nums; }
 .amount small { font-size: .34em; color: var(--muted); letter-spacing: -.01em; font-weight: 600; }
@@ -292,7 +307,12 @@ body:has(.sheet.on) { overflow: hidden; }
 /* short screens (small phones, landscape): a smaller heading, so the pay button is not pushed off */
 @media (max-height: 600px) { .sheet { gap: 14px; padding-top: 20px; } .sheet .giant { font-size: 40px; } .sheet-x { top: 12px; } }
 /* a sheet never grows past the screen; its own content scrolls */
-.sheet { max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.sheet { grid-template-columns: minmax(0, 1fr); max-height: calc(90dvh - env(safe-area-inset-top, 0px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+/* the keyboard is up (see Sheet.tsx): sit on top of it, fit the room left, and keep the main button in reach */
+.sheet.kb { bottom: var(--kb, 0px); max-height: calc(var(--vvh, 100dvh) - 12px); padding-bottom: 16px; transition: transform 380ms var(--drawer), bottom 160ms var(--out); }
+/* the main button rides on a full-width paper strip, so whatever scrolls behind it is hidden edge to edge */
+.sheet.kb .sheet-paybar { position: sticky; bottom: -16px; z-index: 1; margin: -10px -22px -16px; padding: 10px 22px 16px; background: var(--paper); }
+.sheet.kb .sheet-pay { position: sticky; bottom: -16px; z-index: 1; box-shadow: 0 16px 0 var(--paper), 0 -28px 0 var(--paper); }
 .sheet::-webkit-scrollbar { display: none; } /* it can still scroll on a tiny screen, without a bar down the edge */
 
 /* account sheet */
@@ -327,7 +347,7 @@ body:has(.sheet.on) { overflow: hidden; }
 .sheet .chip { padding-inline: 0; min-width: 0; }
 
 @media (max-width: 860px) {
-  .hero, .potpage { grid-template-columns: 1fr; }
+  .hero, .potpage { grid-template-columns: minmax(0, 1fr); }
   .potbtn { width: min(300px, 70vw); }
   .hero { padding-block: 8px 40px; gap: 32px; }
   .hero .potbtn { width: min(220px, 56vw); }
@@ -513,6 +533,19 @@ html { scroll-behavior: smooth; }
   .bar .netswitch { grid-column: 1; grid-row: 1; justify-self: start; }
   .bar-right > :not(.netswitch) { grid-column: 3; grid-row: 1; justify-self: end; }
 }
+/* big text (the phone's font size zooms the page, so a 390px phone at 130% is 300px wide): the logo
+   takes its own row and the switch and sign in share the next. at the very biggest sizes they stack */
+@media (max-width: 339px) {
+  .bar:has(.netswitch) { grid-template-columns: auto auto; justify-content: space-between; row-gap: 6px; }
+  .bar .logo { grid-column: 1 / -1; }
+  .bar .netswitch { grid-row: 2; }
+  .bar-right > :not(.netswitch) { grid-column: 2; grid-row: 2; }
+}
+@media (max-width: 259px) {
+  .bar:has(.netswitch) { grid-template-columns: auto; justify-content: center; }
+  .bar .netswitch, .bar-right > :not(.netswitch) { grid-column: 1; justify-self: center; }
+  .bar-right > :not(.netswitch) { grid-row: 3; }
+}
 /* every nav control is one height, so their centres line up */
 .bar .netswitch { padding: 2px; }
 .bar .netswitch-pill { top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px); }
@@ -648,6 +681,12 @@ html { scroll-behavior: smooth; }
 /* the chip-in sheet: a small pottle next to the question, watching what you do */
 .sheet-head { display: flex; align-items: center; gap: 12px; padding-right: 56px; }
 .sheet-head .giant { padding-right: 0; }
+/* the biggest text sizes: the mascot steps aside so the question keeps whole words on each line */
+@media (max-width: 259px) {
+  .sheet-head > :not(.giant) { display: none; }
+  .sheet .giant { font-size: 34px; overflow-wrap: normal; }
+  .sheet .chips { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+}
 .sheet-masc { width: 58px; flex: none; }
 .sheet-masc svg { width: 100%; height: auto; display: block; overflow: visible; }
 
@@ -708,6 +747,10 @@ html { scroll-behavior: smooth; }
 .facesrow .latest { margin: 0; }
 .cardtrack { display: none; }
 .potcta-qr { font-family: var(--display); font-weight: 800; font-size: 18px; }
+/* big text: "i'm in" keeps one line by dropping what the card already shows. the qr goes first (the
+   amount is right above), then the share button at the very biggest sizes */
+@media (max-width: 339px) { .potcta .potcta-qr, .potcta .cta-amt { display: none; } }
+@media (max-width: 259px) { .potcta .potcta-share, .sheet .cta-amt { display: none; } }
 
 /* phones: the whole pot on one screen, logo to "i'm in", from a 360x640 android up. every size here
    follows the screen's height (svh), so a short phone, or an in-app browser with its own toolbar,

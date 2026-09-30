@@ -106,7 +106,7 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
           maxLength={6} placeholder="6-digit code" aria-label="the 6-digit code" aria-invalid={!!err || undefined} value={code} disabled={busy}
           onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 6); setCode(v); setErr(""); if (v.length === 6) void verify(v); }} />
         {err && <p className="signin-err" role="alert">{err}</p>}
-        <button className="btn lg wide" disabled={busy || code.length !== 6}>{busy ? "checking…" : "sign in"}</button>
+        <button className="btn lg wide sheet-pay" disabled={busy || code.length !== 6}>{busy ? "checking…" : "sign in"}</button>
         <div className="signin-links">
           <button type="button" className="linkbtn" disabled={busy || wait > 0} onClick={() => void send()}>{wait > 0 ? `send a new code in ${wait}s` : "send a new code"}</button>
           <button type="button" className="linkbtn" disabled={busy} onClick={() => { clearPending(); verification.current = null; setStep("email"); setCode(""); setErr(""); }}>change email</button>
@@ -123,7 +123,7 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
         placeholder="you@example.com" aria-label="your email" aria-invalid={!!err || undefined} value={email} disabled={busy}
         onChange={(e) => { setEmail(e.target.value); setErr(""); }} />
       {err && <p className="signin-err" role="alert">{err}</p>}
-      <button className="btn lg wide" disabled={busy}>{busy ? "sending…" : "send me a code"}</button>
+      <button className="btn lg wide sheet-pay" disabled={busy}>{busy ? "sending…" : "send me a code"}</button>
     </form>
   );
 }

@@ -7,7 +7,7 @@ import { CloseIcon } from "./Icons";
 
 /** one quiet line that offers pottle on the home screen, for people who will keep coming back to a pot */
 export function HomeScreenTip({ lead = "checking on it often?" }: { lead?: string }) {
-  const { show, platform, canPrompt } = useInstall();
+  const { show, platform, canPrompt, inApp } = useInstall();
   const [open, setOpen] = useState(false);
   if (!show) return null;
 
@@ -25,9 +25,11 @@ export function HomeScreenTip({ lead = "checking on it often?" }: { lead?: strin
       <Sheet open={open} onClose={() => setOpen(false)} label="add pottle to your home screen">
         <h2 className="giant">on your home screen.</h2>
         <ol className="a2hs-steps">
+          {/* an app's own browser has no "add to home screen": the first step is getting to the real one */}
+          {inApp && <li>this app&apos;s browser can&apos;t do it. tap <b>⋯</b> or <b>⋮</b>, then <b>open in {platform === "ios" ? "safari" : "chrome"}</b></li>}
           {platform === "ios" ? (
             <>
-              <li>tap <b>share</b> <ShareIcon /> in your browser. safari has it at the bottom, chrome and others next to the address bar</li>
+              <li>tap <b>share</b> <ShareIcon />{inApp ? " at the bottom of safari" : " in your browser. safari has it at the bottom, chrome and others next to the address bar"}</li>
               <li>scroll down, tap <b>add to home screen</b></li>
               <li>tap <b>add</b></li>
             </>

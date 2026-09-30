@@ -9,10 +9,10 @@ import { useSyncExternalStore } from "react";
  */
 
 type PromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
-export type Install = { show: boolean; platform: "ios" | "android" | "other"; canPrompt: boolean };
+export type Install = { show: boolean; platform: "ios" | "android" | "other"; canPrompt: boolean; inApp: boolean };
 
 const KEY = "pottle:home-screen-dismissed";
-const HIDDEN: Install = { show: false, platform: "other", canPrompt: false };
+const HIDDEN: Install = { show: false, platform: "other", canPrompt: false, inApp: false };
 let deferred: PromptEvent | null = null;
 let state: Install = HIDDEN;
 const listeners = new Set<() => void>();
@@ -26,13 +26,17 @@ function dismissed() {
   try { return localStorage.getItem(KEY) === "1"; } catch { return false; }
 }
 
+// the browsers built into instagram, facebook, messenger, tiktok, snapchat, line, linkedin, and android's
+// plain webview (what whatsapp and others use on some phones) cannot add to the home screen at all
+const IN_APP = /instagram|fban|fbav|fb_iab|fbios|messenger|musical_ly|bytedancewebview|snapchat|line\/|linkedinapp|; wv\)/i;
+
 function compute(): Install {
   const ua = navigator.userAgent;
   const ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const platform = ios ? "ios" : /android/i.test(ua) ? "android" : "other";
   // desktops can install too, but pottle is a phone thing: only phones get the suggestion
   const show = !isStandalone() && !dismissed() && (platform !== "other" || !!deferred);
-  return { show, platform, canPrompt: !!deferred };
+  return { show, platform, canPrompt: !!deferred, inApp: IN_APP.test(ua) };
 }
 
 if (typeof window !== "undefined") {
