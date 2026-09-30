@@ -171,7 +171,7 @@ code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](
 
 | network | chain id | Pottle |
 | --- | --- | --- |
-| arc testnet | 5042002 | [`0x9a48061cbe58617d482Acb7B8df55e959B2770BB`](https://explorer.testnet.arc.io/address/0x9a48061cbe58617d482Acb7B8df55e959B2770BB) (the version before the beta cap: goals up to 10,000, otherwise the same) |
+| arc testnet | 5042002 | [`0x9bCD41085F2BC2Ae1a647A9De630928e50E4201E`](https://explorer.testnet.arc.io/address/0x9bCD41085F2BC2Ae1a647A9De630928e50E4201E) (verified; the exact contract going to mainnet, with every fix from the review) |
 | arc mainnet | 5042 | deploying before submission (with the 30 day payout grace and the $100 beta cap) |
 
 usdc on arc: `0x3600000000000000000000000000000000000000`.

@@ -12,7 +12,7 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
   not paid out 30 days after its deadline** (see "a frozen organiser" below)
 - during beta a pot on mainnet never holds more than **100 of its currency** ($100 or €100). the goal is capped at
   100 and a chip-in that would take the pot past 100 is refused, so the most any single pot can ever
-  put at risk is 100. the testnet contract is the version before this cap, with goals up to 10,000
+  put at risk is 100. the testnet runs the same contract, cap included
 - nobody can move money any other way. there is no owner, no admin, no pause, no upgrade and no fee.
   the deployer has no powers after deployment
 - a signed chip-in cannot be redirected. the eip-3009 nonce commits to the pot id, the name and a salt,

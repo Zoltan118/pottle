@@ -23,12 +23,13 @@ const potAbi = parseAbi([
   "function chipIn(uint256,uint128,string)",
   "function authNonce(uint256,string,bytes32) pure returns (bytes32)",
   "function statusOf(uint256) view returns (uint8)",
+  "function refundAll(uint256)",
   "event PotCreated(uint256 indexed id, address indexed organiser, uint256 goal, uint256 deadline, string title)",
 ]);
 const $ = (n) => BigInt(Math.round(n * 1e6));
 const bal = async (a) => Number(await pub.readContract({ address: USDC, abi: usdcAbi, functionName: "balanceOf", args: [a] })) / 1e6;
 const wait = (hash) => pub.waitForTransactionReceipt({ hash });
-const STATUS = ["none", "open", "reached", "released", "refunding"];
+const STATUS = ["none", "open", "reached", "released", "refunding", "refunded"];
 const status = async (id) => STATUS[await pub.readContract({ address: POTTLE, abi: potAbi, functionName: "statusOf", args: [id] })];
 const check = (ok, msg) => { console.log(`${ok ? "PASS" : "FAIL"}  ${msg}`); if (!ok) process.exitCode = 1; };
 
@@ -90,11 +91,19 @@ await relay(await signChip(anaPk, b, 1, "ana"));
 check((await bal(ana.address)) === 1, "ana chipped $1 into pot B");
 let refundErr = "";
 try { await relay({ kind: "refund", id: Number(b) }); } catch (e) { refundErr = e.message; }
-check(refundErr.includes("422"), "refund refused before the deadline");
+check(refundErr.includes("409"), "refund refused before the deadline (relayer: nothing to do, no transaction)");
 console.log("waiting for pot B's deadline…");
 while ((await status(b)) !== "refunding") await new Promise((r) => setTimeout(r, 5000));
 await relay({ kind: "refund", id: Number(b) });
 check((await bal(ana.address)) === 2, "after the deadline, ana got her exact $1 back");
+// the review's attack: a second refundAll on a pot with nothing left used to cost the sponsor gas for nothing
+check((await status(b)) === "refunded", "pot B now reads refunded, so the settle job skips it");
+let again = "";
+try { await relay({ kind: "refund", id: Number(b) }); } catch (e) { again = e.message; }
+check(again.includes("409"), "a second refund is refused by the relayer, no transaction sent");
+let onchain = "";
+try { await pub.simulateContract({ account: org.account, address: POTTLE, abi: potAbi, functionName: "refundAll", args: [b] }); } catch (e) { onchain = e.shortMessage ?? e.message; }
+check(/revert/i.test(onchain), "and the contract itself refuses it (NothingToRefund), for anyone who calls it directly");
 const mine = await pub.readContract({ address: POTTLE, abi: potAbi, functionName: "potsOf", args: [org.account.address] });
 check(mine.length >= 2 && mine[0] === a && mine[1] === b, "potsOf lists the pots the organiser made");
 const anas = await pub.readContract({ address: POTTLE, abi: potAbi, functionName: "potsOf", args: [ana.address] });

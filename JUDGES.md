@@ -6,8 +6,8 @@ pottle runs as two sites from the same code:
 - **https://test.pottle.xyz**, arc testnet with free test dollars
 
 everything below uses the **testnet** site, so nothing costs you anything. about three minutes.
-the `live | test` switch in the nav moves between the two. the testnet contract is the version
-before the $100 beta cap, so test pots can go up to 10,000; everything else is the same.
+the `live | test` switch in the nav moves between the two. both run the same contract, including
+the $100 beta cap on each pot.
 
 ## 1. make a pot (one minute)
 
