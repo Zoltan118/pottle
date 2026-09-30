@@ -691,3 +691,18 @@ html { scroll-behavior: smooth; }
 .lab-done p, .lab-note { margin: 0; font-weight: 700; }
 .lab-log { margin: 0; padding: 12px 12px 12px 32px; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 2px var(--line); font: 600 13px/1.5 ui-monospace, monospace; color: var(--muted); display: grid; gap: 4px; }
 .lab-log:empty { display: none; }
+
+/* sign in with an email: pottle's own fields on dynamic's headless sdk (components/SignIn.tsx) */
+.signin { display: grid; gap: 14px; }
+.signin-title { margin: 0; font-family: var(--display); font-weight: 800; font-size: 32px; letter-spacing: -.035em; line-height: 1; }
+.signin-sub { margin: 0; font-size: 16px; font-weight: 600; color: var(--muted); line-height: 1.4; overflow-wrap: anywhere; }
+.signin-sub b { color: var(--ink); }
+.signin .bigin { font-size: clamp(28px, 7vw, 40px); }
+/* 16px or more stops iphones zooming the page when the field is focused */
+.signin input { font-size: max(16px, 1em); }
+.signin-code { letter-spacing: .25em; font-variant-numeric: tabular-nums; }
+.signin-code:placeholder-shown { letter-spacing: -.02em; }
+.signin-err { margin: 0; font-size: 15px; font-weight: 700; color: var(--ribbon-text); }
+.signin-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.linkbtn { appearance: none; border: 0; background: none; padding: 12px 0; margin: -12px 0; font: inherit; font-size: 15px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.linkbtn:disabled { color: var(--muted); text-decoration: none; cursor: default; }

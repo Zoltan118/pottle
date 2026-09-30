@@ -190,7 +190,7 @@ export function SigninLab({ environmentId }: { environmentId: string }) {
           <input id="lab-code" type="text" inputMode="numeric" autoComplete="one-time-code" enterKeyHint="done" maxLength={6} value={code} placeholder="6-digit code"
             onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 6); setCode(v); if (v.length === 6) void verify(v); }} />
           <button className="btn lg" disabled={busy || code.length !== 6}>{busy ? "checking…" : "sign in"}</button>
-          <button type="button" className="btn sm ghost" onClick={() => { setStep("email"); setCode(""); }}>use another email</button>
+          <button type="button" className="btn sm ghost" onClick={() => { try { sessionStorage.removeItem(KEY); } catch {} verification.current = null; setStep("email"); setCode(""); note("back to the email step"); }}>use another email</button>
         </form>
       )}
 

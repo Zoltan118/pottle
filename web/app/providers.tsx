@@ -9,18 +9,18 @@ import { UpdateCheck } from "@/components/UpdateCheck";
 
 export { useWallet, type WalletApi } from "@/lib/walletStore";
 
-// dynamic reads window when it loads, so it only ever loads in the browser
-const DynamicHost = dynamic(() => import("@/components/DynamicHost"), { ssr: false });
+// sign-in only ever runs in the browser. the host is small; dynamic's sdk itself loads later, and only when needed
+const WalletHost = dynamic(() => import("@/components/WalletHost"), { ssr: false });
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
-  // the sign-in lab runs dynamic's headless sdk on its own; the popup sdk stays off there so the two never share a session
+  // the sign-in lab runs dynamic's sdk on its own
   const lab = usePathname()?.startsWith("/lab");
   return (
     <QueryClientProvider client={queryClient}>
       {children}
       <UpdateCheck />
-      {WALLETS_ON && !lab && <DynamicHost />}
+      {WALLETS_ON && !lab && <WalletHost />}
     </QueryClientProvider>
   );
 }

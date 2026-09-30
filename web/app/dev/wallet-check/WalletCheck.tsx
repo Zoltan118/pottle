@@ -56,7 +56,7 @@ export function WalletCheck() {
       <h1 className="giant q">check.</h1>
       <p className="hint" style={{ margin: 0 }}>network: <b>{NETWORK}</b> · chain {chain.id} · signed in: <b>{w.address ?? "no"}</b></p>
       {!w.address
-        ? <button className="btn lg" onClick={w.signIn} disabled={!w.ready}>sign in</button>
+        ? <button className="btn lg" onClick={() => void w.signIn()} disabled={!w.ready}>sign in</button>
         : <button className="btn lg" onClick={run} disabled={busy}>{busy ? "checking…" : "run the check"}</button>}
       <div id="results" style={{ display: "grid", gap: 10 }}>
         {rows.map((r) => (

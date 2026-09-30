@@ -9,7 +9,8 @@ import { Nav } from "@/components/Nav";
 import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
 import { Sheet } from "@/components/Sheet";
-import { balanceOf, chipIn, settle } from "@/lib/wallet";
+import { SignIn } from "@/components/SignIn";
+import { balanceOf, chipIn, settle, requestDrip } from "@/lib/wallet";
 import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, toCents, type PotData } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
 import { explorerAddress, NETWORK, TOKEN } from "@/lib/config";
@@ -100,13 +101,19 @@ export function PotView({ initial }: { initial: PotData }) {
     // not signed in yet: sign in, then carry on paying without another tap
     if (!walletStore.get().address) {
       setBusy("signin");
-      const signedIn = await w.signIn();
+      // the email and code fields show right here in the chip-in sheet, and paying carries on by itself after
+      const signedIn = await w.signIn({ inline: true });
       if (!signedIn) { setBusy(""); return; }
     }
     setBusy("pay");
     try {
       const cur = walletStore.get(); // after an await, read the live wallet, not this render's copy
-      const held = await balanceOf(cur.address!, pot.currency);
+      let held = await balanceOf(cur.address!, pot.currency);
+      // testnet: someone who just signed in may not have had their free test dollars yet. ask, then look again
+      if (held < amount && NETWORK === "testnet") {
+        await requestDrip(cur.address!, cur.authHeader()).catch(() => 0);
+        held = await balanceOf(cur.address!, pot.currency);
+      }
       if (held < amount) {
         setShort(Math.ceil((amount - held) * 100) / 100);
         setHave(Math.floor(held * 100) / 100);
@@ -123,7 +130,8 @@ export function PotView({ initial }: { initial: PotData }) {
   // the mascot in the chip-in sheet reacts to what you do: excited at "the rest", holding its breath
   // while paying, a wince if it fails
   const sheetMood: Mood = busy === "pay" || busy === "signin" ? "hold" : err ? "wince" : valid && amount === left ? "happy" : "idle";
-  const closeSheet = () => { setOpen(false); setFrozenPicks(null); setUserPicked(false); setErr(""); setShort(0); setHave(0); setDone(null); };
+  const closeSheet = () => { if (walletStore.get().waiting) walletStore.cancel(); setOpen(false); setFrozenPicks(null); setUserPicked(false); setErr(""); setShort(0); setHave(0); setDone(null); };
+  const signingIn = busy === "signin" && !!w.prompt?.inline;
   const decided = new Date(pot.deadline * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   async function doSettle(kind: "release" | "refund") {
@@ -265,6 +273,11 @@ export function PotView({ initial }: { initial: PotData }) {
           <div className="sheet-masc"><Mascot mood={sheetMood} level={pot.goal ? pot.raised / pot.goal : 0} track /></div>
           <h2 className="giant">you&apos;re in?</h2>
         </div>
+        {signingIn ? (<>
+          <p className="where">sign in to pay <b>{m(amount)}</b> into {pot.title}{name.trim() ? <> as <b>{name.trim().toLowerCase()}</b></> : null}. it carries on by itself once you&apos;re in.</p>
+          <SignIn title="your email" />
+          <button className="linkbtn" onClick={() => walletStore.cancel()}>back</button>
+        </>) : (<>
         <input className="bigin" placeholder="your name" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
           {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => { setPicked(a); setUserPicked(true); }}>{m(a)}</button>)}
@@ -293,6 +306,7 @@ export function PotView({ initial }: { initial: PotData }) {
         <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on || !valid}>
           {busy === "pay" ? "paying…" : busy === "signin" ? (w.ready ? "signing in…" : "one sec…") : !valid ? "pick an amount" : w.address ? `pay ${m(amount)}` : `sign in to pay ${m(amount)}`}
         </button>
+        </>)}
         <div className="err" role="alert">{open && err}</div>
         {open && have >= MIN_CHIP && !ONRAMP_ON && (
           <button className="btn sm ghost" onClick={() => { setPicked("other"); setTyped(String(have)); setErr(""); setShort(0); setHave(0); }}>chip in {m(have)} instead</button>

@@ -83,7 +83,7 @@ every package is on its latest release as of september 2026.
 | **arc** mainnet and testnet | chain 5042 / 5042002 | usdc as gas, sub-second finality, native usdc and eurc |
 | **circle usdc and eurc** (fiattoken v2) | | one-signature chip-ins with eip-3009 `receiveWithAuthorization` |
 | **circle onramp kit** (`@circle-fin/onramp-kit`, app kits) | 1.0.2 | buying usdc by card inside the app, with `createSessionRouteHandler` on the server |
-| **dynamic** (`@dynamic-labs/sdk-react-core`) | 5.9.1 | email sign-in and embedded wallets, session tokens verified server side |
+| **dynamic** headless sdk (`@dynamic-labs-sdk/client`, `/evm`) | 1.33.3 | email sign-in drawn by pottle itself (no popup), embedded wallets, session tokens verified server side |
 | **viem** | 2.56.9 | reading pots, signing chip-ins, the relayer |
 | **next.js** | 16.3.6 | the app, api routes, live link previews |
 | **solidity** / **foundry** | 0.8.30 / 1.8.3 | the contract, unit, fuzz and invariant tests |

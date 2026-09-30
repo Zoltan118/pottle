@@ -111,11 +111,10 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
 
 ## dependencies
 
-`npm audit` for the shipped app reports 8 high findings, all one chain: `bigint-buffer`, which has no
-fixed version, inside the solana connector of dynamic's sdk. pottle never uses solana. the other 24
-findings (axios, uuid, stream-json, sharp, all under dynamic) are fixed by version overrides in
-`web/package.json`. we are on dynamic's latest release; npm's suggested fix, downgrading dynamic to
-1.x, would be worse.
+`npm audit` for the shipped app reports **0 vulnerabilities**. sign-in moved from dynamic's popup sdk to
+its headless sdk (`@dynamic-labs-sdk/client` and `/evm`, pinned to an exact version), which removed 253
+packages, including the solana connector whose `bigint-buffer` accounted for every high finding before.
+the headless sdk only downloads when someone signs in, or when a device that was signed in comes back.
 
 ## independent review, september 2026
 
