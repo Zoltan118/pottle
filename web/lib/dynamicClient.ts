@@ -64,11 +64,41 @@ export async function sendCode(email: string): Promise<Verification> {
  * are asked for rather than inferred from the list */
 export async function verifyCode(verification: Verification, code: string) {
   const c = await loadDynamic();
-  await c.verifyOTP({ otpVerification: verification, verificationToken: code.trim() });
+  // allowNewMFALinking: someone with no passkey yet gets ten minutes in which adding one needs no
+  // second email code, only face id
+  await c.verifyOTP({ otpVerification: verification, verificationToken: code.trim(), allowNewMFALinking: true });
+  return withWallet();
+}
+
+async function withWallet() {
   const w = await import("@dynamic-labs-sdk/client/waas");
   const missing = w.getChainsMissingWaasWalletAccounts();
   if (missing.length) await w.createWaasWalletAccounts({ chains: missing });
   return session();
+}
+
+/*
+ * sign in with face id: the passkey someone added as their lock also signs them in, once dynamic has
+ * passkey sign-in switched on. email stays for a new phone or a lost passkey
+ */
+const HAS_PASSKEY = "pottle:passkey"; // this device has made or used a pottle passkey: offer face id first
+export const passkeyOnDevice = () => { try { return localStorage.getItem(HAS_PASSKEY) === "1"; } catch { return false; } };
+const markPasskeyDevice = (on: boolean) => { try { if (on) localStorage.setItem(HAS_PASSKEY, "1"); else localStorage.removeItem(HAS_PASSKEY); } catch {} };
+
+/** passkey sign-in is on in dynamic, as a way to sign in and not only as the lock, and this browser can do it */
+export async function passkeyLoginOffered() {
+  if (typeof window === "undefined" || !window.PublicKeyCredential) return false;
+  const c = await loadDynamic();
+  const s = c.getDefaultClient().projectSettings as unknown as { providers?: { provider?: string; enabledAt?: unknown }[] } | null;
+  return !!s?.providers?.some((p) => /passkey/i.test(p.provider ?? "") && !!p.enabledAt);
+}
+
+/** call from a tap: opens face id, signs in, and makes sure the wallet is there */
+export async function signInPasskey() {
+  const c = await loadDynamic();
+  await c.signInWithPasskey();
+  markPasskeyDevice(true);
+  return withWallet();
 }
 
 /** who is signed in on this device right now, or null */
@@ -153,6 +183,7 @@ export async function addPasskey(): Promise<string[]> {
   navigator.credentials.create = (o?: CredentialCreationOptions) => { rp = o?.publicKey?.rp?.id ?? "(none)"; return create(o); };
   try {
     await c.registerPasskey();
+    markPasskeyDevice(true);
   } catch (e) {
     const x = e as { name?: string; message?: string; status?: number; code?: string };
     if (x.name === "NotAllowedError" || x.name === "AbortError" || x.name === "InvalidStateError") throw e;
@@ -178,6 +209,7 @@ export async function removePasskey(id: string) {
     await passkeyProof(c.TokenScope.Credentialunlink);
   }
   await c.deletePasskey({ passkeyId: id });
+  markPasskeyDevice(false);
 }
 
 /** a lost passkey: one recovery code stands in for it, once */

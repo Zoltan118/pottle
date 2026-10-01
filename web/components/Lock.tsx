@@ -33,7 +33,21 @@ const explain = (e: unknown) => {
   return message(e);
 };
 
-export function Lock({ onRelogin }: { onRelogin: () => void }) {
+/** whether this account can add the lock, and its passkeys. shared by the card and the nudge in the nav */
+export function useLock(address?: string) {
+  const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!address, staleTime: Infinity, retry: false });
+  const list = useQuery({ queryKey: ["passkeys", address], queryFn: dyn.passkeys, enabled: !!address && !!offered.data,
+    retry: (n, e) => !refused(e) && n < 2 }); // a refused session won't get better by asking again
+  return { offered, list, unlocked: !!offered.data && list.data?.length === 0 };
+}
+
+// "not now" on the nudge holds for a week
+const LATER = "pottle:lock-later";
+export const lockLater = () => { try { localStorage.setItem(LATER, String(Date.now())); } catch {} };
+export const lockSnoozed = () => { try { return Date.now() - Number(localStorage.getItem(LATER) ?? 0) < 7 * 86_400_000; } catch { return false; } };
+
+/** nudge: the amount they hold, when it's worth locking; the card then leads with it and offers "not now" */
+export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nudge?: string; onLater?: () => void }) {
   const w = useWallet();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -47,9 +61,7 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
   const [check, setCheck] = useState<dyn.Verification | null>(null);
   const [emailCode, setEmailCode] = useState("");
 
-  const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!w.address, staleTime: Infinity, retry: false });
-  const list = useQuery({ queryKey: ["passkeys", w.address], queryFn: dyn.passkeys, enabled: !!w.address && !!offered.data,
-    retry: (n, e) => !refused(e) && n < 2 }); // a refused session won't get better by asking again
+  const { offered, list } = useLock(w.address);
   if (!offered.data) return null;
   // couldn't read their passkeys: say so, rather than quietly dropping the lock option
   if (list.error) {
@@ -112,8 +124,8 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
 
   if (!locked) {
     return (
-      <div className="lock">
-        <b className="lock-title">lock with face id</b>
+      <div className={nudge ? "lock nudge" : "lock"}>
+        <b className="lock-title">{nudge ? `you're holding ${nudge}. lock it?` : "lock with face id"}</b>
         <p className="hint lock-text">{adding === "ready"
           ? "confirmed. now tap below and use face id or your fingerprint to make the passkey."
           : "every payment will ask for face id or your fingerprint, so someone who gets into your email still can't move your money."}</p>
@@ -122,8 +134,10 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
             ? <button className="btn sm" disabled={busy} onClick={() => run(async () => { setCodes(await dyn.addPasskey()); setAdding(""); })}>{busy ? "one sec…" : "add face id"}</button>
             : <button className="btn sm" disabled={busy} onClick={() => run(async () => {
                 const v = await dyn.confirmForPasskey();
-                if (v) { setCheck(v); setAdding("code"); } else setAdding("ready");
+                // signed in within the last ten minutes: no code needed, face id opens in this same tap
+                if (v) { setCheck(v); setAdding("code"); } else { setCodes(await dyn.addPasskey()); setAdding(""); }
               })}>{busy ? "one sec…" : "add a passkey"}</button>}
+          {nudge && adding !== "ready" && <button className="linkbtn" disabled={busy} onClick={() => { lockLater(); onLater?.(); }}>not now</button>}
         </div>
         {err && <p className="err" role="alert">{err}</p>}
       </div>

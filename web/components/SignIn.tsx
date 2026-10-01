@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { walletStore } from "@/lib/walletStore";
 import * as dyn from "@/lib/dynamicClient";
@@ -40,6 +41,15 @@ function explain(e: unknown, step: "email" | "code") {
   return "something went wrong. try again.";
 }
 
+/** a passkey sign-in that didn't work, in words someone can act on */
+function explainPasskey(e: unknown) {
+  const name = e instanceof Error ? e.name : "";
+  const m = (e instanceof Error ? `${e.message} ${e.cause instanceof Error ? e.cause.message : ""}` : String(e)).toLowerCase();
+  if (name === "NotAllowedError" || name === "AbortError") return "face id was cancelled. try again, or use your email.";
+  if (name === "NoPasskeyCredentialsFoundError" || /no passkey|not found|credential/.test(m)) return "this phone has no pottle passkey. sign in with your email, then add one in your account.";
+  return explain(e, "email");
+}
+
 export function SignIn({ title = "sign in with your email" }: { title?: string }) {
   const [step, setStep] = useState<"email" | "code" | "wallet">("email");
   const [email, setEmail] = useState("");
@@ -51,6 +61,9 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
   const checking = useRef(false); // iphone's code autofill and an Enter can land together: check the code once
   const codeInput = useRef<HTMLInputElement>(null);
   const emailInput = useRef<HTMLInputElement>(null);
+  // face id sign-in, when dynamic offers it. a phone that has used a pottle passkey gets it first
+  const passkey = useQuery({ queryKey: ["passkeyLogin"], queryFn: dyn.passkeyLoginOffered, staleTime: Infinity, retry: false });
+  const [faceFirst, setFaceFirst] = useState(() => dyn.passkeyOnDevice());
 
   useMountEffect(() => {
     // back from the mail app, or reloaded half way: carry on at the code step
@@ -74,6 +87,20 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
     } catch (x) {
       setErr(explain(x, "email"));
     } finally { setBusy(false); }
+  }
+
+  async function withFaceId() {
+    if (checking.current) return;
+    checking.current = true;
+    setBusy(true); setErr("");
+    try {
+      const s = await dyn.signInPasskey();
+      if (!s) throw new Error("no wallet after sign-in");
+      clearPending();
+      walletStore.signedIn(s);
+    } catch (x) {
+      setErr(explainPasskey(x));
+    } finally { setBusy(false); checking.current = false; }
   }
 
   async function verify(value: string) {
@@ -115,6 +142,20 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
     );
   }
 
+  if (passkey.data && faceFirst) {
+    return (
+      <div className="signin">
+        <p className="signin-title">welcome back</p>
+        <p className="signin-sub">sign in with the passkey on this phone.</p>
+        {err && <p className="signin-err" role="alert">{err}</p>}
+        <button className="btn lg wide sheet-pay" disabled={busy} onClick={() => void withFaceId()}>{busy ? "checking…" : "sign in with face id"}</button>
+        <div className="signin-links">
+          <button type="button" className="linkbtn" disabled={busy} onClick={() => { setFaceFirst(false); setErr(""); requestAnimationFrame(() => emailInput.current?.focus()); }}>use my email instead</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form className="signin" onSubmit={(e) => { e.preventDefault(); void send(); }}>
       <p className="signin-title">{title}</p>
@@ -124,6 +165,7 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
         onChange={(e) => { setEmail(e.target.value); setErr(""); }} />
       {err && <p className="signin-err" role="alert">{err}</p>}
       <button className="btn lg wide sheet-pay" disabled={busy}>{busy ? "sending…" : "send me a code"}</button>
+      {passkey.data && <button type="button" className="btn lg ghost wide" disabled={busy} onClick={() => void withFaceId()}>sign in with face id</button>}
     </form>
   );
 }

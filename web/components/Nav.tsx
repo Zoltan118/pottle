@@ -13,7 +13,7 @@ import { Sheet } from "./Sheet";
 import { HomeScreenTip } from "./HomeScreenTip";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
 import { CashOut } from "./CashOut";
-import { Lock } from "./Lock";
+import { Lock, lockSnoozed, useLock } from "./Lock";
 import { CloseIcon, CopyIcon, ShareIcon } from "./Icons";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -58,10 +58,25 @@ export function Nav({ action }: { action?: React.ReactNode }) {
     enabled: !!w.address && open,
   });
 
+  // the nudge: someone holding $10 or more with no lock on their wallet gets a dot on their balance, and
+  // the lock card leads the account sheet. "not now" quiets it for a week
+  const lock = useLock(w.address);
+  const [snoozed, setSnoozed] = useState(() => lockSnoozed());
+  const held = Math.max(bal.data ?? 0, eur.data ?? 0);
+  const nudge = lock.unlocked && !snoozed && held >= 10 ? (bal.data ?? 0) >= (eur.data ?? 0) ? usd(Math.floor(bal.data ?? 0)) : money(Math.floor(eur.data ?? 0), "eur") : undefined;
+
   // whole dollars from $100 up, so the chip never pushes the nav wider than a phone
   const exact = bal.data === undefined ? "…" : usd(Math.floor(bal.data * 100) / 100);
   const chip = drip.isFetching ? "+$10…" : bal.data === undefined ? "…" : bal.data >= 100 ? usd(Math.floor(bal.data)) : exact;
   const eurMoney = (d: number) => money(Math.floor(d * 100) / 100, "eur");
+
+  const lockCard = (
+    <Lock nudge={nudge} onLater={() => setSnoozed(true)} onRelogin={() => {
+      // close this sheet first; the sign-in sheet opens once it has slid away (its back-button step too)
+      close();
+      window.setTimeout(() => { w.signOut(); void w.signIn(); }, 450);
+    }} />
+  );
 
   async function copy(text: string, key: string) {
     try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch {}
@@ -86,8 +101,8 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           {w.on && (!w.ready && w.wasSignedIn && !w.waiting ? (
             <span className="me" aria-label="loading your account"><i />…</span>
           ) : w.address ? (
-            <button className="me" onClick={() => setOpen(true)} aria-label="your account" data-tip={drip.isFetching ? "sending you $10 of test usdc" : undefined}>
-              <i />{chip}
+            <button className="me" onClick={() => setOpen(true)} aria-label={nudge ? "your account. your wallet isn't locked yet" : "your account"} data-tip={drip.isFetching ? "sending you $10 of test usdc" : undefined}>
+              <i />{chip}{nudge && <em className="me-dot" aria-hidden="true" />}
             </button>
           ) : (
             // shown straight away: a tap before sign-in has loaded is remembered, and it opens when ready
@@ -108,6 +123,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
         <div className="acct-bal">{exact}<small>usdc on arc</small></div>
         {!!eur.data && eur.data > 0 && <div className="acct-bal2">{eurMoney(eur.data)}<small>eurc on arc</small></div>}
         {(!!bal.data && bal.data >= 0.01) || (!!eur.data && eur.data >= 0.01) ? <button className="btn sm ghost acct-cash" onClick={() => setCash(true)}>cash out</button> : null}
+        {nudge && lockCard}
 
         {ONRAMP_ON
           ? <AddMoney active={open} onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
@@ -141,11 +157,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           ))}
         </div>
 
-        <Lock onRelogin={() => {
-          // close this sheet first; the sign-in sheet opens once it has slid away (its back-button step too)
-          close();
-          window.setTimeout(() => { w.signOut(); void w.signIn(); }, 450);
-        }} />
+        {!nudge && lockCard}
         <HomeScreenTip lead="use it like an app:" />
         <button className="btn lg ghost wide" onClick={() => { close(); w.signOut(); }}>sign out</button>
         </>}
