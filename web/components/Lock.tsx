@@ -66,6 +66,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
   const [err, setErr] = useState("");
   const fresh = useShown(w.address);
   const [recover, setRecover] = useState(false);
+  const [unlocked, setUnlocked] = useState(false); // a recovery code worked: say what it did
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
   // adding a passkey: first an emailed code proves it's them, then a tap opens face id
@@ -164,14 +165,17 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
   return (
     <div className="lock on">
       <b className="lock-title">locked with a passkey ✓</b>
-      <p className="hint lock-text">payments ask for face id or your fingerprint.</p>
-      {recover ? (
-        <form className="lock-acts" onSubmit={(e) => { e.preventDefault(); void run(async () => { await dyn.redeemRecoveryCode(code); setRecover(false); setCode(""); }); }}>
+      <p className="hint lock-text">{unlocked
+        ? "unlocked with a recovery code for the next few minutes. to use a new phone, remove this passkey and add one there."
+        : "payments ask for face id or your fingerprint."}</p>
+      {recover ? (<>
+        <form className="lock-acts" onSubmit={(e) => { e.preventDefault(); void run(async () => { await dyn.redeemRecoveryCode(code); setRecover(false); setCode(""); setUnlocked(true); }); }}>
           <input className="bigin lock-code" placeholder="recovery code" value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }}
-            aria-label="recovery code" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            aria-label="recovery code" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
           <button className="btn sm" disabled={busy || !code.trim()}>unlock</button>
         </form>
-      ) : (
+        <div className="lock-acts"><button className="linkbtn" disabled={busy} onClick={() => { setRecover(false); setCode(""); setErr(""); }}>cancel</button></div>
+      </>) : (
         <div className="lock-acts">
           <button className="linkbtn" onClick={() => { setRecover(true); setErr(""); }}>lost it? use a recovery code</button>
           <button className="linkbtn" disabled={busy} onClick={() => run(async () => show(w.address, await dyn.newCodes()))}>new recovery codes</button>
