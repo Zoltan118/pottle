@@ -199,6 +199,17 @@ export async function addPasskey(): Promise<string[]> {
   const { recoveryCodes } = await c.getMfaRecoveryCodes();
   return recoveryCodes ?? [];
 }
+/** recovery codes not yet confirmed as saved. dynamic keeps them until then, so they survive a reload */
+export async function unsavedCodes(): Promise<string[]> {
+  const c = await loadDynamic();
+  if (!c.isPendingRecoveryCodesAcknowledgment()) return [];
+  return (await c.getMfaRecoveryCodes()).recoveryCodes ?? [];
+}
+/** a fresh set of recovery codes. the old ones stop working */
+export async function newCodes(): Promise<string[]> {
+  const c = await loadDynamic();
+  return (await c.createNewMfaRecoveryCodes()).recoveryCodes ?? [];
+}
 /** the person saved their recovery codes */
 export async function codesSaved() {
   const c = await loadDynamic();

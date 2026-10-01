@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
 import * as dyn from "@/lib/dynamicClient";
@@ -33,6 +33,18 @@ const explain = (e: unknown) => {
   return message(e);
 };
 
+// the recovery codes on screen live outside the card: the card moves within the account sheet (the nudge
+// puts it first), and a moved card starts fresh, which would wipe codes before anyone saved them
+// they belong to one account, so another account signing in on this tab never sees them
+let shown: { owner?: string; codes: string[] } = { codes: [] };
+const watchers = new Set<() => void>();
+const NONE: string[] = [];
+const show = (owner: string | undefined, codes: string[]) => { shown = { owner, codes }; watchers.forEach((w) => w()); };
+const useShown = (owner?: string) => {
+  const s = useSyncExternalStore((w) => { watchers.add(w); return () => { watchers.delete(w); }; }, () => shown, () => shown);
+  return owner && s.owner === owner ? s.codes : NONE;
+};
+
 /** whether this account can add the lock, and its passkeys. shared by the card and the nudge in the nav */
 export function useLock(address?: string) {
   const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!address, staleTime: Infinity, retry: false });
@@ -52,7 +64,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [codes, setCodes] = useState<string[]>([]);
+  const fresh = useShown(w.address);
   const [recover, setRecover] = useState(false);
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
@@ -62,6 +74,9 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
   const [emailCode, setEmailCode] = useState("");
 
   const { offered, list } = useLock(w.address);
+  // codes from a passkey added earlier that were never confirmed as saved come back until they are
+  const unsaved = useQuery({ queryKey: ["unsavedCodes", w.address], queryFn: dyn.unsavedCodes, enabled: !!list.data?.length, retry: false });
+  const codes = fresh.length ? fresh : unsaved.data ?? NONE;
   if (!offered.data) return null;
   // couldn't read their passkeys: say so, rather than quietly dropping the lock option
   if (list.error) {
@@ -99,7 +114,9 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
         <ol className="lock-codes">{codes.map((c) => <li key={c}>{c}</li>)}</ol>
         <div className="lock-acts">
           <button className="btn sm ghost" onClick={async () => { try { await navigator.clipboard.writeText(codes.join("\n")); setCopied(true); } catch {} }}>{copied ? "copied" : "copy"}</button>
-          <button className="btn sm" disabled={busy} onClick={() => run(async () => { await dyn.codesSaved(); setCodes([]); setCopied(false); })}>i&apos;ve saved them</button>
+          <button className="btn sm" disabled={busy} onClick={() => run(async () => {
+            await dyn.codesSaved(); show(w.address, []); setCopied(false); await qc.invalidateQueries({ queryKey: ["unsavedCodes", w.address] });
+          })}>i&apos;ve saved them</button>
         </div>
         {err && <p className="err" role="alert">{err}</p>}
       </div>
@@ -131,11 +148,11 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
           : "every payment will ask for face id or your fingerprint, so someone who gets into your email still can't move your money."}</p>
         <div className="lock-acts">
           {adding === "ready"
-            ? <button className="btn sm" disabled={busy} onClick={() => run(async () => { setCodes(await dyn.addPasskey()); setAdding(""); })}>{busy ? "one sec…" : "add face id"}</button>
+            ? <button className="btn sm" disabled={busy} onClick={() => run(async () => { show(w.address, await dyn.addPasskey()); setAdding(""); })}>{busy ? "one sec…" : "add face id"}</button>
             : <button className="btn sm" disabled={busy} onClick={() => run(async () => {
                 const v = await dyn.confirmForPasskey();
                 // signed in within the last ten minutes: no code needed, face id opens in this same tap
-                if (v) { setCheck(v); setAdding("code"); } else { setCodes(await dyn.addPasskey()); setAdding(""); }
+                if (v) { setCheck(v); setAdding("code"); } else { show(w.address, await dyn.addPasskey()); setAdding(""); }
               })}>{busy ? "one sec…" : "add a passkey"}</button>}
           {nudge && adding !== "ready" && <button className="linkbtn" disabled={busy} onClick={() => { lockLater(); onLater?.(); }}>not now</button>}
         </div>
@@ -157,6 +174,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
       ) : (
         <div className="lock-acts">
           <button className="linkbtn" onClick={() => { setRecover(true); setErr(""); }}>lost it? use a recovery code</button>
+          <button className="linkbtn" disabled={busy} onClick={() => run(async () => show(w.address, await dyn.newCodes()))}>new recovery codes</button>
           <button className="linkbtn" disabled={busy} onClick={() => run(async () => { for (const p of list.data!) await dyn.removePasskey(p.id); })}>remove</button>
         </div>
       )}
