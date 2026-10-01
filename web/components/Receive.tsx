@@ -15,7 +15,7 @@ export function Receive({ onBack, onClose }: { onBack: () => void; onClose: () =
   const w = useWallet();
   const [copied, setCopied] = useState(false);
   const addr = w.address ?? "";
-  // the qr is drawn in the page's own ink and paper, so it reads in light and dark
+  // the qr is black on a white tile in both themes (see .recv-qr): every phone camera reads that
   const qr = useQuery({
     queryKey: ["qr", addr],
     enabled: !!addr,

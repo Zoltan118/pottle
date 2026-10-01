@@ -394,6 +394,7 @@ body:has(.sheet.on) { overflow: hidden; }
 .lock-title { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -.02em; }
 .lock-text { margin: 0; min-height: 0; }
 .lock-why { font-size: 13px; overflow-wrap: anywhere; }
+.lock-keys { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 14px; font-weight: 700; color: var(--muted); }
 .lock-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 4px; }
 .lock-code { flex: 1; min-width: 0; font-size: 22px; }
 .lock-codes { margin: 4px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; font: 700 17px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }

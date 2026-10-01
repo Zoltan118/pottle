@@ -2,15 +2,16 @@
 // usage: npm run dev (in another shell), then: node scripts/e2e-testnet.mjs
 // needs contracts/.env (DEPLOYER_PRIVATE_KEY with testnet usdc) and web/.env.local (NEXT_PUBLIC_POTTLE_ADDRESS)
 import { readFileSync } from "node:fs";
-import { createPublicClient, createWalletClient, http, parseSignature, toHex, parseAbi } from "viem";
+import { createPublicClient, createWalletClient, http, pad, parseSignature, toHex, parseAbi } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
-import { arcTestnet } from "viem/chains";
+import { arcTestnet, baseSepolia } from "viem/chains";
 
 const env = (file) => Object.fromEntries(readFileSync(new URL(file, import.meta.url), "utf8").split("\n").filter((l) => l.includes("=") && !l.startsWith("#")).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));
 const { DEPLOYER_PRIVATE_KEY } = env("../../contracts/.env");
 const { NEXT_PUBLIC_POTTLE_ADDRESS: POTTLE, CRON_SECRET } = env("../.env.local");
 const APP = process.env.APP_URL || "http://localhost:3000";
 const USDC = "0x3600000000000000000000000000000000000000";
+const EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a";
 if (!DEPLOYER_PRIVATE_KEY || !POTTLE) throw new Error("missing DEPLOYER_PRIVATE_KEY or NEXT_PUBLIC_POTTLE_ADDRESS");
 
 const chain = arcTestnet;
@@ -128,6 +129,69 @@ await fetch(`${APP}/p/${d}`);
 let tries = 0;
 while ((await status(d)) !== "released" && tries++ < 12) await new Promise((r) => setTimeout(r, 2500));
 check((await status(d)) === "released", "opening pot D's page paid it out by itself");
+
+// cash out: the relayer's "send" job. a fresh wallet, so the relayer's own fee never mixes into the numbers
+const sendTypes = { TransferWithAuthorization: [{ name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" }, { name: "validAfter", type: "uint256" }, { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" }] };
+async function signSend(pk, currency, to, amount) {
+  const acct = privateKeyToAccount(pk);
+  const [name, token] = currency === "eur" ? ["EURC", EURC] : ["USDC", USDC];
+  const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600), nonce = toHex(crypto.getRandomValues(new Uint8Array(32)));
+  const sig = await acct.signTypedData({ domain: { name, version: "2", chainId: chain.id, verifyingContract: token }, types: sendTypes, primaryType: "TransferWithAuthorization",
+    message: { from: acct.address, to, value: $(amount), validAfter: 0n, validBefore, nonce } });
+  const { r, s: sv, v, yParity } = parseSignature(sig);
+  return { kind: "send", currency, from: acct.address, to, amount: $(amount).toString(), validBefore: validBefore.toString(), nonce, v: v !== undefined ? Number(v) : 27 + yParity, r, s: sv };
+}
+const post = async (body) => { const r = await fetch(`${APP}/api/relay`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); return [r.status, await r.json()]; };
+const tokenBal = async (token, a) => pub.readContract({ address: token, abi: usdcAbi, functionName: "balanceOf", args: [a] });
+const cashPk = generatePrivateKey(), cash = privateKeyToAccount(cashPk), dest = privateKeyToAccount(generatePrivateKey()).address;
+await wait(await deployer.writeContract({ address: USDC, abi: usdcAbi, functionName: "transfer", args: [cash.address, $(3)] }));
+await wait(await deployer.writeContract({ address: EURC, abi: usdcAbi, functionName: "transfer", args: [cash.address, $(1)] }));
+for (const [to, what] of [[POTTLE, "the pottle contract"], [EURC, "a token contract"], ["0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA", "circle's cctp contract"], [cash.address, "the sender itself"], ["0x0000000000000000000000000000000000000000", "the zero address"]]) {
+  const [st] = await post(await signSend(cashPk, "usd", to, 1));
+  check(st === 400, `a cash out to ${what} is refused before anything is sent`);
+}
+let [st, j] = await post({ ...(await signSend(cashPk, "usd", dest, 1)), r: "0x12" });
+check(st === 400, "a malformed signature is refused");
+[st, j] = await post(await signSend(cashPk, "usd", dest, 1));
+check(st === 401, "a cash out without a signed-in pottle account isn't sponsored (fresh wallets earn nothing)");
+// the signature rules the relayer depends on, checked against the tokens themselves: the script submits
+const xferAbi = parseAbi(["function transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)", "function authorizationState(address,bytes32) view returns (bool)"]);
+const args = (b) => [b.from, b.to, BigInt(b.amount), 0n, BigInt(b.validBefore), b.nonce, b.v, b.r, b.s];
+const reverts = async (token, b) => { try { await pub.simulateContract({ account: deployer.account, address: token, abi: xferAbi, functionName: "transferWithAuthorization", args: args(b) }); return false; } catch { return true; } };
+const tampered = await signSend(cashPk, "usd", dest, 1); tampered.amount = $(2).toString();
+check(await reverts(USDC, tampered), "a signature for $1 can't be used to send $2");
+check(await reverts(EURC, await signSend(cashPk, "usd", dest, 1)), "a usdc signature can't move eurc");
+const before = [await tokenBal(USDC, cash.address), await tokenBal(USDC, dest)];
+const once = await signSend(cashPk, "usd", dest, 1);
+await wait(await deployer.writeContract({ address: USDC, abi: xferAbi, functionName: "transferWithAuthorization", args: args(once) }));
+const after = [await tokenBal(USDC, cash.address), await tokenBal(USDC, dest)];
+check(before[0] - after[0] === $(1) && after[1] - before[1] === $(1), "a signed $1 usdc cash out lands exactly, and the sender pays no fee");
+check(await pub.readContract({ address: USDC, abi: xferAbi, functionName: "authorizationState", args: [cash.address, once.nonce] }), "afterwards the token marks it used (how the app knows a retry already went through)");
+check(await reverts(USDC, once), "the same signed cash out can't be sent twice");
+const eurBefore = await tokenBal(EURC, dest);
+await wait(await deployer.writeContract({ address: EURC, abi: xferAbi, functionName: "transferWithAuthorization", args: args(await signSend(cashPk, "eur", dest, 1)) }));
+check((await tokenBal(EURC, dest)) - eurBefore === $(1), "a signed €1 eurc cash out lands exactly");
+
+// cash out through base: circle's cctp burns on arc and its forwarding service mints on base sepolia
+if (process.env.E2E_SKIP_BASE) console.log("SKIP  cash out through base (E2E_SKIP_BASE set)");
+else {
+  const TM = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA", BASE_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  const HOOK = "0x636374702d666f72776172640000000000000000000000000000000000000000";
+  const tmAbi = parseAbi(["function depositForBurnWithHook(uint256,uint32,bytes32,address,bytes32,uint256,uint32,bytes)"]);
+  const base = createPublicClient({ chain: baseSepolia, transport: http() });
+  const q = (await (await fetch("https://iris-api-sandbox.circle.com/v2/burn/USDC/fees/26/6?forward=true")).json()).find((x) => x.finalityThreshold === 1000);
+  const maxFee = BigInt(q.forwardFee.high);
+  const c2 = wallet(cashPk), baseBefore = await base.readContract({ address: BASE_USDC, abi: usdcAbi, functionName: "balanceOf", args: [dest] });
+  await wait(await c2.writeContract({ address: USDC, abi: usdcAbi, functionName: "approve", args: [TM, $(1)] }));
+  const burn = await c2.writeContract({ address: TM, abi: tmAbi, functionName: "depositForBurnWithHook", args: [$(1), 6, pad(dest), USDC, pad("0x"), maxFee, 1000, HOOK] });
+  await wait(burn);
+  let landed = 0n;
+  for (let i = 0; i < 36 && !landed; i++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    landed = (await base.readContract({ address: BASE_USDC, abi: usdcAbi, functionName: "balanceOf", args: [dest] })) - baseBefore;
+  }
+  check(landed > 0n && landed >= $(1) - maxFee, `cash out through base: $1 burned on arc, ${Number(landed) / 1e6} usdc arrived on base sepolia (fee cap ${Number(maxFee) / 1e6})`);
+}
 
 console.log(`organiser ${org.account.address}`);
 console.log(`pots: ${APP}/p/${a}  ${APP}/p/${b}`);

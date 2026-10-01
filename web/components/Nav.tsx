@@ -76,7 +76,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
     <Lock nudge={nudge} onLater={() => { setSnoozed(true); back(); }} onRelogin={() => {
       // close this sheet first; the sign-in sheet opens once it has slid away (its back-button step too)
       close();
-      window.setTimeout(() => { w.signOut(); void w.signIn(); }, 450);
+      window.setTimeout(async () => { await w.signOut(); void w.signIn(); }, 450);
     }} />
   );
 

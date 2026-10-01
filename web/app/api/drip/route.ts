@@ -68,17 +68,22 @@ export async function POST(req: Request) {
   }
 
   // euro pots need eurc. send €10 too when the relayer has some to spare (refill it at faucet.circle.com)
+  // a bonus: if it fails, the usdc above already went out, so the answer is still a success
   let eur = 0;
-  const [theirEur, poolEur] = await Promise.all([
-    publicClient.readContract({ address: EURC, abi: erc20, functionName: "balanceOf", args: [to] }),
-    publicClient.readContract({ address: EURC, abi: erc20, functionName: "balanceOf", args: [account.address] }),
-  ]);
-  if (theirEur < HAS_ENOUGH && poolEur >= DRIP + HAS_ENOUGH) {
-    const h2 = await wallet.writeContract({ address: EURC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
-    await publicClient.waitForTransactionReceipt({ hash: h2 });
-    eur = Number(DRIP) / 1e6;
-  } else if (poolEur < DRIP + HAS_ENOUGH) {
-    console.warn(`[pottle] eurc drip empty, relayer holds ${Number(poolEur) / 1e6} eurc`);
+  try {
+    const [theirEur, poolEur] = await Promise.all([
+      publicClient.readContract({ address: EURC, abi: erc20, functionName: "balanceOf", args: [to] }),
+      publicClient.readContract({ address: EURC, abi: erc20, functionName: "balanceOf", args: [account.address] }),
+    ]);
+    if (theirEur < HAS_ENOUGH && poolEur >= DRIP + HAS_ENOUGH) {
+      const h2 = await wallet.writeContract({ address: EURC, abi: erc20, functionName: "transfer", args: [to, DRIP] });
+      const r2 = await publicClient.waitForTransactionReceipt({ hash: h2 });
+      if (r2.status === "success") eur = Number(DRIP) / 1e6;
+    } else if (poolEur < DRIP + HAS_ENOUGH) {
+      console.warn(`[pottle] eurc drip empty, relayer holds ${Number(poolEur) / 1e6} eurc`);
+    }
+  } catch (e) {
+    console.warn("[pottle] eurc drip failed, usdc went out:", e instanceof Error ? e.message : e);
   }
   return NextResponse.json({ hash, amount: Number(DRIP) / 1e6, eur });
 }

@@ -16,7 +16,7 @@ export type WalletApi = {
   waiting: boolean; // a sign-in was asked for and has not finished yet
   prompt: null | { inline: boolean }; // where the sign-in fields should show right now
   wasSignedIn: boolean; // this device was signed in last time, so before we know, show a placeholder, not "sign in"
-  signOut: () => void;
+  signOut: () => Promise<void>; // resolves once dynamic has logged out too, so a sign-in right after starts clean
   client: () => Promise<WalletClient<Transport, Chain, Account>>;
   authHeader: () => string; // "Bearer <dynamic session token>", proves who the user is to our own api
 };
@@ -42,7 +42,7 @@ function requestSignIn(opts?: { inline?: boolean }): Promise<Address | null> {
 }
 
 function signOut() {
-  void dyn.signOut().catch(() => {});
+  const out = dyn.signOut().catch(() => {});
   writeHint(false);
   try { sessionStorage.removeItem("pottle:signin-pending"); } catch {}
   void import("./wallet").then((m) => m.forgetSignatures());
@@ -51,6 +51,7 @@ function signOut() {
   w.forEach((r) => r(null));
   current = { ...current, address: undefined, userId: undefined, wasSignedIn: false, waiting: false, prompt: null };
   emit();
+  return out;
 }
 
 const initial: WalletApi = {

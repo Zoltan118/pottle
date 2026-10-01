@@ -85,9 +85,26 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
   signature stays valid at least two more minutes, checks a whole request before it counts against
   anyone's limits, and counts a wallet's daily limit only for chip-ins that actually verify (so nobody
   can use up someone else's). it sponsors a payout or refund only for a pot that is really due and has
-  money in it, once a minute per pot. it keeps a $2 reserve that chip-ins cannot touch and a $0.30
-  floor under which it sends nothing, and retries once when two transactions collide on a nonce. if it
-  declines or cannot send, the app pays from the user's own wallet. a leaked relayer key could spend its gas money and nothing else
+  money in it, once a minute per pot. it keeps a $2 reserve that chip-ins and cash outs cannot touch
+  and a $0.30 floor under which it sends nothing, and retries once when two transactions collide on a
+  nonce. one signed authorization is broadcast once: a copy that arrives while the first is in flight
+  is refused. if it declines a chip-in, the app pays from the user's own wallet. a leaked relayer key
+  could spend its gas money and nothing else
+- **cash outs through the relayer** (an eip-3009 `transferWithAuthorization` the owner signed) are only
+  sponsored for a signed-in pottle account sending from one of its own wallets, from $1 or €1, ten a day
+  per account rather than per wallet, so making fresh wallets earns nothing. it refuses to send to the
+  pottle contract, the token contracts, circle's cctp contract, the zero address or the sender itself.
+  if it declines, the app says pottle can't cover the fee right now instead of charging the wallet
+- **cash out in the browser** keeps one signed transfer per cash out and reuses it on a retry, so an
+  error after sending can never turn into a second transfer; if the relayer's copy fails because the
+  same transfer already landed, the token's `authorizationState` shows it went through. once a
+  transaction exists the screen shows it and never offers to send again. through base, the fee is read
+  again just before the burn and the send stops if it rose past what the review showed, at least $1
+  must arrive, and "all" keeps back today's gas for the two arc transactions
+- **the passkey lock** is enforced by dynamic's servers (step-up before any wallet signature), not by
+  pottle's pages. recovery codes are shown once and marked as seen at once, so they can't be fetched
+  again later, and there is no way in pottle to make new ones. the lock card lists every passkey with
+  its device and date, so one nobody here added stands out
 - **the settle job** (`/api/cron/settle`) is protected by a secret compared in constant time, only to
   stop strangers spending the relayer's gas; the functions it calls are permissionless anyway. it reads
   every pot, skips the ones with nothing to do, starts each run at a different place so a pot that keeps
@@ -137,3 +154,48 @@ checks, text from the chain, headers and ci). what remains is accepted on purpos
 - **keys.** the testnet uses one key for every role, and it was once printed in a local session log.
   it holds only test dollars and is being rotated. mainnet uses fresh keys, a separate deployer and
   relayer, never printed
+
+## review of cash out, receive and passkeys, october 2026
+
+the features added after that review (cash out on arc and through base, receive, the passkey lock and
+passkey sign-in, the new account sheet) were reviewed by three independent reviewers: the relayer and
+servers, the money flows in the browser, and sign-in and passkeys. every finding was fixed or is
+listed below.
+
+fixed:
+
+- **sybil gas drain through cash outs (high).** anyone could chain cash outs between fresh wallets,
+  each with its own daily limit. cash outs now need a signed-in pottle account and count against the
+  account
+- **one payload broadcast many times (high).** copies of the same signed authorization arriving at
+  once each passed simulation, so the relayer paid for the reverts. an authorization in flight is now
+  claimed, and copies are refused
+- **a retry after an error could send twice (high).** cash out now reuses the signed transfer, checks
+  `authorizationState`, and shows a sent transaction instead of re-enabling send
+- **the fee charged could exceed the fee shown (medium).** the base route now stops if circle's fee rose
+- **"pottle pays the fee" was not always true (medium).** the wallet no longer pays silently when the
+  relayer declines a cash out, and arc cash outs start at $1, where sponsoring starts
+- **a fixed 2 cent gas reserve (medium)** became today's gas price for generous amounts, doubled
+- **recovery codes left pending could be fetched by any session (medium).** they are marked as seen
+  when shown, and pottle no longer reads them back
+- smaller ones: circle's cctp contract and the zero address added to the blocked recipients in the
+  browser too, simulation errors no longer echoed raw, the testnet eurc bonus can't turn a sent drip
+  into an error, sign-out finishes before the next sign-in starts, close is disabled while a cash out
+  is being sent, a mistyped network setting is reported instead of quietly meaning testnet
+
+checked against dynamic's live servers, from a real session on a locked account signed in with email
+only (the test site's `/dev/lock-check` page): whether recovery codes can be read or made, and whether
+an email code can grant payment, add-a-key or remove-a-key permission. results: (to be filled in after
+the run)
+
+accepted on purpose:
+
+- **per-instance limits.** the in-flight claim, the reserve check and the per-account limit live in
+  each serverless instance's memory, so a determined attacker spread across instances gets more than
+  the limits say. sponsoring now needs a signed-in account, which makes that costly; a shared store is
+  the next step if abuse shows up
+- **a passkey added by someone with your email first.** on an account with no lock yet, someone who
+  controls your email can add their own passkey before you do, and you can't remove it without a
+  passkey. the lock card lists every passkey with its device and date so it is visible. that is the
+  same exposure as any email sign-in account without a second factor
+

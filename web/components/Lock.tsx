@@ -45,6 +45,13 @@ const useShown = (owner?: string) => {
   return owner && s.owner === owner ? s.codes : NONE;
 };
 
+/** a passkey's device, in a few words, from what the browser said when it was made */
+function device(ua = "") {
+  const os = /iphone/i.test(ua) ? "iphone" : /ipad/i.test(ua) ? "ipad" : /android/i.test(ua) ? "android" : /mac os/i.test(ua) ? "mac" : /windows/i.test(ua) ? "windows" : /linux/i.test(ua) ? "linux" : "";
+  const browser = /edg\//i.test(ua) ? "edge" : /crios|chrome/i.test(ua) ? "chrome" : /fxios|firefox/i.test(ua) ? "firefox" : /safari/i.test(ua) ? "safari" : "";
+  return [os, browser].filter(Boolean).join(", ") || ua.slice(0, 40) || "a device";
+}
+
 /** whether this account can add the lock, and its passkeys. shared by the card and the nudge in the nav */
 export function useLock(address?: string) {
   const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!address, staleTime: Infinity, retry: false });
@@ -76,8 +83,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
 
   const { offered, list } = useLock(w.address);
   // codes from a passkey added earlier that were never confirmed as saved come back until they are
-  const unsaved = useQuery({ queryKey: ["unsavedCodes", w.address], queryFn: dyn.unsavedCodes, enabled: !!list.data?.length, retry: false });
-  const codes = fresh.length ? fresh : unsaved.data ?? NONE;
+  const codes = fresh;
   if (!offered.data) return null;
   // couldn't read their passkeys: say so, rather than quietly dropping the lock option
   if (list.error) {
@@ -111,12 +117,12 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
     return (
       <div className="lock">
         <b className="lock-title">save these codes.</b>
-        <p className="hint lock-text">if you lose this phone and your passkey with it, one code unlocks your wallet once. keep them somewhere other than your email.</p>
+        <p className="hint lock-text">if you lose this phone and your passkey with it, one code unlocks your wallet once. they&apos;re shown only now: save them somewhere other than your email before you close this.</p>
         <ol className="lock-codes">{codes.map((c) => <li key={c}>{c}</li>)}</ol>
         <div className="lock-acts">
           <button className="btn sm ghost" onClick={async () => { try { await navigator.clipboard.writeText(codes.join("\n")); setCopied(true); } catch {} }}>{copied ? "copied" : "copy"}</button>
           <button className="btn sm" disabled={busy} onClick={() => run(async () => {
-            await dyn.codesSaved(); show(w.address, []); setCopied(false); await qc.invalidateQueries({ queryKey: ["unsavedCodes", w.address] });
+            show(w.address, []); setCopied(false);
           })}>i&apos;ve saved them</button>
         </div>
         {err && <p className="err" role="alert">{err}</p>}
@@ -165,6 +171,12 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
   return (
     <div className="lock on">
       <b className="lock-title">locked with a passkey ✓</b>
+      {/* every passkey on the account, so one nobody here added would stand out */}
+      <ul className="lock-keys">
+        {list.data.map((k) => (
+          <li key={k.id}>{device(k.device)} · added {new Date(k.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</li>
+        ))}
+      </ul>
       <p className="hint lock-text">{unlocked
         ? "unlocked with a recovery code for the next few minutes. to use a new phone, remove this passkey and add one there."
         : "payments ask for face id or your fingerprint."}</p>

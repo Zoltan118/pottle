@@ -58,6 +58,9 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
 | **dollars or euros** | a pot is in usdc or eurc. euro pots are paid in and paid out in eurc |
 | **add money by card** | circle's onramp kit (part of circle app kits), inside the app: card, apple pay or google pay, with circle's own id check. live on the test site against circle's sandbox; switched on for mainnet once circle's production key is set up |
+| **cash out** | the organiser sends the money to their exchange from the account sheet. kraken, binance and kucoin take usdc on arc directly, and pottle pays the fee. coinbase only takes usdc on base, so pottle moves it there through circle's cctp first, for about 6 cents. straight to a bank account is next |
+| **receive** | a qr code and a tap-to-copy address for anyone sending usdc or eurc on arc |
+| **face id lock, optional** | add a passkey and every payment needs face id or a fingerprint, enforced by dynamic's servers, so someone who gets into your email still can't move your money. the same passkey signs you in |
 | **made for group chats** | a live link preview ("7 in, $140 of $200"), a share button that sends the link with what's left to go, a qr code, and a thank-you card once it pays out |
 
 ## how it uses arc
@@ -70,6 +73,11 @@ pottle leans on the parts of arc that make small group payments sensible:
 - **circle's usdc and eurc as fiattoken.** both support eip-3009 `receiveWithAuthorization`, so a
   chip-in is one signature, and the contract (not the relayer) pulls the money
 - **eurc on arc.** euro pots are native, not wrapped
+- **eip-3009 again for cash out.** an organiser signs one `transferWithAuthorization` and pottle's relayer
+  sends it, so cashing out costs them nothing, in dollars or euros
+- **circle cctp v2 with the forwarding service.** arc is cctp domain 26. a cash out to coinbase burns usdc
+  on arc and circle mints it on base, taking its fee from the usdc, so neither the user nor pottle needs
+  gas on base
 - **circle onramp kit.** people with no usdc can buy it into their own wallet without leaving the pot.
   built the way arc's own guide describes it: the api key stays on the server, a session route mints a
   short-lived session only for the signed-in user's own wallet, and the browser just opens the widget
@@ -83,7 +91,8 @@ every package is on its latest release as of september 2026.
 | **arc** mainnet and testnet | chain 5042 / 5042002 | usdc as gas, sub-second finality, native usdc and eurc |
 | **circle usdc and eurc** (fiattoken v2) | | one-signature chip-ins with eip-3009 `receiveWithAuthorization` |
 | **circle onramp kit** (`@circle-fin/onramp-kit`, app kits) | 1.0.2 | buying usdc by card inside the app, with `createSessionRouteHandler` on the server |
-| **dynamic** headless sdk (`@dynamic-labs-sdk/client`, `/evm`) | 1.33.3 | email sign-in drawn by pottle itself (no popup), embedded wallets, session tokens verified server side |
+| **circle cctp v2** and its forwarding service | | cash out to coinbase: burn on arc, circle mints on base |
+| **dynamic** headless sdk (`@dynamic-labs-sdk/client`, `/evm`) | 1.33.3 | email and passkey sign-in drawn by pottle itself (no popup), embedded wallets, the optional passkey lock (step-up before signing), session tokens verified server side |
 | **viem** | 2.56.9 | reading pots, signing chip-ins, the relayer |
 | **next.js** | 16.3.6 | the app, api routes, live link previews |
 | **solidity** / **foundry** | 0.8.30 / 1.8.3 | the contract, unit, fuzz and invariant tests |
@@ -117,7 +126,7 @@ create(goal, deadline,        |                                     |
 ```
 contracts/   foundry. src/Pottle.sol, 44 tests, 6 invariants, deploy script
 web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id]
-  app/api/relay         sponsors chip-ins, payouts and refunds (simulated first, rate limited)
+  app/api/relay         sponsors chip-ins, cash outs, payouts and refunds (simulated first, rate limited)
   app/api/cron/settle   pays out and refunds every due pot, called by the scheduled job
   app/api/drip          testnet only: $10 of test usdc for a new signed-in wallet
   app/api/onramp        circle onramp kit sessions, only for the signed-in user's own wallet
@@ -148,10 +157,12 @@ is missing instead of failing quietly.
 - **invariant testing**: 15,360 random calls across four people and both currencies; after every
   step the contract holds exactly what it owes and no pot is above the cap. **100% line, statement, branch and function coverage**
 - **slither** static analysis: no exploitable findings. details in [`AUDIT.md`](AUDIT.md)
-- **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 15 checks with real usdc,
+- **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 32 checks with real usdc,
   through the running app. one-signature chip-in with a sponsored fee, a classic approve and chip-in,
   payout, refund after the deadline, the per-person pot lists, the scheduled job paying out a pot
-  nobody touched, and a pot paying itself out when its page is opened
+  nobody touched, a pot paying itself out when its page is opened, and cash out: every address the
+  relayer must refuse, no sponsoring without a signed-in account, exact amounts in usdc and eurc, no
+  replay, and a real cash out through base (burned on arc testnet, minted on base sepolia)
 
 arc moves usdc through a native precompile that local forks cannot execute, so the unit tests use
 a mock with the same eip-3009 rules and the real tokens are exercised on testnet.
@@ -159,13 +170,17 @@ a mock with the same eip-3009 rules and the real tokens are exercised on testnet
 ## integrations
 
 **dynamic.** email sign-in creates an embedded wallet, so a friend in a group chat needs nothing but
-an email. the app's own endpoints (the testnet drip and the onramp sessions) verify the user's
-dynamic session token against dynamic's published keys and only act for a wallet on that token.
-code: [`web/components/DynamicHost.tsx`](web/components/DynamicHost.tsx), [`web/lib/auth.ts`](web/lib/auth.ts).
+an email. pottle draws the sign-in itself on dynamic's headless sdk. an optional passkey locks the
+wallet: once added, dynamic's servers refuse to sign without a fresh face id, and the passkey also signs
+the person in. the app's own endpoints (the relayer's cash outs, the testnet drip and the onramp
+sessions) verify the user's dynamic session token against dynamic's published keys and only act for a
+wallet on that token.
+code: [`web/lib/dynamicClient.ts`](web/lib/dynamicClient.ts), [`web/components/SignIn.tsx`](web/components/SignIn.tsx), [`web/components/Lock.tsx`](web/components/Lock.tsx), [`web/lib/auth.ts`](web/lib/auth.ts).
 
 **circle.** usdc and eurc with eip-3009 for one-signature payments, and the onramp kit for buying
-usdc by card inside the app (popup on iphones and in production, embedded elsewhere).
-code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](web/components/AddMoney.tsx).
+usdc by card inside the app (popup on iphones and in production, embedded elsewhere), and cctp v2
+with the forwarding service for cashing out to coinbase on base.
+code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](web/components/AddMoney.tsx), [`web/components/CashOut.tsx`](web/components/CashOut.tsx).
 
 ## deployments
 

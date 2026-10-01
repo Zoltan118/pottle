@@ -149,7 +149,7 @@ export async function passkeysOffered() {
     !!mfa.actions?.some((a) => a.action === c.MFAAction.WalletWaasSign && a.required);
 }
 
-export type Passkey = { id: string; createdAt: Date; device?: string };
+export type Passkey = { id: string; createdAt: Date; device?: string; storage?: string };
 export async function passkeys(): Promise<Passkey[]> {
   const c = await loadDynamic();
   return (await c.getPasskeys()).map((p) => ({ id: p.id, createdAt: p.createdAt, device: p.alias || p.userAgent }));
@@ -191,27 +191,19 @@ export async function addPasskey(): Promise<string[]> {
     const x = e as { name?: string; message?: string; status?: number; code?: string };
     if (x.name === "NotAllowedError" || x.name === "AbortError" || x.name === "InvalidStateError") throw e;
     console.warn("[pottle] adding a passkey failed", { rp, host: location.hostname, permitted, status: x.status, code: x.code, message: x.message });
-    throw new Error(`dynamic refused the passkey: ${x.message ?? "error"} (status ${x.status ?? "?"}, code ${x.code ?? "?"}, passkey for ${rp}, site ${location.hostname}, permission ${permitted ? "yes" : "no"})`);
+    throw new Error("couldn't add the passkey. try again, or sign out and back in first.");
   } finally {
     navigator.credentials.create = create;
   }
   if (!c.isPendingRecoveryCodesAcknowledgment()) return [];
   const { recoveryCodes } = await c.getMfaRecoveryCodes();
+  // marked as seen at once, not when the person taps "saved": codes left pending can be fetched again
+  // by any signed-in session, and one of them stands in for face id. they live on screen only, until dismissed
+  await c.acknowledgeRecoveryCodes().catch((e) => console.warn("[pottle] couldn't mark recovery codes as seen:", e));
   return recoveryCodes ?? [];
-}
-/** recovery codes not yet confirmed as saved. dynamic keeps them until then, so they survive a reload */
-export async function unsavedCodes(): Promise<string[]> {
-  const c = await loadDynamic();
-  if (!c.isPendingRecoveryCodesAcknowledgment()) return [];
-  return (await c.getMfaRecoveryCodes()).recoveryCodes ?? [];
 }
 // no way to make new recovery codes: a fresh set could stand in for face id, so codes come once, when
 // the passkey is added. lost them and the phone? remove the passkey from a signed-in device and add a new one
-/** the person saved their recovery codes */
-export async function codesSaved() {
-  const c = await loadDynamic();
-  await c.acknowledgeRecoveryCodes();
-}
 
 export async function removePasskey(id: string) {
   const c = await loadDynamic();
@@ -277,3 +269,57 @@ export async function signOut() {
   const c = await loadDynamic();
   await c.logout();
 }
+
+/*
+ * test site only (app/dev/lock-check): tries, from the current session, each way someone who only has a
+ * locked account's email might get around the passkey, and reports whether dynamic's server refused it.
+ * nothing here shows a recovery code: only whether one came back
+ */
+const refusal = (e: unknown) => {
+  const x = e as { status?: number; name?: string; message?: string; cause?: { message?: string } };
+  return `refused (${[x.status, x.name, x.cause?.message ?? x.message].filter(Boolean).join(", ").slice(0, 120)})`;
+};
+export const lockCheck = {
+  async session() {
+    const c = await loadDynamic();
+    const out: Record<string, string> = {};
+    for (const [label, scope] of [["sign payments", c.TokenScope.Walletsign], ["add a key", c.TokenScope.Credentiallink], ["remove a key", c.TokenScope.Credentialunlink]] as const) {
+      try {
+        const r = await c.checkStepUpAuth({ scope });
+        out[`step-up to ${label}`] = r.isRequired ? `required, with: ${r.credentials.map((k) => k.format).join(", ") || "nothing listed"}` : "NOT required";
+      } catch (e) { out[`step-up to ${label}`] = refusal(e); }
+    }
+    try {
+      const r = await c.getMfaRecoveryCodes();
+      out["read recovery codes"] = r.recoveryCodes?.length ? `RETURNED ${r.recoveryCodes.length} codes` : "returned none";
+    } catch (e) { out["read recovery codes"] = refusal(e); }
+    out["passkeys on the account"] = String((await c.getPasskeys()).length);
+    return out;
+  },
+  async sendEmail() {
+    const c = await loadDynamic();
+    const email = (c.getDefaultClient().user as { email?: string } | null)?.email;
+    if (!email) throw new Error("no email on this account");
+    return c.sendEmailOTP({ email });
+  },
+  /** an email code, asking for every scope that matters. reports which ones dynamic handed out */
+  async emailScopes(v: Verification, code: string) {
+    const c = await loadDynamic();
+    const scopes = [c.TokenScope.Walletsign, c.TokenScope.Credentiallink, c.TokenScope.Credentialunlink];
+    const out: Record<string, string> = {};
+    try {
+      await c.verifyOTP({ otpVerification: v, verificationToken: code.trim(), requestedScopes: scopes });
+      out["email code"] = "accepted";
+    } catch (e) { out["email code"] = refusal(e); }
+    for (const s of scopes) out[`permission ${s} from email`] = c.getElevatedAccessToken({ scope: s, consume: false }) ? "GRANTED" : "not granted";
+    return out;
+  },
+  /** destructive if it works: makes new recovery codes (not shown). only to prove dynamic refuses it */
+  async newCodes() {
+    const c = await loadDynamic();
+    try {
+      const r = await c.createNewMfaRecoveryCodes();
+      return { "make new recovery codes": `WORKED, ${r.recoveryCodes?.length ?? 0} codes (not shown)` };
+    } catch (e) { return { "make new recovery codes": refusal(e) }; }
+  },
+};

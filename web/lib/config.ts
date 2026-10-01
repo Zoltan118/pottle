@@ -23,7 +23,10 @@ export const DYNAMIC_ENV = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID || und
 export const WALLETS_ON = !!DYNAMIC_ENV;
 
 /** names of required env vars that are not set, so the ui can say what is off instead of failing quietly */
+// anything but exactly "mainnet" or "testnet" (or unset) is a typo that would quietly mean testnet
+const NETWORK_RAW = process.env.NEXT_PUBLIC_ARC_NETWORK;
 export const missingEnv = [
+  NETWORK_RAW && NETWORK_RAW !== "mainnet" && NETWORK_RAW !== "testnet" && `NEXT_PUBLIC_ARC_NETWORK (is "${NETWORK_RAW}", must be mainnet or testnet)`,
   !POTTLE && "NEXT_PUBLIC_POTTLE_ADDRESS",
   !DYNAMIC_ENV && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID",
 ].filter(Boolean) as string[];

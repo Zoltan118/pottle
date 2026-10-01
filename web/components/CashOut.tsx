@@ -4,8 +4,8 @@ import { useRef, useState } from "react";
 import { isAddress, type Address, type Hex } from "viem";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
-import { BASE_GAS_CENTS, baseDelivery, baseFee, balanceCents, sendOut, sendViaBase, unsendable } from "@/lib/wallet";
-import { BASE_NAME, baseExplorerTx, explorerTx, NETWORK, TOKEN, type Currency } from "@/lib/config";
+import { baseDelivery, baseFee, baseGasCents, balanceCents, sendOut, sendViaBase, unsendable } from "@/lib/wallet";
+import { BASE_NAME, baseExplorerTx, explorerAddress, explorerTx, NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { money } from "@/lib/pot";
 import { readyToSign } from "@/lib/dynamicClient";
 import { CloseIcon } from "./Icons";
@@ -38,11 +38,13 @@ export function CashOut({ onBack, onClose }: { onBack: () => void; onClose: () =
   const net: Net = ex === "coinbase" ? "base" : ex === "other" ? otherNet : "arc";
   const where = ex && ex !== "other" ? ex : "your exchange";
   const [to, setTo] = useState("");
-  const [amount, setAmount] = useState("");
+  // the typed amount belongs to one currency: if the currency changes under it, it starts empty again
+  const [typed, setTyped] = useState<{ cur: Currency | null; v: string }>({ cur: null, v: "" });
   const [picked, setPicked] = useState<Currency | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [hash, setHash] = useState<Hex | "">("");
+  const [unsure, setUnsure] = useState(""); // sent, but confirming it failed: say so, never offer to send again
   const sending = useRef(false); // one tap, one send
 
   const usd = useQuery({ queryKey: ["cents", "usd", w.address], queryFn: () => balanceCents(w.address!, "usd"), enabled: !!w.address });
@@ -50,8 +52,11 @@ export function CashOut({ onBack, onClose }: { onBack: () => void; onClose: () =
   // base only takes usdc. on arc: the currency they hold, euros only when that is all there is, unless they pick
   const currency: Currency = net === "base" ? "usd" : picked ?? (!usd.data && eur.data ? "eur" : "usd");
   const held = (currency === "usd" ? usd.data : eur.data) ?? 0;
-  // through base the wallet pays two tiny arc fees itself, so "all" leaves a couple of cents for them
-  const spendable = net === "base" ? Math.max(0, held - BASE_GAS_CENTS) : held;
+  const amount = typed.cur === currency ? typed.v : "";
+  const setAmount = (v: string) => setTyped({ cur: currency, v });
+  // through base the wallet pays two tiny arc fees itself, so "all" keeps back what today's gas needs
+  const gas = useQuery({ queryKey: ["baseGas"], queryFn: baseGasCents, enabled: net === "base" && step !== "pick", refetchInterval: 60_000 });
+  const spendable = net === "base" ? Math.max(0, held - (gas.data ?? 5)) : held;
   const both = !!usd.data && !!eur.data;
   const token = TOKEN[currency].name.toLowerCase();
   const m = (cents: number) => money(cents / 100, currency);
@@ -67,13 +72,15 @@ export function CashOut({ onBack, onClose }: { onBack: () => void; onClose: () =
   const addr = to.trim();
   const addrErr = !addr ? "" : !isAddress(addr) ? "that isn't an address. it starts with 0x and has 42 characters." : w.address ? unsendable(addr, w.address) : "";
   const amountErr = !amount ? "" : !(cents > 0) ? "how much?" : cents > spendable ? `you can send ${m(spendable)}.`
+    : net === "arc" && cents < 100 ? `send at least ${m(100)}. pottle pays the fee from there.`
     : net === "base" && feeCents !== undefined && arrives < 100 ? `circle's fee is about ${m(feeCents)}, so send at least ${m(feeCents + 100)}.` : "";
   const ready = !!ex && !!addr && !addrErr && cents > 0 && !amountErr && (net === "arc" || feeCents !== undefined);
 
   // through base: ask circle every few seconds until the usdc has been minted there
   const delivery = useQuery({
     queryKey: ["delivery", hash], queryFn: () => baseDelivery(hash as Hex), enabled: step === "sent" && net === "base" && !!hash,
-    refetchInterval: (q) => (q.state.data?.done || q.state.error ? false : 4000), retry: 3,
+    refetchInterval: (q) => (q.state.data?.done || q.state.error ? false : 4000),
+    retry: 10, retryDelay: (n) => Math.min(30_000, 2000 * 2 ** n), // a busy or flaky circle api is asked again, slower
   });
 
   async function paste() {
@@ -83,40 +90,55 @@ export function CashOut({ onBack, onClose }: { onBack: () => void; onClose: () =
   async function send() {
     if (sending.current || !ready || !w.address) return;
     sending.current = true;
-    setBusy(true); setErr("");
+    setBusy(true); setErr(""); setUnsure("");
+    let sent: Hex | "" = "";
     try {
       await readyToSign(); // a wallet locked with a passkey asks for face id now, while the tap still counts
       const c = await w.client();
-      // the fee is read again right before the burn, so a quote from a minute ago can't be too low
-      setHash(net === "base"
-        ? await sendViaBase(c, { to: addr as Address, cents, maxFee: await baseFee(BigInt(cents) * 10_000n) })
-        : await sendOut(c, { to: addr as Address, cents, currency }));
+      const onHash = (h: Hex) => { sent = h; setHash(h); };
+      if (net === "base") {
+        // the fee is read again right before the burn. if it rose past what the review showed, stop and show it
+        const maxFee = await baseFee(BigInt(cents) * 10_000n);
+        if (feeCents === undefined || maxFee > BigInt(feeCents) * 10_000n + 10_000n) {
+          await qc.invalidateQueries({ queryKey: ["basefee"] });
+          throw new Error(`circle's fee changed to about ${m(Number((maxFee + 9_999n) / 10_000n))}. check it and send again.`);
+        }
+        setHash(await sendViaBase(c, { to: addr as Address, cents, maxFee, onHash }));
+      } else {
+        const h = await sendOut(c, { to: addr as Address, cents, currency, auth: w.authHeader(), onHash });
+        setHash(h || (sent as Hex | ""));
+      }
       setStep("sent");
       qc.invalidateQueries({ queryKey: ["cents"] });
       qc.invalidateQueries({ queryKey: [currency === "eur" ? "eur" : "bal", w.address] });
-    } catch (e) { setErr(message(e)); } finally { setBusy(false); sending.current = false; }
+    } catch (e) {
+      // once a transaction exists, never offer to send again: show it, and let the explorer settle it
+      if (sent) { setUnsure(message(e)); setStep("sent"); qc.invalidateQueries({ queryKey: ["cents"] }); }
+      else setErr(message(e));
+    } finally { setBusy(false); sending.current = false; }
   }
 
   const head = (back?: { label: string; to: () => void }) => (
     <div className="cash-head">
       {back ? <button className="linkbtn" onClick={back.to} disabled={busy}>← {back.label}</button> : <span />}
-      <button className="iconbtn" onClick={onClose} aria-label="close"><CloseIcon /></button>
+      <button className="iconbtn" onClick={onClose} aria-label="close" disabled={busy}><CloseIcon /></button>
     </div>
   );
 
   if (step === "sent") {
-    const landed = net === "arc" || delivery.data?.done;
+    const landed = !unsure && (net === "arc" || delivery.data?.done);
     return (
       <div className="cash">
         {head()}
         <h2 className="giant cash-title">{landed ? "sent." : "on its way."}</h2>
+        {unsure && <p className="cash-lead">it was sent, but pottle couldn&apos;t confirm it yet ({unsure}). check the link below before sending again.</p>}
         {net === "arc"
           ? <p className="cash-lead"><b>{m(cents)}</b> {token} is on its way to {where} (<b>{short(addr)}</b>). it usually shows there within a few minutes. then sell it and withdraw to your bank.</p>
           : landed
             ? <p className="cash-lead"><b>{m(arrives)}</b> usdc arrived at {where} (<b>{short(addr)}</b>). it usually shows there within a few minutes. then sell it and withdraw to your bank.</p>
             : <p className="cash-lead">circle is moving <b>{m(cents)}</b> usdc from arc to {BASE_NAME}, the network {ex === "coinbase" ? "coinbase" : "that address"} uses. usually under a minute. you can close this, it carries on.</p>}
         {delivery.error && <p className="err" role="alert">{message(delivery.error)}</p>}
-        <a className="cash-link" href={net === "base" && delivery.data?.tx ? baseExplorerTx(delivery.data.tx) : explorerTx(hash)} target="_blank" rel="noreferrer">
+        <a className="cash-link" href={net === "base" && delivery.data?.tx ? baseExplorerTx(delivery.data.tx) : hash ? explorerTx(hash) : explorerAddress(addr)} target="_blank" rel="noreferrer">
           {net === "base" && delivery.data?.tx ? "see the transfer on base ↗" : "see the transfer on arc ↗"}
         </a>
         <button className="btn lg wide" onClick={onBack}>done</button>

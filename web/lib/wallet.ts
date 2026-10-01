@@ -8,8 +8,8 @@ import { publicClient } from "./pot";
 
 type Relayed = { hash: Hex } | { selfPay: true } | { skip: string };
 
-async function relay(body: object): Promise<Relayed> {
-  const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+async function relay(body: object, auth = ""): Promise<Relayed> {
+  const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json", ...(auth ? { authorization: auth } : {}) }, body: JSON.stringify(body) });
   if (r.status === 503) return { selfPay: true }; // relay off, fall back to the user's own wallet
   const j = await r.json().catch(() => ({}));
   if (j.selfPay) return { selfPay: true }; // relay declined or could not send: the user's own wallet can
@@ -124,53 +124,94 @@ export async function chipIn(c: Client, a: { id: number; amount: number; name: s
   return hash;
 }
 
-/** where a cash out must never go: money sent to the pot contract or a token contract cannot come back */
+const ZERO = "0x0000000000000000000000000000000000000000";
+/** where a cash out must never go: money sent to a contract that can't hand it back is lost */
 export function unsendable(to: string, from: string) {
   const t = to.toLowerCase();
   if (t === from.toLowerCase()) return "that's your own pottle wallet.";
-  if ([POTTLE, TOKEN.usd.address, TOKEN.eur.address].some((a) => a?.toLowerCase() === t)) return "that's a pottle or token contract, not a wallet. money sent there is lost.";
+  if (t === ZERO) return "that's the zero address. money sent there is gone for good.";
+  if ([POTTLE, TOKEN.usd.address, TOKEN.eur.address, CCTP.tokenMessenger].some((a) => a?.toLowerCase() === t)) return "that's a pottle, token or circle contract, not a wallet. money sent there is lost.";
   return "";
 }
 
+/** the token says this authorization has been used: the transfer it signed for has happened */
+const used = (token: Address, from: Address, nonce: Hex) =>
+  publicClient.readContract({ address: token, abi: erc20Abi, functionName: "authorizationState", args: [from, nonce] }).catch(() => false);
+
+// a cash out that was signed but not seen through, kept so a retry reuses it: the same signed transfer can
+// only ever move the money once, where a fresh signature after an error could send it a second time
+type SignedSend = { nonce: Hex; validBefore: bigint; v: number; r: Hex; s: Hex };
+const sends = new Map<string, Promise<SignedSend>>();
+
 /**
- * cash out: sends usdc or eurc from the pottle wallet to any address on arc (an exchange deposit
- * address, another wallet). one signature; the relayer pays the network fee, so "all" really is all.
- * if the relayer declines, the wallet sends it itself, paying the fee in usdc
+ * cash out: sends usdc or eurc from the pottle wallet to an address on arc (an exchange deposit address,
+ * another wallet). one signature, and pottle's relayer pays the network fee, so "all" really is all. if
+ * the relayer can't pay right now this stops and says so, rather than charging the wallet a fee.
+ * onHash hears the transaction as soon as it exists. resolves with its hash, or "" when this exact
+ * transfer had already gone through on an earlier try
  */
-export async function sendOut(c: Client, a: { to: Address; cents: number; currency: Currency }) {
+export async function sendOut(c: Client, a: { to: Address; cents: number; currency: Currency; auth: string; onHash?: (h: Hex) => void }) {
   const from = c.account.address;
   const why = unsendable(a.to, from);
   if (why) throw new Error(why);
   const value = BigInt(a.cents) * 10_000n;
   const token = TOKEN[a.currency];
-  const nonce = toHex(crypto.getRandomValues(new Uint8Array(32)));
-  const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
-  const signature = await c.signTypedData({
-    account: c.account,
-    domain: { name: token.name, version: "2", chainId: chain.id, verifyingContract: token.address },
-    types: {
-      TransferWithAuthorization: [
-        { name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" },
-        { name: "validAfter", type: "uint256" }, { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" },
-      ],
-    },
-    primaryType: "TransferWithAuthorization",
-    message: { from, to: a.to, value, validAfter: 0n, validBefore, nonce },
-  });
-  const { r, s, v, yParity } = parseSignature(signature);
-  const vNum = v !== undefined ? Number(v) : 27 + yParity;
-  const relayed = await relay({ kind: "send", currency: a.currency, from, to: a.to, amount: value.toString(), validBefore: validBefore.toString(), nonce, v: vNum, r, s });
-  if ("skip" in relayed) throw new Error(relayed.skip);
-  // the same signed authorization, sent by the wallet itself: it can only ever move the money once
-  const hash = "hash" in relayed ? relayed.hash : await c.writeContract({
-    address: token.address, abi: erc20Abi, functionName: "transferWithAuthorization", chain, account: c.account,
-    args: [from, a.to, value, 0n, validBefore, nonce, vNum, r, s],
-  });
-  return confirmed(hash);
+  const key = `${chain.id}:${a.currency}:${from}:${a.to}:${value}`.toLowerCase();
+  const fresh = async (): Promise<SignedSend> => {
+    const nonce = toHex(crypto.getRandomValues(new Uint8Array(32)));
+    const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
+    const signature = await c.signTypedData({
+      account: c.account,
+      domain: { name: token.name, version: "2", chainId: chain.id, verifyingContract: token.address },
+      types: {
+        TransferWithAuthorization: [
+          { name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" },
+          { name: "validAfter", type: "uint256" }, { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" },
+        ],
+      },
+      primaryType: "TransferWithAuthorization",
+      message: { from, to: a.to, value, validAfter: 0n, validBefore, nonce },
+    });
+    const { r, s, v, yParity } = parseSignature(signature);
+    return { nonce, validBefore, v: v !== undefined ? Number(v) : 27 + yParity, r, s };
+  };
+  let signing = sends.get(key);
+  const live = async (p: Promise<SignedSend>) => { const got = await p.catch(() => null); return !!got && got.validBefore >= BigInt(Math.floor(Date.now() / 1000) + 180); };
+  if (!signing || !(await live(signing))) {
+    signing = fresh();
+    sends.set(key, signing);
+    signing.catch(() => sends.delete(key)); // a declined signature is not kept
+  }
+  const sig = await signing;
+  // an earlier try already went through: nothing more to send
+  if (await used(token.address, from, sig.nonce)) { sends.delete(key); return ""; }
+  let relayed: Relayed;
+  try {
+    relayed = await relay({ kind: "send", currency: a.currency, from, to: a.to, amount: value.toString(), validBefore: sig.validBefore.toString(), nonce: sig.nonce, v: sig.v, r: sig.r, s: sig.s }, a.auth);
+  } catch (e) {
+    if (await used(token.address, from, sig.nonce)) { sends.delete(key); return ""; }
+    throw e;
+  }
+  if ("skip" in relayed) throw new Error("it's already on its way. check your balance in a minute before sending again.");
+  if ("selfPay" in relayed) throw new Error("pottle can't cover the fee right now. try again in a few minutes.");
+  a.onHash?.(relayed.hash);
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: relayed.hash });
+  // the relayer's copy can fail because the same transfer landed first (a duplicate, another tab): if
+  // the token marks the authorization used, the money moved
+  if (receipt.status !== "success" && !(await used(token.address, from, sig.nonce))) throw new Error("the transfer did not go through");
+  sends.delete(key);
+  return relayed.hash;
 }
 
-/** cash out through base keeps this much usdc back for the two arc network fees it pays itself */
-export const BASE_GAS_CENTS = 2;
+/**
+ * through base the wallet pays two arc network fees itself (the allowance and the burn), so "all" keeps
+ * back enough for them: today's gas price for generous gas amounts, doubled, never under 2 cents
+ */
+export async function baseGasCents() {
+  const price = await publicClient.getGasPrice(); // usdc per gas, 18 decimals
+  const cost = 320_000n * price * 2n; // ~70k allowance + ~250k burn, both generous
+  return Math.max(2, Number((cost + 10n ** 16n - 1n) / 10n ** 16n)); // 1 cent = 1e16 at 18 decimals
+}
 
 /** circle's fee to deliver usdc on base, in token units. the higher quote, so the mint never stalls on a low cap */
 export async function baseFee(amount: bigint) {
@@ -178,29 +219,42 @@ export async function baseFee(amount: bigint) {
   if (!r.ok) throw new Error("couldn't get circle's fee. try again in a minute.");
   const q = (await r.json()) as { finalityThreshold: number; minimumFee: number; forwardFee?: { high: number } }[];
   const fast = q.find((x) => x.finalityThreshold === 1000);
-  if (!fast?.forwardFee) throw new Error("circle isn't delivering to base right now. try again later.");
-  // the protocol fee is in basis points of the amount (zero from arc today), the forwarding fee is flat
-  return BigInt(fast.forwardFee.high) + (amount * BigInt(Math.round(fast.minimumFee * 100))) / 1_000_000n;
+  if (!fast?.forwardFee || !(fast.forwardFee.high >= 0) || !(fast.minimumFee >= 0)) throw new Error("circle isn't delivering to base right now. try again later.");
+  // the protocol fee is in basis points of the amount (zero from arc today), rounded up; the forwarding fee is flat
+  const bps = BigInt(Math.ceil(fast.minimumFee * 100));
+  return BigInt(fast.forwardFee.high) + (amount * bps + 999_999n) / 1_000_000n;
 }
+
+// a burn already made for the same cash out, so a retry after an error follows it instead of burning again
+const burns = new Map<string, { hash: Hex; at: number }>();
 
 /**
  * cash out to a usdc address on base (coinbase, a base wallet): burns usdc on arc through circle's cctp,
- * and circle's forwarding service mints it on base minus its fee. two arc transactions the wallet pays for
- * itself, an allowance (skipped when one is already there) and the burn. returns the burn's hash
+ * and circle's forwarding service mints it on base minus its fee, which is capped at maxFee. two arc
+ * transactions the wallet pays for itself, an allowance (skipped when one is already there) and the
+ * burn. onHash hears the burn as soon as it exists; resolves with its hash
  */
-export async function sendViaBase(c: Client, a: { to: Address; cents: number; maxFee: bigint }) {
+export async function sendViaBase(c: Client, a: { to: Address; cents: number; maxFee: bigint; onHash?: (h: Hex) => void }) {
   const from = c.account.address;
   if (a.to.toLowerCase() === from.toLowerCase()) throw new Error("that's your pottle wallet. it can't spend usdc on base.");
+  const why = unsendable(a.to, from);
+  if (why) throw new Error(why);
   const amount = BigInt(a.cents) * 10_000n;
-  if (a.maxFee >= amount) throw new Error("that's less than circle's fee.");
+  if (amount - a.maxFee < 1_000_000n) throw new Error("after circle's fee less than $1 would arrive. send a little more.");
+  const key = `${chain.id}:${from}:${a.to}:${amount}`.toLowerCase();
+  const before = burns.get(key);
+  if (before && Date.now() - before.at < 30 * 60_000) { a.onHash?.(before.hash); return before.hash; }
   const allowed = await publicClient.readContract({ address: TOKEN.usd.address, abi: erc20Abi, functionName: "allowance", args: [from, CCTP.tokenMessenger] });
   if (allowed < amount) {
     await confirmed(await c.writeContract({ address: TOKEN.usd.address, abi: erc20Abi, functionName: "approve", chain, account: c.account, args: [CCTP.tokenMessenger, amount] }));
   }
-  return confirmed(await c.writeContract({
+  const hash = await c.writeContract({
     address: CCTP.tokenMessenger, abi: tokenMessengerAbi, functionName: "depositForBurnWithHook", chain, account: c.account,
     args: [amount, CCTP.base, pad(a.to), TOKEN.usd.address, pad("0x"), a.maxFee, 1000, CCTP.forwardHook],
-  }));
+  });
+  burns.set(key, { hash, at: Date.now() });
+  a.onHash?.(hash);
+  return confirmed(hash);
 }
 
 /** where a cash out through base is: the mint transaction on base once circle has done it */

@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { createWalletClient, http, isAddress, isHex, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { pottleAbi } from "@/lib/abi";
-import { chain, POTTLE, TOKEN } from "@/lib/config";
+import { CCTP, chain, POTTLE, TOKEN } from "@/lib/config";
 import { erc20Abi } from "@/lib/abi";
 import { allow, clientIp, forget } from "@/lib/limits";
+import { verifyUser } from "@/lib/auth";
 import { withNonceRetry } from "@/lib/retry";
 import { publicClient } from "@/lib/pot";
 
@@ -17,8 +18,12 @@ import { publicClient } from "@/lib/pot";
 //   only counts chip-ins whose signature passed simulation, so nobody can use up someone else's
 // - payouts and refunds are only sponsored for a pot that is really due and has money in it, at most
 //   once a minute per pot, so there are no free no-op transactions to spam
-// - a cash out (an eip-3009 transfer the owner signed) is sponsored from $1 / €1, ten a day per wallet,
-//   never to the pottle contract, a token contract or the sender itself
+// - a cash out (an eip-3009 transfer the owner signed) is sponsored only for a signed-in pottle account
+//   sending from its own wallet, from $1 / €1, ten a day per account (not per wallet, so making fresh
+//   wallets earns nothing), never to the pottle contract, a token contract, circle's cctp contract, the
+//   zero address or the sender itself
+// - one signed authorization is broadcast once: a copy that arrives while the first is in flight is
+//   refused, so the relayer never pays for the reverts of a payload fired many times at once
 // - a reserve it never spends on chip-ins or cash outs, so automatic payouts and refunds always have gas, and a
 //   floor under which it sends nothing at all
 // whenever it declines, it answers { selfPay: true } and the app sends from the user's own wallet.
@@ -29,6 +34,24 @@ const FLOOR = 300_000n; // below $0.30 the relayer stops sending anything
 const MIN_VALIDITY = 120; // a signature must stay valid at least this long, so it cannot expire mid-flight
 const STATUS = ["none", "open", "reached", "released", "refunding", "refunded"] as const;
 const selfPay = (why: string) => NextResponse.json({ selfPay: true, error: why }, { status: 409 });
+
+// authorizations broadcast in the last few minutes, so a duplicate of one in flight isn't sent again.
+// per instance: the account limit for cash outs and the on-chain nonce cover what this can't
+const inFlight = new Map<string, number>();
+function claim(key: string) {
+  const now = Date.now();
+  if ((inFlight.get(key) ?? 0) > now) return false;
+  inFlight.set(key, now + 10 * 60_000);
+  if (inFlight.size > 5000) for (const [k, t] of inFlight) if (t <= now) inFlight.delete(k);
+  return true;
+}
+
+/** a failed simulation, in words that are safe to send back: the contract's revert reason, or nothing */
+function reason(e: unknown) {
+  const text = e instanceof Error ? (e as { shortMessage?: string }).shortMessage ?? e.message : "";
+  const m = /reverted with the following reason:\s*([^\n]{1,120})/.exec(text) ?? /reverted with the custom error '([^']{1,80})'/.exec(text);
+  return m ? `that payment can't go through: ${m[1].trim()}` : "that payment can't go through";
+}
 
 type Body =
   | { kind: "chip"; id: number; from: string; amount: string; name: string; validBefore: string; salt: string; v: number; r: string; s: string }
@@ -73,8 +96,16 @@ export async function POST(req: Request) {
     if (!ok) return NextResponse.json({ error: "bad signature payload" }, { status: 400 });
     // money sent to these is gone: the contract and the tokens have no way to hand it back
     const to = body.to.toLowerCase();
-    const blocked = [body.from, POTTLE, TOKEN.usd.address, TOKEN.eur.address, "0x0000000000000000000000000000000000000000"].map((a) => (a ?? "").toLowerCase());
+    const blocked = [body.from, POTTLE, TOKEN.usd.address, TOKEN.eur.address, CCTP.tokenMessenger, "0x0000000000000000000000000000000000000000"].map((a) => (a ?? "").toLowerCase());
     if (blocked.includes(to)) return NextResponse.json({ error: "can't send to that address" }, { status: 400 });
+  }
+  // a cash out is only sponsored for a signed-in account, from one of its own wallets
+  let userId = ""; // the dynamic user behind a cash out, which its limit is counted against
+  if (body.kind === "send") {
+    const who = await verifyUser(req);
+    if (!who) return NextResponse.json({ error: "sign in again" }, { status: 401 });
+    if (!who.wallets.includes(body.from.toLowerCase())) return NextResponse.json({ error: "not your wallet" }, { status: 403 });
+    userId = who.sub;
   }
 
   const account = privateKeyToAccount(key as Hex);
@@ -89,7 +120,8 @@ export async function POST(req: Request) {
   }
 
   let send: () => Promise<Hex>;
-  let claimed = ""; // a per-pot settle slot, given back if nothing gets sent
+  let claimed = ""; // a per-pot settle slot or a cash-out allowance, given back if nothing gets sent
+  let flying = ""; // this authorization's in-flight mark, cleared if it never gets broadcast
   try {
     if (body.kind === "chip") {
       if (BigInt(body.amount) < MIN_SPONSORED) return selfPay("under the sponsored minimum");
@@ -105,6 +137,8 @@ export async function POST(req: Request) {
       send = () => wallet.writeContract(request);
       // only a chip-in whose signature checked out counts against that wallet's daily sponsored limit
       if (!allow(`from:${body.from.toLowerCase()}`, 20, 86_400_000)) return selfPay("daily sponsored limit");
+      flying = `chip:${body.id}:${body.from.toLowerCase()}:${body.salt}`;
+      if (!claim(flying)) { flying = ""; return NextResponse.json({ error: "already on its way" }, { status: 429 }); }
     } else if (body.kind === "send") {
       if (BigInt(body.amount) < MIN_SPONSORED) return selfPay("under the sponsored minimum");
       if (BigInt(body.validBefore) < BigInt(Math.floor(Date.now() / 1000) + MIN_VALIDITY)) return selfPay("signature about to expire");
@@ -117,7 +151,10 @@ export async function POST(req: Request) {
         args: [body.from as Address, body.to as Address, BigInt(body.amount), 0n, BigInt(body.validBefore), body.nonce as Hex, body.v, body.r as Hex, body.s as Hex],
       });
       send = () => wallet.writeContract(request);
-      if (!allow(`send:${body.from.toLowerCase()}`, 10, 86_400_000)) return selfPay("daily sponsored limit");
+      if (!allow(`send:${userId}`, 10, 86_400_000)) return selfPay("daily sponsored limit");
+      claimed = `send:${userId}`;
+      flying = `send:${body.currency}:${body.from.toLowerCase()}:${body.nonce}`;
+      if (!claim(flying)) { flying = ""; return NextResponse.json({ error: "already on its way" }, { status: 429 }); }
     } else {
       // a payout or refund is sponsored only if it would move money, and at most once a minute per pot
       const [pot, status] = await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "getPot", args: [id] });
@@ -134,8 +171,8 @@ export async function POST(req: Request) {
   } catch (e) {
     // the transaction itself would fail: say why, there is nothing a different sender could change
     if (claimed) forget(claimed);
-    const msg = e instanceof Error ? (e as { shortMessage?: string }).shortMessage ?? e.message : "failed";
-    return NextResponse.json({ error: msg }, { status: 422 });
+    console.warn("[pottle] relay simulation failed:", e instanceof Error ? e.message.slice(0, 300) : e);
+    return NextResponse.json({ error: reason(e) }, { status: 422 });
   }
 
   try {
@@ -143,6 +180,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ hash });
   } catch (e) {
     // it would have worked but the relayer could not send it (gas, nonce, rpc): the user's wallet can
+    if (flying) inFlight.delete(flying);
     if (claimed) forget(claimed);
     console.warn("[pottle] relay send failed:", e instanceof Error ? e.message : e);
     return selfPay("relayer could not send");
