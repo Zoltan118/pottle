@@ -334,6 +334,45 @@ body:has(.sheet.on) { overflow: hidden; }
 .acct-pot-main { flex: 1; min-width: 0; display: grid; gap: 2px; text-decoration: none; }
 .acct-pot-main b { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acct-pot-main span { font-size: 14px; font-weight: 600; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-cash { justify-self: start; margin-top: -6px; }
+/* cash out, inside the account sheet */
+.cash { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+.cash-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; }
+.cash-head .linkbtn { min-height: 44px; }
+.cash-title { font-size: clamp(48px, 12vw, 72px); }
+.cash-lead { margin: 0; font-size: 18px; font-weight: 600; color: var(--muted); line-height: 1.4; }
+.cash-lead b { color: var(--ink); font-weight: 800; }
+.cash-way { appearance: none; border: 0; background: none; text-align: left; font: inherit; color: var(--ink); display: grid; gap: 4px; padding: 18px 20px; border-radius: 22px; box-shadow: inset 0 0 0 2px var(--ink); cursor: pointer; transition: transform 160ms var(--out); }
+.cash-way:active:not(.soon) { transform: scale(.98); }
+.cash-way:focus-visible { outline: 3px solid var(--marigold); outline-offset: 3px; }
+.cash-way b { font-family: var(--display); font-weight: 800; font-size: 24px; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; }
+.cash-way span { font-size: 15px; font-weight: 600; color: var(--muted); line-height: 1.35; }
+.cash-way.soon { box-shadow: inset 0 0 0 2px var(--line); cursor: default; }
+.cash-way.soon b { color: var(--muted); }
+.cash-way em { font-style: normal; font-family: var(--body); font-size: 13px; font-weight: 800; letter-spacing: .02em; padding: 4px 10px; border-radius: 999px; background: var(--line); color: var(--ink); }
+.cash-steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; font-size: 17px; font-weight: 600; line-height: 1.4; }
+.cash-steps b { font-weight: 800; }
+.cash-field { display: flex; align-items: center; gap: 10px; }
+.cash-field > :first-child { flex: 1; min-width: 0; }
+/* both side buttons one width, so the address and amount lines end at the same x */
+.cash-field .btn { flex: none; white-space: nowrap; width: 128px; justify-content: center; padding-inline: 0; }
+.cash .cur { display: flex; gap: 10px; }
+.cash-q { display: grid; gap: 10px; }
+.cash-q .label { font-size: 15px; font-weight: 700; color: var(--muted); }
+.cash-warn b { color: var(--ink); }
+.cash .cur .chip { padding-inline: 18px; }
+.cash-to { font-size: clamp(22px, 6vw, 30px); font-variant-numeric: tabular-nums; }
+.cash-warn { margin: 0; }
+.cash-link { font-weight: 800; color: var(--ink); text-underline-offset: 3px; justify-self: start; }
+.cash-addr { display: flex; flex-wrap: wrap; gap: 4px 10px; font: 700 20px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 16px 18px; border-radius: 18px; box-shadow: inset 0 0 0 2px var(--line); overflow-wrap: anywhere; }
+/* the optional passkey lock */
+.lock { display: grid; gap: 8px; padding: 16px 18px; border-radius: 20px; box-shadow: inset 0 0 0 2px var(--line); }
+.lock.on { box-shadow: inset 0 0 0 2px var(--ink); }
+.lock-title { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -.02em; }
+.lock-text { margin: 0; min-height: 0; }
+.lock-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 4px; }
+.lock-code { flex: 1; min-width: 0; font-size: 22px; }
+.lock-codes { margin: 4px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; font: 700 17px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .acct-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* circle onramp, full screen over everything */

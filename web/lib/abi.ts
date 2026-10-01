@@ -817,4 +817,27 @@ export const pottleAbi = [
 
 export const erc20Abi = [
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "a", type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "allowance", stateMutability: "view", inputs: [{ name: "o", type: "address" }, { name: "s", type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "s", type: "address" }, { name: "v", type: "uint256" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "value", type: "uint256" }], outputs: [{ type: "bool" }] },
+  // eip-3009: the owner signs, anyone submits. lets the relayer pay the fee for a cash out
+  {
+    type: "function", name: "transferWithAuthorization", stateMutability: "nonpayable", outputs: [],
+    inputs: [
+      { name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" }, { name: "validAfter", type: "uint256" },
+      { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" }, { name: "v", type: "uint8" }, { name: "r", type: "bytes32" }, { name: "s", type: "bytes32" },
+    ],
+  },
 ] as const
+
+// circle cctp v2 token messenger, only the call pottle makes
+export const tokenMessengerAbi = [
+  {
+    type: "function", name: "depositForBurnWithHook", stateMutability: "nonpayable", outputs: [],
+    inputs: [
+      { name: "amount", type: "uint256" }, { name: "destinationDomain", type: "uint32" }, { name: "mintRecipient", type: "bytes32" },
+      { name: "burnToken", type: "address" }, { name: "destinationCaller", type: "bytes32" }, { name: "maxFee", type: "uint256" },
+      { name: "minFinalityThreshold", type: "uint32" }, { name: "hookData", type: "bytes" },
+    ],
+  },
+] as const;

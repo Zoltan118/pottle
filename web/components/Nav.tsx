@@ -12,6 +12,8 @@ import { NetSwitch } from "./NetSwitch";
 import { Sheet } from "./Sheet";
 import { HomeScreenTip } from "./HomeScreenTip";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
+import { CashOut } from "./CashOut";
+import { Lock } from "./Lock";
 import { CloseIcon, CopyIcon, ShareIcon } from "./Icons";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -21,6 +23,8 @@ export function Nav({ action }: { action?: React.ReactNode }) {
   const w = useWallet();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [cash, setCash] = useState(false); // the account sheet is showing cash out
+  const close = () => { setOpen(false); setCash(false); };
   const [copied, setCopied] = useState<string | null>(null);
 
   const bal = useQuery({
@@ -92,7 +96,8 @@ export function Nav({ action }: { action?: React.ReactNode }) {
         </div>
       </nav>
 
-      <Sheet open={open} onClose={() => setOpen(false)} label="your account" closeButton={false}>
+      <Sheet open={open} onClose={close} label="your account" closeButton={false}>
+        {cash ? <CashOut onBack={() => setCash(false)} onClose={close} /> : <>
         <div className="acct-top">
           <button className="addr" onClick={() => w.address && copy(w.address, "addr")} aria-label="copy your address">
             <i />{w.address ? short(w.address) : ""}<span><CopyIcon done={copied === "addr"} />{copied === "addr" ? "copied" : "copy"}</span>
@@ -102,6 +107,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
 
         <div className="acct-bal">{exact}<small>usdc on arc</small></div>
         {!!eur.data && eur.data > 0 && <div className="acct-bal2">{eurMoney(eur.data)}<small>eurc on arc</small></div>}
+        {(!!bal.data && bal.data >= 0.01) || (!!eur.data && eur.data >= 0.01) ? <button className="btn sm ghost acct-cash" onClick={() => setCash(true)}>cash out</button> : null}
 
         {ONRAMP_ON
           ? <AddMoney active={open} onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
@@ -135,8 +141,10 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           ))}
         </div>
 
+        <Lock />
         <HomeScreenTip lead="use it like an app:" />
-        <button className="btn lg ghost wide" onClick={() => { setOpen(false); w.signOut(); }}>sign out</button>
+        <button className="btn lg ghost wide" onClick={() => { close(); w.signOut(); }}>sign out</button>
+        </>}
       </Sheet>
     </div>
   );

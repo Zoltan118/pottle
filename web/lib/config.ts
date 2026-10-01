@@ -33,6 +33,21 @@ if (missingEnv.length) console.warn(`[pottle] missing env: ${missingEnv.join(", 
 // arc's own explorers, the ones its docs link to
 const EXPLORER = NETWORK === "mainnet" ? "https://explorer.arc.io" : "https://explorer.testnet.arc.io";
 export const explorerAddress = (a: string) => `${EXPLORER}/address/${a}`;
+export const explorerTx = (h: string) => `${EXPLORER}/tx/${h}`;
+
+// cash out through base: circle's cctp v2 burns usdc on arc and its forwarding service mints it on base,
+// taking its fee from the usdc, so nobody needs eth on base. public circle contracts, the same address on
+// every chain of a network. arc is cctp domain 26, base is 6
+export const CCTP = {
+  tokenMessenger: (NETWORK === "mainnet" ? "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d" : "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA") as Address,
+  iris: NETWORK === "mainnet" ? "https://iris-api.circle.com" : "https://iris-api-sandbox.circle.com",
+  arc: 26,
+  base: 6,
+  // "cctp-forward", version 0, no extra data: asks circle to do the mint on base
+  forwardHook: "0x636374702d666f72776172640000000000000000000000000000000000000000" as const,
+};
+export const BASE_NAME = NETWORK === "mainnet" ? "base" : "base sepolia";
+export const baseExplorerTx = (h: string) => `${NETWORK === "mainnet" ? "https://basescan.org" : "https://sepolia.basescan.org"}/tx/${h}`;
 
 export const REPO = "https://github.com/Zoltan118/pottle";
 /** the public address of this site. vercel sets VERCEL_PROJECT_PRODUCTION_URL; NEXT_PUBLIC_SITE_URL overrides it (e.g. a custom domain) */

@@ -5,6 +5,7 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
 import { walletStore } from "@/lib/walletStore";
+import { readyToSign } from "@/lib/dynamicClient";
 import { Nav } from "@/components/Nav";
 import { PotLive, type PotFeed } from "@/components/PotLive";
 import { AddMoney, ONRAMP_ON } from "@/components/AddMoney";
@@ -110,6 +111,7 @@ export function PotView({ initial }: { initial: PotData }) {
     }
     setBusy("pay");
     try {
+      await readyToSign(); // a wallet locked with a passkey asks for face id now, while the tap still counts
       const cur = walletStore.get(); // after an await, read the live wallet, not this render's copy
       // whole cents from the token units, so "you have" and "add" are exact to the cent
       let heldC = await balanceCents(cur.address!, pot.currency);

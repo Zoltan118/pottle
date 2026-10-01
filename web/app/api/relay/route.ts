@@ -17,7 +17,9 @@ import { publicClient } from "@/lib/pot";
 //   only counts chip-ins whose signature passed simulation, so nobody can use up someone else's
 // - payouts and refunds are only sponsored for a pot that is really due and has money in it, at most
 //   once a minute per pot, so there are no free no-op transactions to spam
-// - a reserve it never spends on chip-ins, so automatic payouts and refunds always have gas, and a
+// - a cash out (an eip-3009 transfer the owner signed) is sponsored from $1 / €1, ten a day per wallet,
+//   never to the pottle contract, a token contract or the sender itself
+// - a reserve it never spends on chip-ins or cash outs, so automatic payouts and refunds always have gas, and a
 //   floor under which it sends nothing at all
 // whenever it declines, it answers { selfPay: true } and the app sends from the user's own wallet.
 
@@ -30,7 +32,12 @@ const selfPay = (why: string) => NextResponse.json({ selfPay: true, error: why }
 
 type Body =
   | { kind: "chip"; id: number; from: string; amount: string; name: string; validBefore: string; salt: string; v: number; r: string; s: string }
+  | { kind: "send"; id?: undefined; currency: string; from: string; to: string; amount: string; validBefore: string; nonce: string; v: number; r: string; s: string }
   | { kind: "release" | "refund"; id: number };
+
+const sig = (b: { v: number; r: string; s: string }) =>
+  (b.v === 27 || b.v === 28) && typeof b.r === "string" && isHex(b.r) && b.r.length === 66 && typeof b.s === "string" && isHex(b.s) && b.s.length === 66;
+const uint = (x: unknown) => typeof x === "string" && /^\d{1,20}$/.test(x);
 
 export async function POST(req: Request) {
   const key = process.env.RELAYER_PRIVATE_KEY;
@@ -46,8 +53,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
   if (!body || typeof body !== "object") return NextResponse.json({ error: "bad json" }, { status: 400 });
-  if (!Number.isSafeInteger(body.id) || body.id < 1) return NextResponse.json({ error: "bad pot id" }, { status: 400 });
-  if (body.kind !== "chip" && body.kind !== "release" && body.kind !== "refund") return NextResponse.json({ error: "unknown kind" }, { status: 400 });
+  if (body.kind !== "chip" && body.kind !== "send" && body.kind !== "release" && body.kind !== "refund") return NextResponse.json({ error: "unknown kind" }, { status: 400 });
+  if (body.kind !== "send" && (!Number.isSafeInteger(body.id) || body.id < 1)) return NextResponse.json({ error: "bad pot id" }, { status: 400 });
 
   // the whole payload is checked before anything counts against a limit
   if (body.kind === "chip") {
@@ -59,10 +66,20 @@ export async function POST(req: Request) {
       typeof body.name === "string" && body.name.length > 0 && body.name.length <= 24;
     if (!ok) return NextResponse.json({ error: "bad signature payload" }, { status: 400 });
   }
+  if (body.kind === "send") {
+    const ok = (body.currency === "usd" || body.currency === "eur") && typeof body.from === "string" && isAddress(body.from) &&
+      typeof body.to === "string" && isAddress(body.to) && typeof body.nonce === "string" && isHex(body.nonce) && body.nonce.length === 66 &&
+      sig(body) && uint(body.amount) && uint(body.validBefore);
+    if (!ok) return NextResponse.json({ error: "bad signature payload" }, { status: 400 });
+    // money sent to these is gone: the contract and the tokens have no way to hand it back
+    const to = body.to.toLowerCase();
+    const blocked = [body.from, POTTLE, TOKEN.usd.address, TOKEN.eur.address, "0x0000000000000000000000000000000000000000"].map((a) => (a ?? "").toLowerCase());
+    if (blocked.includes(to)) return NextResponse.json({ error: "can't send to that address" }, { status: 400 });
+  }
 
   const account = privateKeyToAccount(key as Hex);
   const wallet = createWalletClient({ account, chain, transport: http() });
-  const id = BigInt(body.id);
+  const id = BigInt(body.id ?? 0);
 
   if (!allow(`ip:${clientIp(req)}`, 12, 60_000)) return selfPay("slow down");
   const gas = await publicClient.readContract({ address: TOKEN.usd.address, abi: erc20Abi, functionName: "balanceOf", args: [account.address] });
@@ -88,6 +105,19 @@ export async function POST(req: Request) {
       send = () => wallet.writeContract(request);
       // only a chip-in whose signature checked out counts against that wallet's daily sponsored limit
       if (!allow(`from:${body.from.toLowerCase()}`, 20, 86_400_000)) return selfPay("daily sponsored limit");
+    } else if (body.kind === "send") {
+      if (BigInt(body.amount) < MIN_SPONSORED) return selfPay("under the sponsored minimum");
+      if (BigInt(body.validBefore) < BigInt(Math.floor(Date.now() / 1000) + MIN_VALIDITY)) return selfPay("signature about to expire");
+      if (gas < RESERVE) {
+        console.warn(`[pottle] relayer at reserve, ${Number(gas) / 1e6} usdc left, top it up: ${account.address}`);
+        return selfPay("relayer at reserve");
+      }
+      const { request } = await publicClient.simulateContract({
+        account, address: TOKEN[body.currency as "usd" | "eur"].address, abi: erc20Abi, functionName: "transferWithAuthorization",
+        args: [body.from as Address, body.to as Address, BigInt(body.amount), 0n, BigInt(body.validBefore), body.nonce as Hex, body.v, body.r as Hex, body.s as Hex],
+      });
+      send = () => wallet.writeContract(request);
+      if (!allow(`send:${body.from.toLowerCase()}`, 10, 86_400_000)) return selfPay("daily sponsored limit");
     } else {
       // a payout or refund is sponsored only if it would move money, and at most once a minute per pot
       const [pot, status] = await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "getPot", args: [id] });

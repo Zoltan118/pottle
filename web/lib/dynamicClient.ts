@@ -82,16 +82,89 @@ export async function session(): Promise<{ address: Address; userId?: string } |
 }
 
 /** a viem wallet client for the signed-in embedded wallet. refuses any chain but pottle's: a signature
- * made for the wrong chain is a payment that lands somewhere else */
+ * made for the wrong chain is a payment that lands somewhere else. every signature first asks for the
+ * person's passkey when they have locked their wallet with one */
 export async function walletClient(): Promise<WalletClient<Transport, Chain, Account>> {
   const c = await loadDynamic();
   const { isEvmWalletAccount } = await import("@dynamic-labs-sdk/evm");
   const { createWalletClientForWalletAccount } = await import("@dynamic-labs-sdk/evm/viem");
   const account = c.getWalletAccounts().find(isEvmWalletAccount);
   if (!account) throw new Error("sign in first");
-  const wc = await createWalletClientForWalletAccount({ walletAccount: account });
+  const wc = (await createWalletClientForWalletAccount({ walletAccount: account })) as unknown as WalletClient<Transport, Chain, Account>;
   if (wc.chain?.id !== chain.id) throw new Error(`the wallet is on chain ${wc.chain?.id}, not ${chain.name}`);
-  return wc as unknown as WalletClient<Transport, Chain, Account>;
+  return {
+    ...wc,
+    signTypedData: (async (args) => { await unlockSigning(); return wc.signTypedData(args); }) as typeof wc.signTypedData,
+    signMessage: (async (args) => { await unlockSigning(); return wc.signMessage(args); }) as typeof wc.signMessage,
+    writeContract: (async (args) => { await unlockSigning(); return wc.writeContract(args); }) as typeof wc.writeContract,
+    sendTransaction: (async (args) => { await unlockSigning(); return wc.sendTransaction(args); }) as typeof wc.sendTransaction,
+  };
+}
+
+/*
+ * passkeys, optional. someone who adds one has locked their wallet: dynamic's own servers then refuse
+ * to sign anything for them without a fresh face id (or fingerprint, or device pin), so a hacked email
+ * on its own can't move their money. everyone else signs as before. this needs, in dynamic's dashboard:
+ * mfa on but not required, the passkey method on, and wallet signing marked as an action that needs it
+ */
+
+/** dynamic is set up for optional passkeys (see above). false hides the feature */
+export async function passkeysOffered() {
+  const c = await loadDynamic();
+  const mfa = c.getDefaultClient().projectSettings?.security?.mfa;
+  return !!mfa?.enabled && !!mfa.methods?.some((m) => m.type === "passkey" && m.enabled) &&
+    !!mfa.actions?.some((a) => a.action === c.MFAAction.WalletWaasSign && a.required);
+}
+
+export type Passkey = { id: string; createdAt: Date; device?: string };
+export async function passkeys(): Promise<Passkey[]> {
+  const c = await loadDynamic();
+  return (await c.getPasskeys()).map((p) => ({ id: p.id, createdAt: p.createdAt, device: p.alias || p.userAgent }));
+}
+
+/** adds a passkey for this account. returns recovery codes to show once, when dynamic issues them */
+export async function addPasskey(): Promise<string[]> {
+  const c = await loadDynamic();
+  await c.registerPasskey();
+  if (!c.isPendingRecoveryCodesAcknowledgment()) return [];
+  const { recoveryCodes } = await c.getMfaRecoveryCodes();
+  return recoveryCodes ?? [];
+}
+/** the person saved their recovery codes */
+export async function codesSaved() {
+  const c = await loadDynamic();
+  await c.acknowledgeRecoveryCodes();
+}
+
+export async function removePasskey(id: string) {
+  const c = await loadDynamic();
+  await unlockSigning(true); // removing the lock takes the lock itself
+  await c.deletePasskey({ passkeyId: id });
+}
+
+/** a lost passkey: one recovery code stands in for it, once */
+export async function redeemRecoveryCode(code: string) {
+  const c = await loadDynamic();
+  await c.authenticateMfaRecoveryCode({ code: code.trim(), requestedScopes: [c.TokenScope.Walletsign] });
+}
+
+/** call first thing in a pay / send / create tap: iphones only show face id straight after a tap, not
+ * after the network calls that come before the signature. a no-op for accounts without a passkey */
+export const readyToSign = () => (loaded ? unlockSigning() : Promise.resolve());
+
+/** before a signature: if this account is locked with a passkey and no proof is banked yet, ask for it */
+async function unlockSigning(always = false) {
+  const c = await loadDynamic();
+  if (!always && !(await c.isMfaRequiredForAction({ mfaAction: c.MFAAction.WalletWaasSign }))) return;
+  if (!always && c.getElevatedAccessToken({ scope: c.TokenScope.Walletsign, consume: false })) return;
+  try {
+    await c.authenticatePasskeyMFA({ requestedScopes: [c.TokenScope.Walletsign] });
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "NotAllowedError" || name === "AbortError") throw new Error("face id was cancelled, so nothing was signed.");
+    if (name === "NoPasskeyCredentialsFoundError") throw new Error("this phone doesn't have your passkey. use a recovery code in your account.");
+    throw e;
+  }
 }
 
 /**
