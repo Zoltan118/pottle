@@ -229,12 +229,11 @@ export const readyToSign = () => (loaded ? unlockSigning() : Promise.resolve());
  * accounts locked with a passkey should), and if so, face id provides it */
 async function unlockSigning() {
   const c = await loadDynamic();
+  // no passkey, no lock: pottle asks for nothing and leaves the decision to dynamic's server. (its
+  // step-up check reports "email re-auth" for these accounts, from the "not required" enrollment
+  // setting, so it can't be what decides whether to stop a payment here)
+  if (!(await c.getPasskeys()).length) return;
   if (!(await c.checkStepUpAuth({ scope: c.TokenScope.Walletsign })).isRequired) return;
-  if (!(await c.getPasskeys()).length) {
-    // dynamic wants proof from someone who never locked their wallet: the dashboard is set up wrong
-    console.warn("[pottle] dynamic asks for step-up on wallet signing for an account with no passkey. check the mfa settings");
-    throw new Error("signing is blocked by a sign-in setting on pottle's side. try again later.");
-  }
   await passkeyProof(c.TokenScope.Walletsign);
 }
 
