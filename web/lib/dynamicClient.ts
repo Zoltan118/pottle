@@ -135,14 +135,17 @@ export async function walletClient(): Promise<WalletClient<Transport, Chain, Acc
  * passkeys, optional. someone who adds one has locked their wallet: dynamic's own servers then refuse
  * to sign anything for them without a fresh face id (or fingerprint, or device pin), so a hacked email
  * on its own can't move their money. everyone else signs as before. this needs, in dynamic's dashboard:
- * mfa on but not required, the passkey method on, and wallet signing marked as an action that needs it
+ * enrollment "not required", session-based mfa off, the passkey method on (with backup codes), and
+ * wallet signing as a protected step-up action
  */
 
 /** dynamic is set up for optional passkeys (see above). false hides the feature */
 export async function passkeysOffered() {
   const c = await loadDynamic();
   const mfa = c.getDefaultClient().projectSettings?.security?.mfa;
-  return !!mfa?.enabled && !!mfa.methods?.some((m) => m.type === "passkey" && m.enabled) &&
+  // not mfa.enabled: in dynamic's dashboard that flag is "session-based mfa" (a second factor at every
+  // login), which pottle keeps off. the lock only needs the passkey method and signing as a protected action
+  return !!mfa?.methods?.some((m) => m.type === "passkey" && m.enabled) &&
     !!mfa.actions?.some((a) => a.action === c.MFAAction.WalletWaasSign && a.required);
 }
 
