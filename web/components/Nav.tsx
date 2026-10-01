@@ -141,7 +141,11 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           ))}
         </div>
 
-        <Lock />
+        <Lock onRelogin={() => {
+          // close this sheet first; the sign-in sheet opens once it has slid away (its back-button step too)
+          close();
+          window.setTimeout(() => { w.signOut(); void w.signIn(); }, 450);
+        }} />
         <HomeScreenTip lead="use it like an app:" />
         <button className="btn lg ghost wide" onClick={() => { close(); w.signOut(); }}>sign out</button>
         </>}

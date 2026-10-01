@@ -22,7 +22,7 @@ const explain = (e: unknown) => {
   return message(e);
 };
 
-export function Lock() {
+export function Lock({ onRelogin }: { onRelogin: () => void }) {
   const w = useWallet();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -45,8 +45,14 @@ export function Lock() {
     return (
       <div className="lock">
         <b className="lock-title">lock with face id</b>
-        <p className="err lock-text" role="alert">couldn&apos;t check your passkeys: {why}{/unauthori[sz]ed|401/i.test(why) ? ". sign out and back in, then try again." : ""}</p>
-        <div className="lock-acts"><button className="btn sm ghost" onClick={() => list.refetch()} disabled={list.isFetching}>try again</button></div>
+        {/unauthori[sz]ed|401/i.test(why) ? <>
+          {/* the sign-in session is older than the account's security settings: a fresh one fixes it */}
+          <p className="hint lock-text">your sign-in needs refreshing before you can add a lock. it takes one email code.</p>
+          <div className="lock-acts"><button className="btn sm" onClick={onRelogin}>sign in again</button></div>
+        </> : <>
+          <p className="err lock-text" role="alert">couldn&apos;t check your passkeys: {why}</p>
+          <div className="lock-acts"><button className="btn sm ghost" onClick={() => list.refetch()} disabled={list.isFetching}>try again</button></div>
+        </>}
       </div>
     );
   }
