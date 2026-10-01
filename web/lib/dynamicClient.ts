@@ -137,12 +137,30 @@ export async function confirmForPasskey(): Promise<Verification | null> {
 export async function confirmCode(v: Verification, code: string) {
   const c = await loadDynamic();
   await c.verifyOTP({ otpVerification: v, verificationToken: code.trim(), requestedScopes: [c.TokenScope.Credentiallink] });
+  // the code was right but dynamic gave no permission to add a passkey: say so now, not one tap later
+  if (!c.getElevatedAccessToken({ scope: c.TokenScope.Credentiallink, consume: false })) {
+    throw new Error("the code worked, but sign-in didn't allow adding a passkey (no credential:link permission).");
+  }
 }
 
 /** adds a passkey (call from a tap: it opens face id). returns recovery codes to show once */
 export async function addPasskey(): Promise<string[]> {
   const c = await loadDynamic();
-  await c.registerPasskey();
+  const permitted = !!c.getElevatedAccessToken({ scope: c.TokenScope.Credentiallink, consume: false });
+  // which site the passkey is being made for, read off the browser call, for when dynamic refuses it
+  let rp = "?";
+  const create = navigator.credentials.create.bind(navigator.credentials);
+  navigator.credentials.create = (o?: CredentialCreationOptions) => { rp = o?.publicKey?.rp?.id ?? "(none)"; return create(o); };
+  try {
+    await c.registerPasskey();
+  } catch (e) {
+    const x = e as { name?: string; message?: string; status?: number; code?: string };
+    if (x.name === "NotAllowedError" || x.name === "AbortError" || x.name === "InvalidStateError") throw e;
+    console.warn("[pottle] adding a passkey failed", { rp, host: location.hostname, permitted, status: x.status, code: x.code, message: x.message });
+    throw new Error(`dynamic refused the passkey: ${x.message ?? "error"} (status ${x.status ?? "?"}, code ${x.code ?? "?"}, passkey for ${rp}, site ${location.hostname}, permission ${permitted ? "yes" : "no"})`);
+  } finally {
+    navigator.credentials.create = create;
+  }
   if (!c.isPendingRecoveryCodesAcknowledgment()) return [];
   const { recoveryCodes } = await c.getMfaRecoveryCodes();
   return recoveryCodes ?? [];

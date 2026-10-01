@@ -12,7 +12,7 @@ import * as dyn from "@/lib/dynamicClient";
  */
 
 const message = (e: unknown) =>
-  e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong";
+  e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 320) : "something went wrong";
 // the browser's own words for a cancelled face id or a passkey that already exists, in ours
 const explain = (e: unknown) => {
   const name = e instanceof Error ? e.name : "";
