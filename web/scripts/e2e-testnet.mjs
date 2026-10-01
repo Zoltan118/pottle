@@ -150,9 +150,9 @@ for (const [to, what] of [[POTTLE, "the pottle contract"], [EURC, "a token contr
   const [st] = await post(await signSend(cashPk, "usd", to, 1));
   check(st === 400, `a cash out to ${what} is refused before anything is sent`);
 }
-let [st, j] = await post({ ...(await signSend(cashPk, "usd", dest, 1)), r: "0x12" });
+let [st] = await post({ ...(await signSend(cashPk, "usd", dest, 1)), r: "0x12" });
 check(st === 400, "a malformed signature is refused");
-[st, j] = await post(await signSend(cashPk, "usd", dest, 1));
+[st] = await post(await signSend(cashPk, "usd", dest, 1));
 check(st === 401, "a cash out without a signed-in pottle account isn't sponsored (fresh wallets earn nothing)");
 // the signature rules the relayer depends on, checked against the tokens themselves: the script submits
 const xferAbi = parseAbi(["function transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)", "function authorizationState(address,bytes32) view returns (bool)"]);

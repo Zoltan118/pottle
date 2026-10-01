@@ -101,10 +101,11 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
   transaction exists the screen shows it and never offers to send again. through base, the fee is read
   again just before the burn and the send stops if it rose past what the review showed, at least $1
   must arrive, and "all" keeps back today's gas for the two arc transactions
-- **the passkey lock** is enforced by dynamic's servers (step-up before any wallet signature), not by
-  pottle's pages. recovery codes are shown once and marked as seen at once, so they can't be fetched
-  again later, and there is no way in pottle to make new ones. the lock card lists every passkey with
-  its device and date, so one nobody here added stands out
+- **face id sign-in** is a passkey that signs the person in, and that dynamic's servers ask for
+  (step-up) before a key is added to or removed from the account. it does not guard payments: see the
+  october review below. recovery codes are shown once and marked as seen at once, so they can't be
+  fetched again later, and there is no way in pottle to make new ones. the card lists every passkey
+  with its device and date, so one nobody here added stands out
 - **the settle job** (`/api/cron/settle`) is protected by a secret compared in constant time, only to
   stop strangers spending the relayer's gas; the functions it calls are permissionless anyway. it reads
   every pot, skips the ones with nothing to do, starts each run at a different place so a pot that keeps
@@ -157,8 +158,8 @@ checks, text from the chain, headers and ci). what remains is accepted on purpos
 
 ## review of cash out, receive and passkeys, october 2026
 
-the features added after that review (cash out on arc and through base, receive, the passkey lock and
-passkey sign-in, the new account sheet) were reviewed by three independent reviewers: the relayer and
+the features added after that review (cash out on arc and through base, receive, passkeys, the new
+account sheet) were reviewed by three independent reviewers: the relayer and
 servers, the money flows in the browser, and sign-in and passkeys. every finding was fixed or is
 listed below.
 
@@ -183,10 +184,15 @@ fixed:
   into an error, sign-out finishes before the next sign-in starts, close is disabled while a cash out
   is being sent, a mistyped network setting is reported instead of quietly meaning testnet
 
-checked against dynamic's live servers, from a real session on a locked account signed in with email
-only (the test site's `/dev/lock-check` page): whether recovery codes can be read or made, and whether
-an email code can grant payment, add-a-key or remove-a-key permission. results: (to be filled in after
-the run)
+**a face id lock on payments was planned and taken out.** the idea was that anyone who adds a passkey
+must pass face id before every payment, enforced by dynamic's servers, while everyone else pays as
+before. checked from a real session against dynamic's servers, that can't be expressed: with passkey
+enrollment "not required", dynamic protects signing for everyone, and people without a passkey fall back
+to an email code before every payment (making a pot failed until signing was taken off the protected
+list). a face id check only in pottle's pages would be skippable, so pottle doesn't offer one. the
+passkey stays as face id sign-in and as the guard on adding and removing keys. the same run showed
+recovery codes refused on an account without a second factor; the part that asked an email code for
+extra permissions didn't complete (the code was rejected as stale), so it shows nothing either way
 
 accepted on purpose:
 
@@ -194,8 +200,10 @@ accepted on purpose:
   each serverless instance's memory, so a determined attacker spread across instances gets more than
   the limits say. sponsoring now needs a signed-in account, which makes that costly; a shared store is
   the next step if abuse shows up
-- **a passkey added by someone with your email first.** on an account with no lock yet, someone who
-  controls your email can add their own passkey before you do, and you can't remove it without a
-  passkey. the lock card lists every passkey with its device and date so it is visible. that is the
-  same exposure as any email sign-in account without a second factor
+- **email is the key to the wallet.** without a lock on payments, whoever controls someone's email can
+  sign in and spend their wallet, as with any email sign-in wallet. a pot's money is not at risk (only
+  the organiser can be paid, and only by the contract), and in beta a pot holds at most $100
+- **a passkey added by someone with your email first.** someone who controls your email can add their
+  own passkey before you do, and you can't remove it without a passkey or a recovery code. the card
+  lists every passkey with its device and date so it is visible
 

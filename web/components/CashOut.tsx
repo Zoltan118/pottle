@@ -7,7 +7,6 @@ import { useWallet } from "@/app/providers";
 import { baseDelivery, baseFee, baseGasCents, balanceCents, sendOut, sendViaBase, unsendable } from "@/lib/wallet";
 import { BASE_NAME, baseExplorerTx, explorerAddress, explorerTx, NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { money } from "@/lib/pot";
-import { readyToSign } from "@/lib/dynamicClient";
 import { CloseIcon } from "./Icons";
 
 /*
@@ -93,7 +92,6 @@ export function CashOut({ onBack, onClose }: { onBack: () => void; onClose: () =
     setBusy(true); setErr(""); setUnsure("");
     let sent: Hex | "" = "";
     try {
-      await readyToSign(); // a wallet locked with a passkey asks for face id now, while the tap still counts
       const c = await w.client();
       const onHash = (h: Hex) => { sent = h; setHash(h); };
       if (net === "base") {

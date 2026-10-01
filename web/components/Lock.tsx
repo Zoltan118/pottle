@@ -33,8 +33,8 @@ const explain = (e: unknown) => {
   return message(e);
 };
 
-// the recovery codes on screen live outside the card: the card moves within the account sheet (the nudge
-// puts it first), and a moved card starts fresh, which would wipe codes before anyone saved them
+// the recovery codes on screen live outside the card, so nothing that redraws the card can wipe them
+// before anyone saved them
 // they belong to one account, so another account signing in on this tab never sees them
 let shown: { owner?: string; codes: string[] } = { codes: [] };
 const watchers = new Set<() => void>();
@@ -52,7 +52,7 @@ function device(ua = "") {
   return [os, browser].filter(Boolean).join(", ") || ua.slice(0, 40) || "a device";
 }
 
-/** whether this account can add the lock, and its passkeys. shared by the card and the nudge in the nav */
+/** whether face id sign-in is offered, and this account's passkeys. shared by the card and the nav row */
 export function useLock(address?: string) {
   const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!address, staleTime: Infinity, retry: false });
   const list = useQuery({ queryKey: ["passkeys", address], queryFn: dyn.passkeys, enabled: !!address && !!offered.data,
@@ -60,13 +60,8 @@ export function useLock(address?: string) {
   return { offered, list, unlocked: !!offered.data && list.data?.length === 0 };
 }
 
-// "not now" on the nudge holds for a week
-const LATER = "pottle:lock-later";
-export const lockLater = () => { try { localStorage.setItem(LATER, String(Date.now())); } catch {} };
-export const lockSnoozed = () => { try { return Date.now() - Number(localStorage.getItem(LATER) ?? 0) < 7 * 86_400_000; } catch { return false; } };
-
-/** nudge: the amount they hold, when it's worth locking; the card then leads with it and offers "not now" */
-export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nudge?: string; onLater?: () => void }) {
+/** face id sign-in: add a passkey, see the ones on the account, recover from a lost one */
+export function Lock({ onRelogin }: { onRelogin: () => void }) {
   const w = useWallet();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -90,10 +85,10 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
     const why = message(list.error);
     return (
       <div className="lock">
-        <b className="lock-title">lock with face id</b>
+        <b className="lock-title">face id sign-in</b>
         {refused(list.error) ? <>
           {/* dynamic won't accept this sign-in for account changes. its own reason is shown, to fix it from */}
-          <p className="hint lock-text">your sign-in needs refreshing before you can add a lock. it takes one email code.</p>
+          <p className="hint lock-text">your sign-in needs refreshing before you can add a passkey. it takes one email code.</p>
           <p className="hint lock-text lock-why">{why}</p>
           <div className="lock-acts"><button className="btn sm" onClick={onRelogin}>sign in again</button></div>
         </> : <>
@@ -117,7 +112,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
     return (
       <div className="lock">
         <b className="lock-title">save these codes.</b>
-        <p className="hint lock-text">if you lose this phone and your passkey with it, one code unlocks your wallet once. they&apos;re shown only now: save them somewhere other than your email before you close this.</p>
+        <p className="hint lock-text">if you lose this phone and your passkey with it, one code lets you remove that passkey, so you can add one on your new phone. they&apos;re shown only now: save them somewhere other than your email before you close this.</p>
         <ol className="lock-codes">{codes.map((c) => <li key={c}>{c}</li>)}</ol>
         <div className="lock-acts">
           <button className="btn sm ghost" onClick={async () => { try { await navigator.clipboard.writeText(codes.join("\n")); setCopied(true); } catch {} }}>{copied ? "copied" : "copy"}</button>
@@ -134,7 +129,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
     return (
       <div className="lock">
         <b className="lock-title">is it you?</b>
-        <p className="hint lock-text">we sent a 6-digit code to your email. it makes sure nobody else adds a lock to your wallet.</p>
+        <p className="hint lock-text">we sent a 6-digit code to your email. it makes sure nobody else adds a passkey to your account.</p>
         <form className="lock-acts" onSubmit={(e) => { e.preventDefault(); if (check && emailCode.length === 6) void run(async () => { await dyn.confirmCode(check, emailCode); setAdding("ready"); setEmailCode(""); }); }}>
           <input className="bigin lock-code" placeholder="6-digit code" value={emailCode} inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-label="the 6-digit code"
             onChange={(e) => { setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setErr(""); }} />
@@ -148,11 +143,11 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
 
   if (!locked) {
     return (
-      <div className={nudge ? "lock nudge" : "lock"}>
-        <b className="lock-title">{nudge ? `you're holding ${nudge}. lock it?` : "lock with face id"}</b>
+      <div className="lock">
+        <b className="lock-title">face id sign-in</b>
         <p className="hint lock-text">{adding === "ready"
           ? "confirmed. now tap below and use face id or your fingerprint to make the passkey."
-          : "every payment will ask for face id or your fingerprint, so someone who gets into your email still can't move your money."}</p>
+          : "sign in with face id or your fingerprint instead of an email code. adding or removing a key on your account asks for it too."}</p>
         <div className="lock-acts">
           {adding === "ready"
             ? <button className="btn sm" disabled={busy} onClick={() => run(async () => { show(w.address, await dyn.addPasskey()); setAdding(""); })}>{busy ? "one sec…" : "add face id"}</button>
@@ -161,7 +156,6 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
                 // signed in within the last ten minutes: no code needed, face id opens in this same tap
                 if (v) { setCheck(v); setAdding("code"); } else { show(w.address, await dyn.addPasskey()); setAdding(""); }
               })}>{busy ? "one sec…" : "add a passkey"}</button>}
-          {nudge && adding !== "ready" && <button className="linkbtn" disabled={busy} onClick={() => { lockLater(); onLater?.(); }}>not now</button>}
         </div>
         {err && <p className="err" role="alert">{err}</p>}
       </div>
@@ -170,7 +164,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
 
   return (
     <div className="lock on">
-      <b className="lock-title">locked with a passkey ✓</b>
+      <b className="lock-title">face id sign-in is on ✓</b>
       {/* every passkey on the account, so one nobody here added would stand out */}
       <ul className="lock-keys">
         {list.data.map((k) => (
@@ -178,8 +172,8 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
         ))}
       </ul>
       <p className="hint lock-text">{unlocked
-        ? "unlocked with a recovery code for the next few minutes. to use a new phone, remove this passkey and add one there."
-        : "payments ask for face id or your fingerprint."}</p>
+        ? "recovery code accepted. remove the lost passkey below in the next few minutes, then add one on your new phone."
+        : "your passkey signs you in, and adding or removing a key asks for it."}</p>
       {recover ? (<>
         <form className="lock-acts" onSubmit={(e) => { e.preventDefault(); void run(async () => { await dyn.redeemRecoveryCode(code); setRecover(false); setCode(""); setUnlocked(true); }); }}>
           <input className="bigin lock-code" placeholder="recovery code" value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }}
@@ -189,7 +183,7 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
         <div className="lock-acts"><button className="linkbtn" disabled={busy} onClick={() => { setRecover(false); setCode(""); setErr(""); }}>cancel</button></div>
       </>) : (
         <div className="lock-acts">
-          <button className="linkbtn" onClick={() => { setRecover(true); setErr(""); }}>lost it? use a recovery code</button>
+          <button className="linkbtn" onClick={() => { setRecover(true); setErr(""); }}>lost your passkey? use a recovery code</button>
           <button className="linkbtn" disabled={busy} onClick={() => run(async () => { for (const p of list.data!) await dyn.removePasskey(p.id); })}>remove</button>
         </div>
       )}

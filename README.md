@@ -60,7 +60,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **add money by card** | circle's onramp kit (part of circle app kits), inside the app: card, apple pay or google pay, with circle's own id check. live on the test site against circle's sandbox; switched on for mainnet once circle's production key is set up |
 | **cash out** | the organiser sends the money to their exchange from the account sheet. kraken, binance and kucoin take usdc on arc directly, and pottle pays the fee. coinbase only takes usdc on base, so pottle moves it there through circle's cctp first, for about 6 cents. straight to a bank account is next |
 | **receive** | a qr code and a tap-to-copy address for anyone sending usdc or eurc on arc |
-| **face id lock, optional** | add a passkey and every payment needs face id or a fingerprint, enforced by dynamic's servers, so someone who gets into your email still can't move your money. the same passkey signs you in |
+| **face id sign-in, optional** | add a passkey and sign in with face id or a fingerprint instead of an email code. adding or removing a key on the account then asks for it too, enforced by dynamic's servers |
 | **made for group chats** | a live link preview ("7 in, $140 of $200"), a share button that sends the link with what's left to go, a qr code, and a thank-you card once it pays out |
 
 ## how it uses arc
@@ -92,7 +92,7 @@ every package is on its latest release as of september 2026.
 | **circle usdc and eurc** (fiattoken v2) | | one-signature chip-ins with eip-3009 `receiveWithAuthorization` |
 | **circle onramp kit** (`@circle-fin/onramp-kit`, app kits) | 1.0.2 | buying usdc by card inside the app, with `createSessionRouteHandler` on the server |
 | **circle cctp v2** and its forwarding service | | cash out to coinbase: burn on arc, circle mints on base |
-| **dynamic** headless sdk (`@dynamic-labs-sdk/client`, `/evm`) | 1.33.3 | email and passkey sign-in drawn by pottle itself (no popup), embedded wallets, the optional passkey lock (step-up before signing), session tokens verified server side |
+| **dynamic** headless sdk (`@dynamic-labs-sdk/client`, `/evm`) | 1.33.3 | email and passkey sign-in drawn by pottle itself (no popup), embedded wallets, step-up with the passkey before account changes, session tokens verified server side |
 | **viem** | 2.56.9 | reading pots, signing chip-ins, the relayer |
 | **next.js** | 16.3.6 | the app, api routes, live link previews |
 | **solidity** / **foundry** | 0.8.30 / 1.8.3 | the contract, unit, fuzz and invariant tests |
@@ -170,9 +170,8 @@ a mock with the same eip-3009 rules and the real tokens are exercised on testnet
 ## integrations
 
 **dynamic.** email sign-in creates an embedded wallet, so a friend in a group chat needs nothing but
-an email. pottle draws the sign-in itself on dynamic's headless sdk. an optional passkey locks the
-wallet: once added, dynamic's servers refuse to sign without a fresh face id, and the passkey also signs
-the person in. the app's own endpoints (the relayer's cash outs, the testnet drip and the onramp
+an email. pottle draws the sign-in itself on dynamic's headless sdk. an optional passkey signs the
+person in with face id, and dynamic asks for it before a key is added to or removed from the account. the app's own endpoints (the relayer's cash outs, the testnet drip and the onramp
 sessions) verify the user's dynamic session token against dynamic's published keys and only act for a
 wallet on that token.
 code: [`web/lib/dynamicClient.ts`](web/lib/dynamicClient.ts), [`web/components/SignIn.tsx`](web/components/SignIn.tsx), [`web/components/Lock.tsx`](web/components/Lock.tsx), [`web/lib/auth.ts`](web/lib/auth.ts).

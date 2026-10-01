@@ -112,8 +112,7 @@ export async function session(): Promise<{ address: Address; userId?: string } |
 }
 
 /** a viem wallet client for the signed-in embedded wallet. refuses any chain but pottle's: a signature
- * made for the wrong chain is a payment that lands somewhere else. every signature first asks for the
- * person's passkey when they have locked their wallet with one */
+ * made for the wrong chain is a payment that lands somewhere else */
 export async function walletClient(): Promise<WalletClient<Transport, Chain, Account>> {
   const c = await loadDynamic();
   const { isEvmWalletAccount } = await import("@dynamic-labs-sdk/evm");
@@ -122,21 +121,16 @@ export async function walletClient(): Promise<WalletClient<Transport, Chain, Acc
   if (!account) throw new Error("sign in first");
   const wc = (await createWalletClientForWalletAccount({ walletAccount: account })) as unknown as WalletClient<Transport, Chain, Account>;
   if (wc.chain?.id !== chain.id) throw new Error(`the wallet is on chain ${wc.chain?.id}, not ${chain.name}`);
-  return {
-    ...wc,
-    signTypedData: (async (args) => { await unlockSigning(); return wc.signTypedData(args); }) as typeof wc.signTypedData,
-    signMessage: (async (args) => { await unlockSigning(); return wc.signMessage(args); }) as typeof wc.signMessage,
-    writeContract: (async (args) => { await unlockSigning(); return wc.writeContract(args); }) as typeof wc.writeContract,
-    sendTransaction: (async (args) => { await unlockSigning(); return wc.sendTransaction(args); }) as typeof wc.sendTransaction,
-  };
+  return wc;
 }
 
 /*
- * passkeys, optional. someone who adds one has locked their wallet: dynamic's own servers then refuse
- * to sign anything for them without a fresh face id (or fingerprint, or device pin), so a hacked email
- * on its own can't move their money. everyone else signs as before. this needs, in dynamic's dashboard:
- * enrollment "not required", session-based mfa off, the passkey method on (with backup codes), and
- * wallet signing as a protected step-up action
+ * passkeys, optional: face id sign-in. a passkey signs the person in instead of an email code, and
+ * dynamic asks for it (step-up) before a key is added to or removed from the account. payments don't
+ * ask for it: dynamic can't protect signing only for people who have a passkey (with enrollment "not
+ * required" it falls back to an email code for everyone else), and a face id check only in pottle's
+ * pages could be skipped, so pottle doesn't pretend. dashboard: enrollment "not required",
+ * session-based mfa off, the passkey method on with backup codes, passkey as a login method
  */
 
 /** dynamic is set up for optional passkeys (see above). false hides the feature */
@@ -144,9 +138,8 @@ export async function passkeysOffered() {
   const c = await loadDynamic();
   const mfa = c.getDefaultClient().projectSettings?.security?.mfa;
   // not mfa.enabled: in dynamic's dashboard that flag is "session-based mfa" (a second factor at every
-  // login), which pottle keeps off. the lock only needs the passkey method and signing as a protected action
-  return !!mfa?.methods?.some((m) => m.type === "passkey" && m.enabled) &&
-    !!mfa.actions?.some((a) => a.action === c.MFAAction.WalletWaasSign && a.required);
+  // login), which pottle keeps off. face id sign-in only needs the passkey method on
+  return !!mfa?.methods?.some((m) => m.type === "passkey" && m.enabled);
 }
 
 export type Passkey = { id: string; createdAt: Date; device?: string; storage?: string };
@@ -215,26 +208,10 @@ export async function removePasskey(id: string) {
   markPasskeyDevice(false);
 }
 
-/** a lost passkey: one recovery code stands in for it, once */
+/** a lost passkey: one recovery code stands in for it, once, so the lost passkey can be removed */
 export async function redeemRecoveryCode(code: string) {
   const c = await loadDynamic();
-  await c.authenticateMfaRecoveryCode({ code: code.trim(), requestedScopes: [c.TokenScope.Walletsign] });
-}
-
-/** call first thing in a pay / send / create tap: iphones only show face id straight after a tap, not
- * after the network calls that come before the signature. a no-op for accounts without a passkey */
-export const readyToSign = () => (loaded ? unlockSigning() : Promise.resolve());
-
-/** before a signature: dynamic's server says whether this account needs fresh proof to sign (only
- * accounts locked with a passkey should), and if so, face id provides it */
-async function unlockSigning() {
-  const c = await loadDynamic();
-  // no passkey, no lock: pottle asks for nothing and leaves the decision to dynamic's server. (its
-  // step-up check reports "email re-auth" for these accounts, from the "not required" enrollment
-  // setting, so it can't be what decides whether to stop a payment here)
-  if (!(await c.getPasskeys()).length) return;
-  if (!(await c.checkStepUpAuth({ scope: c.TokenScope.Walletsign })).isRequired) return;
-  await passkeyProof(c.TokenScope.Walletsign);
+  await c.authenticateMfaRecoveryCode({ code: code.trim(), requestedScopes: [c.TokenScope.Credentialunlink] });
 }
 
 /** face id, for one kind of permission */
@@ -268,57 +245,3 @@ export async function signOut() {
   const c = await loadDynamic();
   await c.logout();
 }
-
-/*
- * test site only (app/dev/lock-check): tries, from the current session, each way someone who only has a
- * locked account's email might get around the passkey, and reports whether dynamic's server refused it.
- * nothing here shows a recovery code: only whether one came back
- */
-const refusal = (e: unknown) => {
-  const x = e as { status?: number; name?: string; message?: string; cause?: { message?: string } };
-  return `refused (${[x.status, x.name, x.cause?.message ?? x.message].filter(Boolean).join(", ").slice(0, 120)})`;
-};
-export const lockCheck = {
-  async session() {
-    const c = await loadDynamic();
-    const out: Record<string, string> = {};
-    for (const [label, scope] of [["sign payments", c.TokenScope.Walletsign], ["add a key", c.TokenScope.Credentiallink], ["remove a key", c.TokenScope.Credentialunlink]] as const) {
-      try {
-        const r = await c.checkStepUpAuth({ scope });
-        out[`step-up to ${label}`] = r.isRequired ? `required, with: ${r.credentials.map((k) => k.format).join(", ") || "nothing listed"}` : "NOT required";
-      } catch (e) { out[`step-up to ${label}`] = refusal(e); }
-    }
-    try {
-      const r = await c.getMfaRecoveryCodes();
-      out["read recovery codes"] = r.recoveryCodes?.length ? `RETURNED ${r.recoveryCodes.length} codes` : "returned none";
-    } catch (e) { out["read recovery codes"] = refusal(e); }
-    out["passkeys on the account"] = String((await c.getPasskeys()).length);
-    return out;
-  },
-  async sendEmail() {
-    const c = await loadDynamic();
-    const email = (c.getDefaultClient().user as { email?: string } | null)?.email;
-    if (!email) throw new Error("no email on this account");
-    return c.sendEmailOTP({ email });
-  },
-  /** an email code, asking for every scope that matters. reports which ones dynamic handed out */
-  async emailScopes(v: Verification, code: string) {
-    const c = await loadDynamic();
-    const scopes = [c.TokenScope.Walletsign, c.TokenScope.Credentiallink, c.TokenScope.Credentialunlink];
-    const out: Record<string, string> = {};
-    try {
-      await c.verifyOTP({ otpVerification: v, verificationToken: code.trim(), requestedScopes: scopes });
-      out["email code"] = "accepted";
-    } catch (e) { out["email code"] = refusal(e); }
-    for (const s of scopes) out[`permission ${s} from email`] = c.getElevatedAccessToken({ scope: s, consume: false }) ? "GRANTED" : "not granted";
-    return out;
-  },
-  /** destructive if it works: makes new recovery codes (not shown). only to prove dynamic refuses it */
-  async newCodes() {
-    const c = await loadDynamic();
-    try {
-      const r = await c.createNewMfaRecoveryCodes();
-      return { "make new recovery codes": `WORKED, ${r.recoveryCodes?.length ?? 0} codes (not shown)` };
-    } catch (e) { return { "make new recovery codes": refusal(e) }; }
-  },
-};

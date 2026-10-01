@@ -37,8 +37,8 @@ the $100 beta cap on each pot.
   minutes from the scheduled job. its preview turns into a thank-you card with everyone's names
 - tap your **balance** for the account: **add**, **cash out** (pick your exchange; coinbase goes
   through base with circle's cctp, try it with any test address) and **receive** (qr and tap-to-copy)
-- **face id lock**: add a passkey from the account. payments then ask for face id, the passkey signs
-  you in next time, and recovery codes are shown once
+- **face id sign-in**: add a passkey from the account. next time you sign in with face id instead of
+  an email code. recovery codes are shown once
 - a pot that **misses its deadline** refunds everyone the same way. deadlines are at least an hour
   away, so the fastest way to see a refund is the end-to-end run below
 
@@ -63,7 +63,7 @@ testnet key in `contracts/.env`.
 - [`web/lib/settle.ts`](web/lib/settle.ts): automatic payout and refund
 - [`web/lib/wallet.ts`](web/lib/wallet.ts) `sendOut` and `sendViaBase`: cash out, and how a retry can
   never send twice
-- [`web/lib/dynamicClient.ts`](web/lib/dynamicClient.ts): sign-in and the passkey lock
+- [`web/lib/dynamicClient.ts`](web/lib/dynamicClient.ts): email and face id sign-in
 
 ## euro pots
 

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { HomeScreenTip } from "@/components/HomeScreenTip";
 import { useRef, useState } from "react";
 import { watchKeyboard } from "@/lib/keyboard";
-import { readyToSign } from "@/lib/dynamicClient";
 import { useWallet } from "@/app/providers";
 import { walletStore } from "@/lib/walletStore";
 import { useMountEffect } from "@/hooks/useMountEffect";
@@ -89,7 +88,6 @@ export function CreateFlow() {
     // not signed in yet: sign in, then create the pot without another tap
     if (!walletStore.get().address && !(await w.signIn())) { setBusy(false); creating.current = false; return; }
     try {
-      await readyToSign(); // a wallet locked with a passkey asks for face id now, while the tap still counts
       const c = await walletStore.get().client(); // the live wallet, not this render's copy
       const id = await createPot(c, { goal: +goal, deadline: Math.floor(deadlineFor(until!, picked).getTime() / 1000), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
       created.current = true;
