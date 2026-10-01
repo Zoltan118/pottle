@@ -11,8 +11,19 @@ import * as dyn from "@/lib/dynamicClient";
  * alone can't move the money. shown only when dynamic is set up for it (lib/dynamicClient.ts)
  */
 
-const message = (e: unknown) =>
-  e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 320) : "something went wrong";
+// dynamic's sdk puts the server's own reason for a refusal in `cause`; show it next to the summary
+const message = (e: unknown) => {
+  if (!(e instanceof Error)) return "something went wrong";
+  const why = (e.cause instanceof Error && e.cause.message) || "";
+  const text = (e as { shortMessage?: string }).shortMessage ?? e.message;
+  return (why && !text.includes(why) ? `${text} (${why})` : text).slice(0, 320);
+};
+const refused = (e: unknown) => {
+  if (!(e instanceof Error)) return false;
+  const x = e as Error & { code?: string; status?: number };
+  return x.name === "UnauthorizedError" || x.code === "unauthorized_error" || x.status === 401 ||
+    /unauthori[sz]ed|401|authorization header/i.test(`${x.message} ${x.cause instanceof Error ? x.cause.message : ""}`);
+};
 // the browser's own words for a cancelled face id or a passkey that already exists, in ours
 const explain = (e: unknown) => {
   const name = e instanceof Error ? e.name : "";
@@ -37,7 +48,8 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
   const [emailCode, setEmailCode] = useState("");
 
   const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!w.address, staleTime: Infinity, retry: false });
-  const list = useQuery({ queryKey: ["passkeys", w.address], queryFn: dyn.passkeys, enabled: !!w.address && !!offered.data });
+  const list = useQuery({ queryKey: ["passkeys", w.address], queryFn: dyn.passkeys, enabled: !!w.address && !!offered.data,
+    retry: (n, e) => !refused(e) && n < 2 }); // a refused session won't get better by asking again
   if (!offered.data) return null;
   // couldn't read their passkeys: say so, rather than quietly dropping the lock option
   if (list.error) {
@@ -45,9 +57,10 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
     return (
       <div className="lock">
         <b className="lock-title">lock with face id</b>
-        {/unauthori[sz]ed|401/i.test(why) ? <>
-          {/* the sign-in session is older than the account's security settings: a fresh one fixes it */}
+        {refused(list.error) ? <>
+          {/* dynamic won't accept this sign-in for account changes. its own reason is shown, to fix it from */}
           <p className="hint lock-text">your sign-in needs refreshing before you can add a lock. it takes one email code.</p>
+          <p className="hint lock-text lock-why">{why}</p>
           <div className="lock-acts"><button className="btn sm" onClick={onRelogin}>sign in again</button></div>
         </> : <>
           <p className="err lock-text" role="alert">couldn&apos;t check your passkeys: {why}</p>
