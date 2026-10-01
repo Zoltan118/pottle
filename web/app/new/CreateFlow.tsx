@@ -9,7 +9,7 @@ import { useWallet } from "@/app/providers";
 import { walletStore } from "@/lib/walletStore";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { createPot } from "@/lib/wallet";
-import { missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
+import { DEPLOYED, missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { MAX_POT, money, WRAPS, type Wrap } from "@/lib/pot";
 import { THEME_WRAPS, themeOf } from "@/lib/wraps";
 import { fitBytes, MAX_NAME_BYTES, MAX_TITLE_BYTES } from "@/lib/text";
@@ -46,13 +46,13 @@ function deadlineFor(u: Until, picked: string, now = new Date()): Date {
 const dateLabel = (d: Date) =>
   d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-const WRAP_LIST: { id: Wrap; label: string }[] = [
-  { id: "confetti", label: "confetti" }, { id: "stripes", label: "ribbon" }, { id: "gingham", label: "picnic" }, { id: "plain", label: "plain" },
-  { id: "hearts", label: "hearts" }, { id: "stars", label: "stars" }, { id: "waves", label: "waves" }, { id: "sprinkles", label: "sprinkles" },
-  { id: "boarding", label: "boarding pass" }, { id: "sunset", label: "sunset" }, { id: "palms", label: "palms" },
-  { id: "cheers", label: "cheers" }, { id: "lemons", label: "lemons" }, { id: "forks", label: "dinner table" },
-  { id: "balloons", label: "balloons" }, { id: "candles", label: "candles" },
-];
+// each wrap's name in the picker. a Record over every wrap, so one added to WRAPS without a name here
+// fails the build instead of going missing from the picker
+const WRAP_LABELS: Record<Wrap, string> = {
+  confetti: "confetti", stripes: "ribbon", gingham: "picnic", plain: "plain", hearts: "hearts", stars: "stars", waves: "waves", sprinkles: "sprinkles",
+  boarding: "boarding pass", sunset: "sunset", palms: "palms", cheers: "cheers", lemons: "lemons", forks: "dinner table", balloons: "balloons", candles: "candles",
+};
+const WRAP_LIST = WRAPS.map((id) => ({ id, label: WRAP_LABELS[id] }));
 const SHOWN = 8; // two rows; the rest behind "more wraps"
 
 export function CreateFlow() {
@@ -78,7 +78,7 @@ export function CreateFlow() {
   const [tapped, setTapped] = useState<Wrap | null>(null);
   const [allWraps, setAllWraps] = useState(false);
   const theme = themeOf(title); // a trip, a dinner, a birthday: its wraps come first
-  const themed = theme ? (THEME_WRAPS[theme] as Wrap[]) : [];
+  const themed: Wrap[] = theme ? THEME_WRAPS[theme] : [];
   const wrap: Wrap = tapped ?? themed[0] ?? "confetti";
   const ordered = [...themed.map((id) => WRAP_LIST.find((x) => x.id === id)!), ...WRAP_LIST.filter((x) => !themed.includes(x.id))];
   // two rows at first; all of them once asked for, or when the chosen one is further down
@@ -217,8 +217,8 @@ export function CreateFlow() {
         <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">you?</h1>
           <input className="bigin" placeholder="your name" autoFocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && next()} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
-          <p className="hint" style={{ margin: 0 }}>the pot is paid to you, to buy the gift. chip in your own share too if you&apos;re part of it.</p>
-          {missingEnv.length > 0 && <div className="notice">setup needed: <code>{missingEnv.join(", ")}</code> in <code>.env.local</code></div>}
+          <p className="hint" style={{ margin: 0 }}>the pot is paid to you, to buy the gift. chip in your own share too if you&apos;re part of it. your name and the pot&apos;s title are public, stay on the blockchain, and can&apos;t be changed later.</p>
+          {missingEnv.length > 0 && <div className="notice">{DEPLOYED ? "pottle isn't set up right now, so pots can't be made. try again later." : <>setup needed: <code>{missingEnv.join(", ")}</code> in <code>.env.local</code></>}</div>}
           <div className="err" role="alert">{err}</div>
         </section>
       )}

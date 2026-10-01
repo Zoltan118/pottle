@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { settlePot } from "@/lib/settle";
 import { money, readPot, parsePotId } from "@/lib/pot";
-import { POTTLE } from "@/lib/config";
+import { POTTLE, DEPLOYED, NETWORK, OTHER_SITE } from "@/lib/config";
 import { PotView } from "./PotView";
 import { Mascot } from "@/components/Mascot";
 
@@ -22,7 +22,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     pot.status === "released" ? `${pot.organiserName} collected ${m(pot.raised)} for ${pot.title}. thank you, everyone.`
     : pot.status === "refunding" ? `${pot.title} missed its goal, so everyone gets their money back.`
     : `${pot.organiserName} is collecting for ${pot.title}: ${m(pot.raised)} of ${m(pot.goal)} so far. hit it and it goes to ${pot.organiserName}, miss it and everyone gets their money back.`;
-  return { title, description, openGraph: { title, description }, twitter: { card: "summary_large_image", title, description } };
+  // a pot page names the people in it: shareable, but kept out of search results
+  return { title, description, robots: { index: false, follow: false }, openGraph: { title, description }, twitter: { card: "summary_large_image", title, description } };
 }
 
 export default async function PotPage({ params }: Props) {
@@ -30,7 +31,7 @@ export default async function PotPage({ params }: Props) {
   if (!POTTLE) {
     return (
       <main className="view"><section className="flow"><h1 className="giant q">soon.</h1>
-        <div className="notice">setup needed: <code>NEXT_PUBLIC_POTTLE_ADDRESS</code> in <code>.env.local</code></div>
+        <div className="notice">{DEPLOYED ? "pottle isn't set up right now. try again later." : <>setup needed: <code>NEXT_PUBLIC_POTTLE_ADDRESS</code> in <code>.env.local</code></>}</div>
       </section></main>
     );
   }
@@ -43,6 +44,15 @@ export default async function PotPage({ params }: Props) {
     return (
       <main className="view"><section className="flow"><div className="lost-mascot"><Mascot mood="confused" level={0.4} /></div><h1 className="giant q">hold on.</h1>
         <div className="notice">can&apos;t reach arc right now. your money is safe in the pot. try again in a minute.</div>
+      </section></main>
+    );
+  }
+  // links shared while pottle.xyz still ran on testnet now point at mainnet: say where a test pot lives
+  if (!pot && NETWORK === "mainnet" && OTHER_SITE) {
+    return (
+      <main className="view"><section className="flow"><div className="lost-mascot"><Mascot mood="confused" level={0.4} /></div><h1 className="giant q">no pot here.</h1>
+        <p className="hint" style={{ margin: 0 }}>made it while pottle was in testing? test pots live on the test site.</p>
+        <a className="btn lg" href={`${OTHER_SITE}/p/${id}`}>open it on the test site</a>
       </section></main>
     );
   }

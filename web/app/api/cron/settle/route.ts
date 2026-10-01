@@ -19,6 +19,9 @@ export async function GET(req: Request) {
   if (given.length !== want.length || !timingSafeEqual(given, want)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const result = await settleDue();
   if (result.off) return NextResponse.json({ error: "relay off" }, { status: 503 });
-  // statuses that could not be read are an error the scheduler should show, not a quiet "nothing due"
-  return NextResponse.json(result, { status: result.unreadable ? 502 : 200 });
+  // anything that needs a person is an error status, so the scheduled job fails and github emails about it:
+  // statuses that couldn't be read (502), pots that weren't scanned this run, a payout or refund that
+  // failed, or a relayer running out of gas money (500)
+  const status = result.unreadable || (result.total ?? 0) > result.scanned ? 502 : result.failed.length || result.low ? 500 : 200;
+  return NextResponse.json(result, { status });
 }

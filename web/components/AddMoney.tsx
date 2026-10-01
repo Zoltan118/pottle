@@ -3,14 +3,18 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
-import { TOKEN, type Currency } from "@/lib/config";
+import { NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { PlusIcon } from "./Icons";
 
 // circle onramp kit: buy usdc (or eurc) by card, apple pay or google pay, with circle's own id check,
 // without leaving pottle. shown only when the widget url is configured.
-const WIDGET = process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL?.trim() || undefined;
+const WIDGET_URL = process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL?.trim() || undefined;
+const origin = (u?: string) => { try { return u ? new URL(u).origin : ""; } catch { return ""; } }; // a malformed value means off, not a crash
+const PRODUCTION = origin(WIDGET_URL) === "https://onramp.arc.io";
+// on mainnet only circle's production widget counts: a sandbox url copied over from the test site
+// would sell people test money, so it switches the onramp off instead
+const WIDGET = origin(WIDGET_URL) && (NETWORK !== "mainnet" || PRODUCTION) ? WIDGET_URL : undefined;
 export const ONRAMP_ON = !!WIDGET;
-const PRODUCTION = !WIDGET || new URL(WIDGET).origin === "https://onramp.arc.io";
 
 // the production widget refuses to load inside another site, and on iphones an embedded widget can
 // lose its storage during the id check. both open circle's screen as a popup; everything else embeds.

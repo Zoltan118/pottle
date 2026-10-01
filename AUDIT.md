@@ -207,3 +207,43 @@ accepted on purpose:
   own passkey before you do, and you can't remove it without a passkey or a recovery code. the card
   lists every passkey with its device and date so it is visible
 
+## pre-mainnet review, october 2026
+
+just before the mainnet deploy, four more independent reviews: the contract one last time, everything
+that switches between testnet and mainnet, the changes since the previous review, and a product pass for
+what a user or a reviewer would expect and not find.
+
+**the contract:** nothing that could lose, lock or misdirect money. 45 tests pass, `Pottle.sol` stays at
+100% coverage, the wrap change has no side effects (same storage layout, no event carries it, an unknown
+value renders the default), arc's usdc precompile behaves as a normal token for every call pottle makes,
+and both mainnet tokens were checked on chain (code, name, version 2, 6 decimals, not paused). the deploy
+script now refuses a key that isn't the expected deployer, so a mainnet run can't quietly use the
+testnet key, and checks both tokens before deploying.
+
+fixed in the app:
+
+- **"add" on mainnet** showed the test site's free test dollars when card payments are off. it now says
+  to withdraw from an exchange on arc and shows the address
+- **the settle job** used one secret for both sites; each site now has its own. a run now fails, so
+  github emails about it, when a payout or refund fails, pots go unread, or the relayer drops under $2
+- **an unset network** on a live deployment quietly meant testnet; it now shows "not set up"
+- **card payments on mainnet** ignore a sandbox widget url, and a malformed one switches them off
+  instead of breaking the page
+- **one rpc**: the settle job and the relayer now try an rpc of pottle's own first (ARC_RPC_URL) and
+  fall back to arc's public one
+- **face id sign-in** only shows when dynamic offers passkey sign-in too, passkeys are removed one per
+  tap so a recovery code works, and a dashboard that protects wallet signing is warned about
+- **navigation from the account sheet** waited for the sheet's own history step, so a tap on a pot can't
+  bounce back
+- **privacy and search**: pot pages (which carry people's names) and the whole test site are kept out of
+  search results; names are marked public where they're typed
+- **old test links** on pottle.xyz point to the test site instead of a stranger's mainnet pot
+- **an about page** (`/about`): who runs pottle, what is stored where, the risks, the terms in short,
+  and how to reach the developer; plus faq answers on cancelling, losing access, and pottle disappearing
+- smaller ones: coinbase copy, "refunded to you" only once it is, birthday guesses from numbers only
+  next to a person, wrap lists typed so a typo fails the build
+
+open, by design or for later: email remains the key to a wallet (see above), organisers get no
+notification when a pot pays out (they see it on the pot and in their balance), and payout and refund
+transactions aren't linked from the pot page yet.
+

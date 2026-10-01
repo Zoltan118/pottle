@@ -8,6 +8,8 @@
  * opacity on the page's paper, so every tile reads in light and dark
  */
 
+import type { Wrap } from "./pot";
+
 const gold = "#F2B32A", pink = "#E0487A", mint = "#3FA37E", violet = "#9A7BD1", ribbon = "#C42A5C";
 
 export type Tile = { w: number; h: number; body: string };
@@ -84,7 +86,9 @@ const WORDS: Record<Theme, string[]> = {
   dinner: ["dinner", "dinners", "lunch", "brunch", "breakfast", "drinks", "drink", "pizza", "bbq", "barbecue", "restaurant", "meal", "sushi", "wine", "beer", "takeaway", "supper"],
   birthday: ["birthday", "bday", "b-day", "party", "cake", "anniversary"],
 };
-const ORDINAL = /\b\d{1,3}(st|nd|rd|th)\b/; // "her 30th"
+// "her 30th", "turns 40th"... or "30th birthday": a number with an ordinal ending next to a word that makes
+// it about a person, so "2nd hand bike" or "10th floor coffee" don't count
+const ORDINAL = /\b(her|his|my|their|your|turns|turning)\s+\d{1,3}(st|nd|rd|th)\b|\b\d{1,3}(st|nd|rd|th)\s+(birthday|bday|party|anniversary)\b/;
 
 export function themeOf(title: string): Theme | null {
   const t = ` ${title.toLowerCase()} `;
@@ -95,7 +99,7 @@ export function themeOf(title: string): Theme | null {
 }
 
 /** the wraps a theme shows first: its own, then the originals that fit it */
-export const THEME_WRAPS: Record<Theme, string[]> = {
+export const THEME_WRAPS: Record<Theme, Wrap[]> = {
   trip: ["boarding", "sunset", "palms", "waves"],
   dinner: ["cheers", "lemons", "forks", "gingham"],
   birthday: ["balloons", "candles", "sprinkles", "confetti"],

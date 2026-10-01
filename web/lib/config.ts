@@ -23,10 +23,15 @@ export const DYNAMIC_ENV = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID || und
 export const WALLETS_ON = !!DYNAMIC_ENV;
 
 /** names of required env vars that are not set, so the ui can say what is off instead of failing quietly */
-// anything but exactly "mainnet" or "testnet" (or unset) is a typo that would quietly mean testnet
+// anything but exactly "mainnet" or "testnet" is a typo that would quietly mean testnet. on a vercel
+// production deployment it must be set at all: unset would run the testnet chain against whatever
+// contract address is configured
 const NETWORK_RAW = process.env.NEXT_PUBLIC_ARC_NETWORK;
+/** a live deployment on vercel, not a preview or a laptop */
+export const DEPLOYED = (process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV) === "production";
 export const missingEnv = [
   NETWORK_RAW && NETWORK_RAW !== "mainnet" && NETWORK_RAW !== "testnet" && `NEXT_PUBLIC_ARC_NETWORK (is "${NETWORK_RAW}", must be mainnet or testnet)`,
+  !NETWORK_RAW && DEPLOYED && "NEXT_PUBLIC_ARC_NETWORK (must be set to mainnet or testnet)",
   !POTTLE && "NEXT_PUBLIC_POTTLE_ADDRESS",
   !DYNAMIC_ENV && "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID",
 ].filter(Boolean) as string[];

@@ -291,7 +291,7 @@ export function PotView({ initial }: { initial: PotData }) {
           <SignIn title="your email" />
           <button className="linkbtn" onClick={() => { walletStore.cancel(); requestAnimationFrame(() => document.querySelector<HTMLElement>(".sheet .btn.lg.wide")?.focus()); }}>back</button>
         </>) : (<>
-        <input className="bigin" placeholder="your name" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} readOnly={!!busy} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
+        <input className="bigin" placeholder="your name (public)" data-autofocus value={name} onChange={(e) => setName(fitBytes(e.target.value, MAX_NAME_BYTES))} onKeyDown={(e) => e.key === "Enter" && pay()} readOnly={!!busy} aria-label="your name" enterKeyHint="go" autoComplete="given-name" />
         <div className="chips" role="group" aria-label="amount">
           {picks.map((a) => <button key={a} className="chip" aria-pressed={!other && amount === a} onClick={() => { setPicked(a); setUserPicked(true); }}>{m(a)}</button>)}
           <button className="chip" aria-pressed={other} onClick={() => setPicked("other")}>other</button>
@@ -314,7 +314,7 @@ export function PotView({ initial }: { initial: PotData }) {
             : <>{m(left)} to go. it goes to <b>{pot.organiserName}</b> if the pot hits {m(pot.goal)}, back to you if it doesn&apos;t.</>}
         </p>
         {!w.address && (
-          <p className="hint" style={{ margin: 0 }}>you pay in digital {pot.currency === "eur" ? "euros (eurc)" : "dollars (usdc)"}. sign in with your email and pottle sets it up, no app needed.</p>
+          <p className="hint" style={{ margin: 0 }}>you pay in digital {pot.currency === "eur" ? "euros (eurc)" : "dollars (usdc)"}. sign in with your email and pottle sets it up, no app needed. the name you type is public and stays on the blockchain.</p>
         )}
         <div className="sheet-paybar">
           <button className="btn lg wide" onClick={pay} disabled={!!busy || !w.on || !valid}>

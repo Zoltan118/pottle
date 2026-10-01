@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   // pin the project root. a stray package-lock.json higher up the disk otherwise makes
   // next guess the wrong root and silently drop dynamic routes in dev
   turbopack: { root: __dirname },
+  // pottle has no images to resize (no next/image; the link previews are drawn by next/og), so the
+  // image optimizer and sharp, its ~27 MB native image library, stay out of every server function.
+  // on vercel each function carries its own copy, and every kept deployment counts against storage
+  images: { unoptimized: true },
+  outputFileTracingExcludes: { "/**": ["./node_modules/sharp/**", "./node_modules/@img/**"] },
   // each deploy's version, baked into the app. vercel sets the commit; locally it is "local", which
   // never asks anyone to update. /api/version reports the live one, and the app compares the two
   env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "local" },

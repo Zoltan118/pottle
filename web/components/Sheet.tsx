@@ -10,12 +10,27 @@ import { CloseIcon } from "./Icons";
 // own button it takes its step back itself; that popstate is counted here and isn't a back press
 const stack: HTMLElement[] = [];
 let ownBacks = 0;
+let afterBack: (() => void)[] = [];
+// on the next tick: next.js handles the same popstate for its own router, and a page change started inside
+// that handler would be undone by it
+const runAfterBack = () => { const f = afterBack; afterBack = []; setTimeout(() => f.forEach((x) => x()), 50); };
 if (typeof window !== "undefined") {
   addEventListener("popstate", () => {
-    if (ownBacks > 0) { ownBacks--; return; }
+    if (ownBacks > 0) { ownBacks--; if (!ownBacks) runAfterBack(); return; }
     // the same path as the escape key, so the page's own close logic runs
     stack.pop()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   });
+}
+
+/**
+ * run something (a page change) once the open sheets have taken their history steps back. call it right
+ * after closing them: navigating at the same moment races the sheet's own history.back(), which can
+ * bounce the new page back or leave an extra step in history
+ */
+export function afterSheetsClose(fn: () => void) {
+  if (!stack.length && !ownBacks) { fn(); return; }
+  afterBack.push(fn);
+  setTimeout(() => { if (afterBack.includes(fn)) runAfterBack(); }, 900); // never wait forever
 }
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';

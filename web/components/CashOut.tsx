@@ -134,7 +134,7 @@ export function CashOut({ onBack, onClose }: { onBack: () => void; onClose: () =
           ? <p className="cash-lead"><b>{m(cents)}</b> {token} is on its way to {where} (<b>{short(addr)}</b>). it usually shows there within a few minutes. then sell it and withdraw to your bank.</p>
           : landed
             ? <p className="cash-lead"><b>{m(arrives)}</b> usdc arrived at {where} (<b>{short(addr)}</b>). it usually shows there within a few minutes. then sell it and withdraw to your bank.</p>
-            : <p className="cash-lead">circle is moving <b>{m(cents)}</b> usdc from arc to {BASE_NAME}, the network {ex === "coinbase" ? "coinbase" : "that address"} uses. usually under a minute. you can close this, it carries on.</p>}
+            : <p className="cash-lead">circle is moving <b>{m(cents)}</b> usdc from arc to {BASE_NAME}, a network {ex === "coinbase" ? "coinbase takes usdc on" : "that address uses"}. usually under a minute. you can close this, it carries on.</p>}
         {delivery.error && <p className="err" role="alert">{message(delivery.error)}</p>}
         <a className="cash-link" href={net === "base" && delivery.data?.tx ? baseExplorerTx(delivery.data.tx) : hash ? explorerTx(hash) : explorerAddress(addr)} target="_blank" rel="noreferrer">
           {net === "base" && delivery.data?.tx ? "see the transfer on base ↗" : "see the transfer on arc ↗"}
@@ -176,7 +176,7 @@ export function CashOut({ onBack, onClose }: { onBack: () => void; onClose: () =
           </div>
         </div>
         {!ex ? null : <>
-        {ex === "coinbase" && <p className="hint cash-warn">coinbase doesn&apos;t take usdc on arc (the network pottle runs on) yet. it takes it on <b>base</b>, another network, so pottle moves it there through circle first, for about {feeCents !== undefined ? m(feeCents) : "6¢"}.</p>}
+        {ex === "coinbase" && <p className="hint cash-warn">coinbase doesn&apos;t take usdc on arc (the network pottle runs on) yet. it does take it on <b>base</b>, another network, so pottle moves it there through circle first, for about {feeCents !== undefined ? m(feeCents) : "6¢"}.</p>}
         {ex === "other" && (
           <div className="cash-q">
             <span className="label">which network does its deposit screen list for usdc?</span>

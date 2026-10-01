@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
@@ -9,7 +10,7 @@ import { NETWORK } from "@/lib/config";
 import { money, potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
 import { Logo } from "./Mark";
 import { NetSwitch } from "./NetSwitch";
-import { Sheet } from "./Sheet";
+import { afterSheetsClose, Sheet } from "./Sheet";
 import { HomeScreenTip } from "./HomeScreenTip";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
 import { CashOut } from "./CashOut";
@@ -22,6 +23,9 @@ import { ArrowOutIcon, CloseIcon, CopyIcon, ExitIcon, InIcon, LockIcon, NextIcon
 export function Nav({ action }: { action?: React.ReactNode }) {
   const w = useWallet();
   const qc = useQueryClient();
+  const router = useRouter();
+  // a link inside the account sheet: close the sheet, then go once its history step is back
+  const go = (href: string) => (e: React.MouseEvent) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); close(); afterSheetsClose(() => router.push(href)); };
   const [open, setOpen] = useState(false);
   // the account sheet's screens: the account itself, and the ones its actions open
   const [view, setView] = useState<"main" | "cash" | "receive" | "lock" | "add">("main");
@@ -118,11 +122,14 @@ export function Nav({ action }: { action?: React.ReactNode }) {
               <button className="iconbtn" onClick={close} aria-label="close"><CloseIcon /></button>
             </div>
             {view === "lock" ? lockCard : <>
-              {/* testnet without card payments: where test money comes from */}
+              {/* without card payments: where money comes from. on mainnet, from an exchange; on testnet, free test money */}
               <h2 className="giant cash-title">add money.</h2>
-              <p className="cash-lead">{drip.error
+              {NETWORK === "mainnet" ? <>
+                <p className="cash-lead">buying by card is coming. for now, withdraw <b>usdc</b> or <b>eurc</b> from your exchange on the <b>arc</b> network to your address.</p>
+                <button className="btn lg wide" onClick={() => setView("receive")}>show my address</button>
+              </> : <p className="cash-lead">{drip.error
                 ? <>{drip.error.message}. get free test usdc at <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com ↗</a>, pick arc testnet, and send it to your address under receive.</>
-                : <>this is the test site. new wallets get <b>$10</b> of test usdc by themselves. for more, use <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com ↗</a> (pick arc testnet) and your address under receive.</>}</p>
+                : <>this is the test site. new wallets get <b>$10</b> of test usdc by themselves. for more, use <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com ↗</a> (pick arc testnet) and your address under receive.</>}</p>}
             </>}
           </div>
         ) : <>
@@ -149,16 +156,17 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           {pots.data?.length === 0 && (
             <div className="acct-empty">
               <p className="hint">no pots yet</p>
-              <Link className="btn sm" href="/new" onClick={() => setOpen(false)}>make a pot</Link>
+              <Link className="btn sm" href="/new" onClick={go("/new")}>make a pot</Link>
             </div>
           )}
           {pots.data?.map((p) => (
             <div className="acct-pot" key={p.id}>
-              <Link href={potPath(p.id)} onClick={() => setOpen(false)} className="acct-pot-main">
+              <Link href={potPath(p.id)} onClick={go(potPath(p.id))} className="acct-pot-main">
                 <b>{p.title}</b>
                 <span>{money(p.raised, p.currency)} of {money(p.goal, p.currency)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase()
-                    ? (p.status === "released" ? " · paid to you" : p.status === "refunding" ? " · yours, refunded" : " · yours")
-                    : (p.status === "refunding" ? " · refunded to you" : " · you're in")}</span>
+                    ? (p.status === "released" ? " · paid to you" : p.status === "refunding" ? (p.raised > 0 ? " · yours, refunding" : " · yours, refunded") : " · yours")
+                    // "refunded" only once the money is back (nothing left in the pot), not while refunds are under way
+                    : (p.status === "refunding" ? (p.raised > 0 ? " · refunding" : " · refunded to you") : " · you're in")}</span>
               </Link>
               <button className="iconbtn acct-share" onClick={() => share(p)} aria-label={copied === `pot-${p.id}` ? "link copied" : `share ${p.title}`}>
                 {copied === `pot-${p.id}` ? <CopyIcon done /> : <ShareIcon />}

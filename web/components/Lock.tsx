@@ -6,9 +6,9 @@ import { useWallet } from "@/app/providers";
 import * as dyn from "@/lib/dynamicClient";
 
 /*
- * the optional passkey, in the account sheet. once added, every payment asks for face id (or a
- * fingerprint, or the phone's pin) and dynamic's servers refuse to sign without it, so a hacked email
- * alone can't move the money. shown only when dynamic is set up for it (lib/dynamicClient.ts)
+ * face id sign-in, in the account sheet: add a passkey, see every passkey on the account, and recover
+ * from a lost one with a recovery code. it signs the person in and guards adding or removing a key; it
+ * does not guard payments (see lib/dynamicClient.ts). shown only when dynamic is set up for it
  */
 
 // dynamic's sdk puts the server's own reason for a refusal in `cause`; show it next to the summary
@@ -57,7 +57,7 @@ export function useLock(address?: string) {
   const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!address, staleTime: Infinity, retry: false });
   const list = useQuery({ queryKey: ["passkeys", address], queryFn: dyn.passkeys, enabled: !!address && !!offered.data,
     retry: (n, e) => !refused(e) && n < 2 }); // a refused session won't get better by asking again
-  return { offered, list, unlocked: !!offered.data && list.data?.length === 0 };
+  return { offered, list };
 }
 
 /** face id sign-in: add a passkey, see the ones on the account, recover from a lost one */
@@ -77,7 +77,6 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
   const [emailCode, setEmailCode] = useState("");
 
   const { offered, list } = useLock(w.address);
-  // codes from a passkey added earlier that were never confirmed as saved come back until they are
   const codes = fresh;
   if (!offered.data) return null;
   // couldn't read their passkeys: say so, rather than quietly dropping the lock option
@@ -167,8 +166,12 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
       <b className="lock-title">face id sign-in is on ✓</b>
       {/* every passkey on the account, so one nobody here added would stand out */}
       <ul className="lock-keys">
+        {/* one remove per passkey and per tap: each removal needs its own proof, and face id only opens on a tap */}
         {list.data.map((k) => (
-          <li key={k.id}>{device(k.device)} · added {new Date(k.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</li>
+          <li key={k.id} className="lock-key">
+            <span>{device(k.device)} · added {new Date(k.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+            <button className="linkbtn" disabled={busy} onClick={() => run(async () => { await dyn.removePasskey(k.id); setUnlocked(false); })}>remove</button>
+          </li>
         ))}
       </ul>
       <p className="hint lock-text">{unlocked
@@ -178,13 +181,12 @@ export function Lock({ onRelogin }: { onRelogin: () => void }) {
         <form className="lock-acts" onSubmit={(e) => { e.preventDefault(); void run(async () => { await dyn.redeemRecoveryCode(code); setRecover(false); setCode(""); setUnlocked(true); }); }}>
           <input className="bigin lock-code" placeholder="recovery code" value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }}
             aria-label="recovery code" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
-          <button className="btn sm" disabled={busy || !code.trim()}>unlock</button>
+          <button className="btn sm" disabled={busy || !code.trim()}>use code</button>
         </form>
         <div className="lock-acts"><button className="linkbtn" disabled={busy} onClick={() => { setRecover(false); setCode(""); setErr(""); }}>cancel</button></div>
       </>) : (
         <div className="lock-acts">
           <button className="linkbtn" onClick={() => { setRecover(true); setErr(""); }}>lost your passkey? use a recovery code</button>
-          <button className="linkbtn" disabled={busy} onClick={() => run(async () => { for (const p of list.data!) await dyn.removePasskey(p.id); })}>remove</button>
         </div>
       )}
       {err && <p className="err" role="alert">{err}</p>}

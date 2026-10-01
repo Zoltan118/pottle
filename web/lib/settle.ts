@@ -1,8 +1,8 @@
 import "server-only";
 import { createWalletClient, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { pottleAbi } from "./abi";
-import { chain, POTTLE } from "./config";
+import { erc20Abi, pottleAbi } from "./abi";
+import { chain, POTTLE, TOKEN } from "./config";
 import { publicClient } from "./pot";
 import { withNonceRetry } from "./retry";
 
@@ -58,7 +58,7 @@ export async function settlePot(id: number): Promise<"released" | "refunded" | "
  * that keeps failing can never hold the others up. it stops at maxTx sends or when time runs short
  */
 export async function settleDue(maxTx = 20, budgetMs = 45_000, scanBudgetMs = 15_000) {
-  if (!POTTLE || !relayer()) return { scanned: 0, due: 0, unreadable: 0, settled: [] as { id: number; did: string }[], off: true };
+  if (!POTTLE || !relayer()) return { scanned: 0, due: 0, unreadable: 0, settled: [] as { id: number; did: string }[], failed: [] as number[], relayerUsdc: 0, low: false, off: true };
   const started = Date.now();
   const count = Number(await publicClient.readContract({ address: POTTLE, abi: pottleAbi, functionName: "potCount" }));
   // newest first, so recent pots always get looked at; the scan stops at its own time budget, and a run
@@ -84,14 +84,21 @@ export async function settleDue(maxTx = 20, budgetMs = 45_000, scanBudgetMs = 15
   const shift = due.length ? Math.floor(Date.now() / 60_000) % due.length : 0;
   const order = [...due.slice(shift), ...due.slice(0, shift)];
   const settled: { id: number; did: string }[] = [];
+  const failed: number[] = [];
   for (const id of order) {
     if (settled.length >= maxTx || Date.now() - started > budgetMs) break;
     try {
       const did = await settlePot(id);
       if (did !== "nothing") settled.push({ id, did });
     } catch (e) {
+      failed.push(id);
       console.warn(`[pottle] settle ${id} failed:`, e instanceof Error ? e.message : e);
     }
   }
-  return { scanned, total: count, due: due.length, unreadable, settled, off: false };
+  // the relayer's gas money: under $2 it stops sponsoring chip-ins, so the job reports it while there is
+  // still enough to keep paying out and refunding
+  const relayerUsdc = Number(await publicClient.readContract({ address: TOKEN.usd.address, abi: erc20Abi, functionName: "balanceOf", args: [relayer()!.account.address] }).catch(() => 0n)) / 1e6;
+  const low = relayerUsdc < 2;
+  if (low) console.warn(`[pottle] relayer low: ${relayerUsdc} usdc left, top it up: ${relayer()!.account.address}`);
+  return { scanned, total: count, due: due.length, unreadable, settled, failed, relayerUsdc, low, off: false };
 }

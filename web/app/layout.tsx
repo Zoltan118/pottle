@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { Providers } from "./providers";
 import { Tips } from "@/components/Tips";
-import { SITE } from "@/lib/config";
+import { NETWORK, SITE } from "@/lib/config";
 import { wrapCss } from "@/lib/wraps";
 import "./globals.css";
 
@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   openGraph: { title: "pottle · chip in, or get it back", description, siteName: "pottle", type: "website" },
   twitter: { card: "summary_large_image", title: "pottle · chip in, or get it back", description },
   appleWebApp: { title: "pottle", statusBarStyle: "default" },
+  // the test site stays out of search, so people find the real one
+  ...(NETWORK === "testnet" ? { robots: { index: false, follow: true } } : {}),
 };
 
 // safari's toolbar and the status bar take the page's own paper colour, light and dark

@@ -1,8 +1,11 @@
-import { createPublicClient, http, type Address } from "viem";
+import { createPublicClient, fallback, http, type Address } from "viem";
 import { pottleAbi } from "./abi";
 import { chain, CURRENCIES, POTTLE, TOKEN, type Currency } from "./config";
 
-export const publicClient = createPublicClient({ chain, transport: http() });
+// on the server, an rpc of our own first (ARC_RPC_URL) with arc's public one behind it, so the settle job
+// and the relayer don't depend on a single endpoint. browsers use the public one
+const OWN_RPC = typeof window === "undefined" ? process.env.ARC_RPC_URL?.trim() : undefined;
+export const publicClient = createPublicClient({ chain, transport: OWN_RPC ? fallback([http(OWN_RPC), http()]) : http() });
 
 export type Status = "none" | "open" | "reached" | "released" | "refunding";
 // the contract's order. its sixth status, "refunded" (refunds open and nothing left in the pot), reads as

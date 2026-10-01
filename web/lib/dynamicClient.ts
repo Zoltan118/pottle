@@ -81,7 +81,7 @@ async function withWallet() {
  * sign in with face id: the passkey someone added as their lock also signs them in, once dynamic has
  * passkey sign-in switched on. email stays for a new phone or a lost passkey
  */
-const HAS_PASSKEY = "pottle:passkey"; // this device has made or used a pottle passkey: offer face id first
+const HAS_PASSKEY = `pottle:passkey:${NETWORK}`; // this device has made or used a pottle passkey: offer face id first
 export const passkeyOnDevice = () => { try { return localStorage.getItem(HAS_PASSKEY) === "1"; } catch { return false; } };
 const markPasskeyDevice = (on: boolean) => { try { if (on) localStorage.setItem(HAS_PASSKEY, "1"); else localStorage.removeItem(HAS_PASSKEY); } catch {} };
 
@@ -137,9 +137,15 @@ export async function walletClient(): Promise<WalletClient<Transport, Chain, Acc
 export async function passkeysOffered() {
   const c = await loadDynamic();
   const mfa = c.getDefaultClient().projectSettings?.security?.mfa;
+  // a dashboard with wallet signing protected breaks every payment for people without a passkey
+  // (dynamic falls back to an email code), and pottle no longer asks for one: say so where it shows
+  if (mfa?.actions?.some((a) => a.action === c.MFAAction.WalletWaasSign && a.required)) {
+    console.warn("[pottle] dynamic protects wallet signing (wallet.waas.sign). payments will fail for anyone without a passkey. turn it off in the dashboard");
+  }
   // not mfa.enabled: in dynamic's dashboard that flag is "session-based mfa" (a second factor at every
-  // login), which pottle keeps off. face id sign-in only needs the passkey method on
-  return !!mfa?.methods?.some((m) => m.type === "passkey" && m.enabled);
+  // login), which pottle keeps off. face id sign-in needs the passkey method on, and passkey as a way to
+  // sign in, or the card would promise a sign-in that never shows
+  return !!mfa?.methods?.some((m) => m.type === "passkey" && m.enabled) && (await passkeyLoginOffered());
 }
 
 export type Passkey = { id: string; createdAt: Date; device?: string; storage?: string };
