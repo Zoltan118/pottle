@@ -45,3 +45,33 @@ export const CloseIcon = ({ className }: P) => (
 export const BackIcon = ({ className }: P) => (
   <svg {...svg} className={base("back", className)}><g className="ico-slide"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></g></svg>
 );
+
+/** add money: the plus turns a little */
+export const PlusIcon = ({ className }: P) => (
+  <svg {...svg} className={base("plus", className)}><g className="ico-turn"><path d="M12 5v14" /><path d="M5 12h14" /></g></svg>
+);
+
+/** receive: the arrow comes in and down */
+export const InIcon = ({ className }: P) => (
+  <svg {...svg} className={base("in", className)}><g className="ico-nudge-in"><path d="M17 7 7 17" /><path d="M17 17H7V7" /></g></svg>
+);
+
+/** the face id lock */
+export const LockIcon = ({ className }: P) => (
+  <svg {...svg} className={base("lock", className)}><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+);
+
+/** add to home screen */
+export const PhoneIcon = ({ className }: P) => (
+  <svg {...svg} className={base("phone", className)}><rect x="6" y="2" width="12" height="20" rx="3" /><path d="M11 18h2" /></svg>
+);
+
+/** a row that opens more: the chevron slides the way it points */
+export const NextIcon = ({ className }: P) => (
+  <svg {...svg} className={base("next", className)}><g className="ico-slide-r"><path d="m9 6 6 6-6 6" /></g></svg>
+);
+
+/** sign out: the arrow leaves the door */
+export const ExitIcon = ({ className }: P) => (
+  <svg {...svg} className={base("exit", className)}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><g className="ico-slide-r"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></g></svg>
+);

@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Sheet } from "./Sheet";
 import { dismissInstall, promptInstall, useInstall } from "@/lib/install";
-import { CloseIcon } from "./Icons";
+import { CloseIcon, NextIcon, PhoneIcon } from "./Icons";
 
 /** one quiet line that offers pottle on the home screen, for people who will keep coming back to a pot */
-export function HomeScreenTip({ lead = "checking on it often?" }: { lead?: string }) {
+/** row: a settings row in the account sheet instead of the quiet line under a page */
+export function HomeScreenTip({ lead = "checking on it often?", row = false }: { lead?: string; row?: boolean }) {
   const { show, platform, canPrompt, inApp } = useInstall();
   const [open, setOpen] = useState(false);
   if (!show) return null;
@@ -18,10 +19,14 @@ export function HomeScreenTip({ lead = "checking on it often?" }: { lead?: strin
 
   return (
     <>
-      <p className="a2hs">
-        {lead} <button className="a2hs-go" onClick={start}>add pottle to your home screen</button>
-        <button className="a2hs-x" onClick={dismissInstall} aria-label="not now"><CloseIcon /></button>
-      </p>
+      {row ? (
+        <button className="acct-row" onClick={start}><PhoneIcon />add to home screen<span className="acct-row-end"><NextIcon /></span></button>
+      ) : (
+        <p className="a2hs">
+          {lead} <button className="a2hs-go" onClick={start}>add pottle to your home screen</button>
+          <button className="a2hs-x" onClick={dismissInstall} aria-label="not now"><CloseIcon /></button>
+        </p>
+      )}
       <Sheet open={open} onClose={() => setOpen(false)} label="add pottle to your home screen">
         <h2 className="giant">on your home screen.</h2>
         <ol className="a2hs-steps">

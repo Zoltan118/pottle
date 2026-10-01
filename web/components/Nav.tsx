@@ -13,18 +13,20 @@ import { Sheet } from "./Sheet";
 import { HomeScreenTip } from "./HomeScreenTip";
 import { AddMoney, ONRAMP_ON } from "./AddMoney";
 import { CashOut } from "./CashOut";
+import { Receive } from "./Receive";
 import { Lock, lockSnoozed, useLock } from "./Lock";
-import { CloseIcon, CopyIcon, ShareIcon } from "./Icons";
+import { ArrowOutIcon, CloseIcon, CopyIcon, ExitIcon, InIcon, LockIcon, NextIcon, PlusIcon, ShareIcon } from "./Icons";
 
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 /** logo left; right: the page's own action plus sign in, or your balance once signed in */
 export function Nav({ action }: { action?: React.ReactNode }) {
   const w = useWallet();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [cash, setCash] = useState(false); // the account sheet is showing cash out
-  const close = () => { setOpen(false); setCash(false); };
+  // the account sheet's screens: the account itself, and the ones its actions open
+  const [view, setView] = useState<"main" | "cash" | "receive" | "lock" | "add">("main");
+  const close = () => { setOpen(false); setView("main"); };
+  const back = () => setView("main");
   const [copied, setCopied] = useState<string | null>(null);
 
   const bal = useQuery({
@@ -71,7 +73,7 @@ export function Nav({ action }: { action?: React.ReactNode }) {
   const eurMoney = (d: number) => money(Math.floor(d * 100) / 100, "eur");
 
   const lockCard = (
-    <Lock nudge={nudge} onLater={() => setSnoozed(true)} onRelogin={() => {
+    <Lock nudge={nudge} onLater={() => { setSnoozed(true); back(); }} onRelogin={() => {
       // close this sheet first; the sign-in sheet opens once it has slid away (its back-button step too)
       close();
       window.setTimeout(() => { w.signOut(); void w.signIn(); }, 450);
@@ -112,28 +114,39 @@ export function Nav({ action }: { action?: React.ReactNode }) {
       </nav>
 
       <Sheet open={open} onClose={close} label="your account" closeButton={false}>
-        {cash ? <CashOut onBack={() => setCash(false)} onClose={close} /> : <>
-        <div className="acct-top">
-          <button className="addr" onClick={() => w.address && copy(w.address, "addr")} aria-label="copy your address">
-            <i />{w.address ? short(w.address) : ""}<span><CopyIcon done={copied === "addr"} />{copied === "addr" ? "copied" : "copy"}</span>
-          </button>
-          <button className="iconbtn" onClick={() => setOpen(false)} aria-label="close"><CloseIcon /></button>
+        {view === "cash" ? <CashOut onBack={back} onClose={close} />
+        : view === "receive" ? <Receive onBack={back} onClose={close} />
+        : view === "lock" || view === "add" ? (
+          <div className="cash">
+            <div className="cash-head">
+              <button className="linkbtn" onClick={back}>← your account</button>
+              <button className="iconbtn" onClick={close} aria-label="close"><CloseIcon /></button>
+            </div>
+            {view === "lock" ? lockCard : <>
+              {/* testnet without card payments: where test money comes from */}
+              <h2 className="giant cash-title">add money.</h2>
+              <p className="cash-lead">{drip.error
+                ? <>{drip.error.message}. get free test usdc at <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com ↗</a>, pick arc testnet, and send it to your address under receive.</>
+                : <>this is the test site. new wallets get <b>$10</b> of test usdc by themselves. for more, use <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com ↗</a> (pick arc testnet) and your address under receive.</>}</p>
+            </>}
+          </div>
+        ) : <>
+        <div className="acct-head">
+          <div className="acct-money">
+            <div className="acct-bal">{exact}</div>
+            <div className="acct-sub">{!!eur.data && eur.data > 0 ? <><b>+ {eurMoney(eur.data)}</b> · usdc and eurc on arc</> : "usdc on arc"}</div>
+          </div>
+          <button className="iconbtn" onClick={close} aria-label="close"><CloseIcon /></button>
         </div>
 
-        <div className="acct-bal">{exact}<small>usdc on arc</small></div>
-        {!!eur.data && eur.data > 0 && <div className="acct-bal2">{eurMoney(eur.data)}<small>eurc on arc</small></div>}
-        {(!!bal.data && bal.data >= 0.01) || (!!eur.data && eur.data >= 0.01) ? <button className="btn sm ghost acct-cash" onClick={() => setCash(true)}>cash out</button> : null}
-        {nudge && lockCard}
-
-        {ONRAMP_ON
-          ? <AddMoney active={open} onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
-          : NETWORK === "testnet" && (
-              <p className="hint acct-note">
-                {drip.error
-                  ? <>{drip.error.message}. copy your address above and get free test usdc at <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">faucet.circle.com ↗</a> (pick arc testnet).</>
-                  : "testnet. new wallets get $10 of test usdc"}
-              </p>
-            )}
+        {/* money in and out side by side, as equals. add is the one accent on the sheet */}
+        <div className="acts-row">
+          {ONRAMP_ON
+            ? <AddMoney round active={open && view === "main"} onDone={() => qc.invalidateQueries({ queryKey: ["bal", w.address] })} />
+            : <button className="act act-main" onClick={() => setView("add")}><span className="act-ic"><PlusIcon /></span>add</button>}
+          <button className="act" onClick={() => setView("cash")}><span className="act-ic"><ArrowOutIcon /></span>cash out</button>
+          <button className="act" onClick={() => setView("receive")}><span className="act-ic"><InIcon /></span>receive</button>
+        </div>
 
         <div className="acct-pots">
           <span className="label">your pots</span>
@@ -152,14 +165,28 @@ export function Nav({ action }: { action?: React.ReactNode }) {
                     ? (p.status === "released" ? " · paid to you" : p.status === "refunding" ? " · yours, refunded" : " · yours")
                     : (p.status === "refunding" ? " · refunded to you" : " · you're in")}</span>
               </Link>
-              <button className="btn sm" onClick={() => share(p)}><ShareIcon />{copied === `pot-${p.id}` ? "copied" : "share"}</button>
+              <button className="iconbtn acct-share" onClick={() => share(p)} aria-label={copied === `pot-${p.id}` ? "link copied" : `share ${p.title}`}>
+                {copied === `pot-${p.id}` ? <CopyIcon done /> : <ShareIcon />}
+              </button>
             </div>
           ))}
         </div>
 
-        {!nudge && lockCard}
-        <HomeScreenTip lead="use it like an app:" />
-        <button className="btn lg ghost wide" onClick={() => { close(); w.signOut(); }}>sign out</button>
+        {/* settings: quiet rows, so the sheet reads money, then pots, then the rest */}
+        <div className="acct-rows">
+          {lock.offered.data && (
+            <button className="acct-row" onClick={() => setView("lock")}>
+              <LockIcon />face id lock
+              <span className="acct-row-end">
+                {lock.list.data ? (lock.list.data.length ? "on" : "off") : lock.list.error ? "check" : "…"}
+                {nudge && <em className="row-dot" aria-label="your wallet isn't locked yet" />}
+                <NextIcon />
+              </span>
+            </button>
+          )}
+          <HomeScreenTip row />
+          <button className="acct-row acct-out" onClick={() => { close(); w.signOut(); }}><ExitIcon />sign out</button>
+        </div>
         </>}
       </Sheet>
     </div>

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
 import { TOKEN, type Currency } from "@/lib/config";
+import { PlusIcon } from "./Icons";
 
 // circle onramp kit: buy usdc (or eurc) by card, apple pay or google pay, with circle's own id check,
 // without leaving pottle. shown only when the widget url is configured.
@@ -50,11 +51,12 @@ function describe(e: Envelope, cur: Currency): { text: string; done?: boolean; o
  * the "add money" button. it prepares a one-time session as soon as it is on screen, so the tap can
  * open circle's popup instantly (browsers block popups opened after a wait).
  */
-export function AddMoney({ currency = "usd", amount, label = "add money", active = true, onDone }: {
+export function AddMoney({ currency = "usd", amount, label = "add money", active = true, round = false, onDone }: {
   currency?: Currency;
   amount?: number; // prefill the widget, e.g. what someone is short by
   label?: string;
   active?: boolean; // only prepare a session while the button is actually on screen
+  round?: boolean; // the round "add" action in the account sheet, instead of the wide button
   onDone: () => void;
 }) {
   const w = useWallet();
@@ -134,9 +136,15 @@ export function AddMoney({ currency = "usd", amount, label = "add money", active
 
   return (
     <>
-      <button className="btn lg wide" onClick={open} disabled={!!w.address && prep.isLoading}>
-        {w.address && prep.isLoading ? "getting ready…" : label}
-      </button>
+      {round ? (
+        <button className="act act-main" onClick={open} aria-busy={!!w.address && prep.isLoading}>
+          <span className="act-ic"><PlusIcon /></span>{w.address && prep.isLoading ? "one sec…" : "add"}
+        </button>
+      ) : (
+        <button className="btn lg wide" onClick={open} disabled={!!w.address && prep.isLoading}>
+          {w.address && prep.isLoading ? "getting ready…" : label}
+        </button>
+      )}
       <p className="hint addnote" role="status" aria-live="polite" hidden={!note}>{note}</p>
       <div className="onramp" hidden={!overlay}>
         <div className="onramp-bar">
