@@ -122,7 +122,24 @@ export async function passkeys(): Promise<Passkey[]> {
   return (await c.getPasskeys()).map((p) => ({ id: p.id, createdAt: p.createdAt, device: p.alias || p.userAgent }));
 }
 
-/** adds a passkey for this account. returns recovery codes to show once, when dynamic issues them */
+/**
+ * adding a passkey links a new way into the account, so dynamic first wants fresh proof it is really
+ * them: a code sent to their email. returns the pending check, or null when dynamic doesn't need one
+ */
+export async function confirmForPasskey(): Promise<Verification | null> {
+  const c = await loadDynamic();
+  if (!(await c.checkStepUpAuth({ scope: c.TokenScope.Credentiallink })).isRequired) return null;
+  const email = (c.getDefaultClient().user as { email?: string } | null)?.email;
+  if (!email) throw new Error("this account has no email to confirm with.");
+  return c.sendEmailOTP({ email });
+}
+/** the emailed code checks out: dynamic hands back a short-lived permission to add the passkey */
+export async function confirmCode(v: Verification, code: string) {
+  const c = await loadDynamic();
+  await c.verifyOTP({ otpVerification: v, verificationToken: code.trim(), requestedScopes: [c.TokenScope.Credentiallink] });
+}
+
+/** adds a passkey (call from a tap: it opens face id). returns recovery codes to show once */
 export async function addPasskey(): Promise<string[]> {
   const c = await loadDynamic();
   await c.registerPasskey();
@@ -138,7 +155,10 @@ export async function codesSaved() {
 
 export async function removePasskey(id: string) {
   const c = await loadDynamic();
-  await unlockSigning(true); // removing the lock takes the lock itself
+  // removing the lock takes the lock itself
+  if ((await c.checkStepUpAuth({ scope: c.TokenScope.Credentialunlink })).isRequired) {
+    await passkeyProof(c.TokenScope.Credentialunlink);
+  }
   await c.deletePasskey({ passkeyId: id });
 }
 
@@ -152,13 +172,24 @@ export async function redeemRecoveryCode(code: string) {
  * after the network calls that come before the signature. a no-op for accounts without a passkey */
 export const readyToSign = () => (loaded ? unlockSigning() : Promise.resolve());
 
-/** before a signature: if this account is locked with a passkey and no proof is banked yet, ask for it */
-async function unlockSigning(always = false) {
+/** before a signature: dynamic's server says whether this account needs fresh proof to sign (only
+ * accounts locked with a passkey should), and if so, face id provides it */
+async function unlockSigning() {
   const c = await loadDynamic();
-  if (!always && !(await c.isMfaRequiredForAction({ mfaAction: c.MFAAction.WalletWaasSign }))) return;
-  if (!always && c.getElevatedAccessToken({ scope: c.TokenScope.Walletsign, consume: false })) return;
+  if (!(await c.checkStepUpAuth({ scope: c.TokenScope.Walletsign })).isRequired) return;
+  if (!(await c.getPasskeys()).length) {
+    // dynamic wants proof from someone who never locked their wallet: the dashboard is set up wrong
+    console.warn("[pottle] dynamic asks for step-up on wallet signing for an account with no passkey. check the mfa settings");
+    throw new Error("signing is blocked by a sign-in setting on pottle's side. try again later.");
+  }
+  await passkeyProof(c.TokenScope.Walletsign);
+}
+
+/** face id, for one kind of permission */
+async function passkeyProof(scope: Awaited<ReturnType<typeof loadDynamic>>["TokenScope"][keyof Awaited<ReturnType<typeof loadDynamic>>["TokenScope"]]) {
+  const c = await loadDynamic();
   try {
-    await c.authenticatePasskeyMFA({ requestedScopes: [c.TokenScope.Walletsign] });
+    await c.authenticatePasskeyMFA({ requestedScopes: [scope] });
   } catch (e) {
     const name = e instanceof Error ? e.name : "";
     if (name === "NotAllowedError" || name === "AbortError") throw new Error("face id was cancelled, so nothing was signed.");

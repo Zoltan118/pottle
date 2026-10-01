@@ -31,6 +31,10 @@ export function Lock() {
   const [recover, setRecover] = useState(false);
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
+  // adding a passkey: first an emailed code proves it's them, then a tap opens face id
+  const [adding, setAdding] = useState<"" | "code" | "ready">("");
+  const [check, setCheck] = useState<dyn.Verification | null>(null);
+  const [emailCode, setEmailCode] = useState("");
 
   const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!w.address, staleTime: Infinity, retry: false });
   const list = useQuery({ queryKey: ["passkeys", w.address], queryFn: dyn.passkeys, enabled: !!w.address && !!offered.data });
@@ -59,13 +63,36 @@ export function Lock() {
     );
   }
 
+  if (!locked && adding === "code") {
+    return (
+      <div className="lock">
+        <b className="lock-title">is it you?</b>
+        <p className="hint lock-text">we sent a 6-digit code to your email. it makes sure nobody else adds a lock to your wallet.</p>
+        <form className="lock-acts" onSubmit={(e) => { e.preventDefault(); if (check && emailCode.length === 6) void run(async () => { await dyn.confirmCode(check, emailCode); setAdding("ready"); setEmailCode(""); }); }}>
+          <input className="bigin lock-code" placeholder="6-digit code" value={emailCode} inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-label="the 6-digit code"
+            onChange={(e) => { setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setErr(""); }} />
+          <button className="btn sm" disabled={busy || emailCode.length !== 6}>{busy ? "checking…" : "confirm"}</button>
+        </form>
+        <div className="lock-acts"><button className="linkbtn" disabled={busy} onClick={() => { setAdding(""); setEmailCode(""); setErr(""); }}>cancel</button></div>
+        {err && <p className="err" role="alert">{err}</p>}
+      </div>
+    );
+  }
+
   if (!locked) {
     return (
       <div className="lock">
         <b className="lock-title">lock with face id</b>
-        <p className="hint lock-text">every payment will ask for face id or your fingerprint, so someone who gets into your email still can&apos;t move your money.</p>
+        <p className="hint lock-text">{adding === "ready"
+          ? "confirmed. now tap below and use face id or your fingerprint to make the passkey."
+          : "every payment will ask for face id or your fingerprint, so someone who gets into your email still can't move your money."}</p>
         <div className="lock-acts">
-          <button className="btn sm" disabled={busy} onClick={() => run(async () => setCodes(await dyn.addPasskey()))}>{busy ? "one sec…" : "add a passkey"}</button>
+          {adding === "ready"
+            ? <button className="btn sm" disabled={busy} onClick={() => run(async () => { setCodes(await dyn.addPasskey()); setAdding(""); })}>{busy ? "one sec…" : "add face id"}</button>
+            : <button className="btn sm" disabled={busy} onClick={() => run(async () => {
+                const v = await dyn.confirmForPasskey();
+                if (v) { setCheck(v); setAdding("code"); } else setAdding("ready");
+              })}>{busy ? "one sec…" : "add a passkey"}</button>}
         </div>
         {err && <p className="err" role="alert">{err}</p>}
       </div>
