@@ -38,7 +38,19 @@ export function Lock() {
 
   const offered = useQuery({ queryKey: ["passkeysOffered"], queryFn: dyn.passkeysOffered, enabled: !!w.address, staleTime: Infinity, retry: false });
   const list = useQuery({ queryKey: ["passkeys", w.address], queryFn: dyn.passkeys, enabled: !!w.address && !!offered.data });
-  if (!offered.data || !list.data) return null;
+  if (!offered.data) return null;
+  // couldn't read their passkeys: say so, rather than quietly dropping the lock option
+  if (list.error) {
+    const why = message(list.error);
+    return (
+      <div className="lock">
+        <b className="lock-title">lock with face id</b>
+        <p className="err lock-text" role="alert">couldn&apos;t check your passkeys: {why}{/unauthori[sz]ed|401/i.test(why) ? ". sign out and back in, then try again." : ""}</p>
+        <div className="lock-acts"><button className="btn sm ghost" onClick={() => list.refetch()} disabled={list.isFetching}>try again</button></div>
+      </div>
+    );
+  }
+  if (!list.data) return null;
   const locked = list.data.length > 0;
 
   async function run(f: () => Promise<void>) {
