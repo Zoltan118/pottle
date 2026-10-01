@@ -361,6 +361,7 @@ body:has(.sheet.on) { overflow: hidden; }
 .cash-q .label { font-size: 15px; font-weight: 700; color: var(--muted); }
 .cash-warn b { color: var(--ink); }
 .cash .cur .chip { padding-inline: 18px; }
+.cash .cash-exes { flex-wrap: wrap; }
 .cash-to { font-size: clamp(22px, 6vw, 30px); font-variant-numeric: tabular-nums; }
 .cash-warn { margin: 0; }
 .cash-link { font-weight: 800; color: var(--ink); text-underline-offset: 3px; justify-self: start; }
