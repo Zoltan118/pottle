@@ -38,15 +38,16 @@ export function Receive({ onBack, onClose }: { onBack: () => void; onClose: () =
         <button className="iconbtn" onClick={onClose} aria-label="close"><CloseIcon /></button>
       </div>
       <h2 className="giant cash-title">receive.</h2>
-      <p className="cash-lead">send <b>usdc</b> or <b>eurc</b> on the <b>arc</b> network to this address. from an exchange, pick arc as the network when you withdraw.</p>
+      <p className="cash-lead">send <b>usdc</b> or <b>eurc</b> on the <b>arc</b> network here.</p>
       <div className="recv-qr" role="img" aria-label="qr code of your wallet address"
         dangerouslySetInnerHTML={qr.data ? { __html: qr.data } : undefined} />
-      <code className="cash-addr" aria-label={addr}>{addr.slice(2).match(/.{1,4}/g)?.map((g, i) => <span key={i}>{i === 0 ? `0x${g}` : g}</span>)}</code>
-      <div className="recv-acts">
-        <button className="btn lg ghost" onClick={copy}><CopyIcon done={copied} />{copied ? "copied" : "copy"}</button>
-        <button className="btn lg" onClick={share}><ShareIcon />share</button>
-      </div>
-      <p className="hint cash-warn">only arc. the same address on another network is a different place, and money sent there won&apos;t show up in pottle.</p>
+      {/* the address is the copy button: tap anywhere on it */}
+      <button className="recv-addr" onClick={copy} aria-label={copied ? "address copied" : `copy your address, ${addr}`}>
+        <code className="cash-addr">{addr.slice(2).match(/.{1,4}/g)?.map((g, i) => <span key={i}>{i === 0 ? `0x${g}` : g}</span>)}</code>
+        <span className="recv-copy"><CopyIcon done={copied} />{copied ? "copied" : "copy address"}</span>
+      </button>
+      <button className="btn lg ghost wide" onClick={share}><ShareIcon />share</button>
+      <p className="hint cash-warn">from an exchange, pick arc as the network when you withdraw. the same address on another network is a different place, and money sent there won&apos;t show up in pottle.</p>
     </div>
   );
 }

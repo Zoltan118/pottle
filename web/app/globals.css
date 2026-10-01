@@ -347,9 +347,13 @@ body:has(.sheet.on) { overflow: hidden; }
 .acct-out { color: var(--ribbon-text); }
 .row-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--marigold); }
 /* the receive qr: always black on white, so every camera reads it in light and dark */
-.recv-qr { justify-self: center; width: min(240px, 70vw); aspect-ratio: 1; background: #fff; padding: 16px; border-radius: 24px; box-shadow: 0 0 0 2px var(--ink); }
+.recv-qr { justify-self: center; width: min(240px, 70vw, 27svh); aspect-ratio: 1; background: #fff; padding: 16px; border-radius: 24px; box-shadow: 0 0 0 2px var(--ink); }
 .recv-qr svg { display: block; width: 100%; height: 100%; }
-.recv-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.recv-addr { appearance: none; border: 0; padding: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; display: grid; border-radius: 18px; box-shadow: inset 0 0 0 2px var(--ink); transition: transform 160ms var(--out); }
+.recv-addr:active { transform: scale(.98); }
+.recv-addr:focus-visible { outline: 3px solid var(--marigold); outline-offset: 3px; }
+.recv-addr .cash-addr { box-shadow: none; padding-bottom: 8px; }
+.recv-copy { display: flex; align-items: center; gap: 8px; margin: 0 18px 16px; justify-self: start; padding: 8px 14px; border-radius: 999px; background: var(--ribbon); color: var(--on-ribbon); font-family: var(--display); font-weight: 800; font-size: 16px; }
 /* cash out, inside the account sheet */
 .cash { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
 .cash-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; }

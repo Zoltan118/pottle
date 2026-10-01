@@ -5,6 +5,19 @@ import { watchKeyboard } from "@/lib/keyboard";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { CloseIcon } from "./Icons";
 
+// one history step per open sheet, the newest on top. a back press closes only the top sheet, so a sheet
+// opened from another (add to home screen, from the account) closes alone. when a sheet closes by its
+// own button it takes its step back itself; that popstate is counted here and isn't a back press
+const stack: HTMLElement[] = [];
+let ownBacks = 0;
+if (typeof window !== "undefined") {
+  addEventListener("popstate", () => {
+    if (ownBacks > 0) { ownBacks--; return; }
+    // the same path as the escape key, so the page's own close logic runs
+    stack.pop()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+}
+
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /**
@@ -32,30 +45,29 @@ export function Sheet({ open, onClose, label, children, closeButton = true }: {
   // android's back button and the swipe-back gesture close the sheet, like an app, instead of leaving the
   // page: opening adds a history step (keeping next's own state in it, so its router stays calm) and back
   // takes it away again. closing any other way removes the step, so history stays as it was
-  const pushed = useRef(false);
   useMountEffect(() => {
     const el = ref.current;
+    if (!el) return;
     // the slide starts. a native listener: react does not wire up onTransitionStart. open or closed is read
     // from the sheet itself, so this never sees a stale render's props
     const onStart = (e: Event) => {
-      if (e.target !== el || (e as globalThis.TransitionEvent).propertyName !== "transform" || !el) return;
+      if (e.target !== el || (e as globalThis.TransitionEvent).propertyName !== "transform") return;
+      const at = stack.indexOf(el);
       if (el.classList.contains("on")) {
         opener.current = document.activeElement as HTMLElement | null; // remember who opened the sheet
-        if (!pushed.current) { history.pushState({ ...(history.state ?? {}), pottleSheet: true }, "", location.href); pushed.current = true; }
-      } else if (pushed.current) {
-        pushed.current = false;
-        if ((history.state as { pottleSheet?: boolean } | null)?.pottleSheet) history.back();
+        if (at < 0) { history.pushState({ ...(history.state ?? {}), pottleSheet: true }, "", location.href); stack.push(el); }
+      } else if (at >= 0) {
+        // closed by its own button, escape or the scrim: take its history step back
+        stack.splice(at, 1);
+        if ((history.state as { pottleSheet?: boolean } | null)?.pottleSheet) { ownBacks++; history.back(); }
       }
     };
-    el?.addEventListener("transitionstart", onStart);
-    const onPop = () => {
-      if (!pushed.current || !ref.current?.classList.contains("on")) return;
-      pushed.current = false;
-      // the same path as the escape key, so the page's own close logic runs
-      ref.current.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    el.addEventListener("transitionstart", onStart);
+    return () => {
+      el.removeEventListener("transitionstart", onStart);
+      const at = stack.indexOf(el);
+      if (at >= 0) stack.splice(at, 1);
     };
-    addEventListener("popstate", onPop);
-    return () => { el?.removeEventListener("transitionstart", onStart); removeEventListener("popstate", onPop); };
   });
 
   // the slide ends: focus in, or hand focus back
