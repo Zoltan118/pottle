@@ -205,11 +205,8 @@ export async function unsavedCodes(): Promise<string[]> {
   if (!c.isPendingRecoveryCodesAcknowledgment()) return [];
   return (await c.getMfaRecoveryCodes()).recoveryCodes ?? [];
 }
-/** a fresh set of recovery codes. the old ones stop working */
-export async function newCodes(): Promise<string[]> {
-  const c = await loadDynamic();
-  return (await c.createNewMfaRecoveryCodes()).recoveryCodes ?? [];
-}
+// no way to make new recovery codes: a fresh set could stand in for face id, so codes come once, when
+// the passkey is added. lost them and the phone? remove the passkey from a signed-in device and add a new one
 /** the person saved their recovery codes */
 export async function codesSaved() {
   const c = await loadDynamic();

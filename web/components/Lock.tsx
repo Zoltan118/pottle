@@ -178,7 +178,6 @@ export function Lock({ onRelogin, nudge, onLater }: { onRelogin: () => void; nud
       </>) : (
         <div className="lock-acts">
           <button className="linkbtn" onClick={() => { setRecover(true); setErr(""); }}>lost it? use a recovery code</button>
-          <button className="linkbtn" disabled={busy} onClick={() => run(async () => show(w.address, await dyn.newCodes()))}>new recovery codes</button>
           <button className="linkbtn" disabled={busy} onClick={() => run(async () => { for (const p of list.data!) await dyn.removePasskey(p.id); })}>remove</button>
         </div>
       )}
