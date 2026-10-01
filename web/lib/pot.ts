@@ -133,6 +133,10 @@ export function timeLeft(deadline: number, now = Date.now() / 1000) {
   return `${m} min left`;
 }
 
-// index matches the contract's wrap field, 0 to 7
-export const WRAPS = ["confetti", "stripes", "gingham", "plain", "hearts", "stars", "waves", "sprinkles"] as const;
+// index matches the contract's wrap field, which accepts any value. new wraps are only ever appended,
+// so a pot keeps its look; a value this app doesn't know yet shows as confetti
+export const WRAPS = [
+  "confetti", "stripes", "gingham", "plain", "hearts", "stars", "waves", "sprinkles",
+  "boarding", "sunset", "palms", "cheers", "lemons", "forks", "balloons", "candles", // themed: lib/wraps.ts
+] as const;
 export type Wrap = (typeof WRAPS)[number];

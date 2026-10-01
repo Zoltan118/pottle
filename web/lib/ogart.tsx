@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Wrap } from "./pot";
 import { ogFont } from "./ogfont";
+import { NEW_TILES } from "./wraps";
 
 /**
  * the building blocks of pottle's link previews (1200x630): the pot's own wrap as the background, a
@@ -30,6 +31,7 @@ const TILES: Record<Wrap, { w: number; h: number; body: string } | null> = {
   sprinkles: { w: 72, h: 72, body:
     `<g stroke-width="5" stroke-linecap="round" stroke-opacity=".75"><path d="M10 14l10 -5" stroke="${C.gold}"/><path d="M44 10l7 9" stroke="#E0487A"/><path d="M58 40l-10 4" stroke="#3FA37E"/>` +
     `<path d="M20 50l4 10" stroke="#9A7BD1"/><path d="M36 34l9 -3" stroke="#E0487A"/><path d="M6 36l3 -8" stroke="#3FA37E"/><path d="M52 60l9 3" stroke="${C.gold}"/></g>` },
+  ...NEW_TILES, // the themed wraps, drawn once in lib/wraps.ts for the site and here
 };
 
 /** the wrap tiled across the whole image, as one svg picture */

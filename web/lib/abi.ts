@@ -83,19 +83,6 @@ export const pottleAbi = [
   },
   {
     "type": "function",
-    "name": "MAX_WRAP",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "MIN_CHIP",
     "inputs": [],
     "outputs": [

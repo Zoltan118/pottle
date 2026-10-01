@@ -130,6 +130,16 @@ let tries = 0;
 while ((await status(d)) !== "released" && tries++ < 12) await new Promise((r) => setTimeout(r, 2500));
 check((await status(d)) === "released", "opening pot D's page paid it out by itself");
 
+// themed wraps: the contract takes any wrap value, so a pot with a wrap added after deployment (candles,
+// number 15) is created as usual, and its link preview draws it
+const wrapId = await (async () => {
+  const hash = await org.writeContract({ address: POTTLE, abi: potAbi, functionName: "create", args: [$(5), BigInt(Math.floor(Date.now() / 1000) + 3600), 15, 0, "e2e birthday", "org"] });
+  const rc = await wait(hash);
+  return BigInt(rc.logs.find((l) => l.address.toLowerCase() === POTTLE.toLowerCase()).topics[1]);
+})();
+const og = await fetch(`${APP}/p/${wrapId}/opengraph-image`);
+check(og.ok && (og.headers.get("content-type") ?? "").startsWith("image/"), `a pot with a themed wrap (candles) is created and its link preview renders (${og.status})`);
+
 // cash out: the relayer's "send" job. a fresh wallet, so the relayer's own fee never mixes into the numbers
 const sendTypes = { TransferWithAuthorization: [{ name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" }, { name: "validAfter", type: "uint256" }, { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" }] };
 async function signSend(pk, currency, to, amount) {

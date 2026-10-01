@@ -355,13 +355,19 @@ contract PottleTest is Test {
         assertEq(pottle.potsOf(deniz).length, 1);
     }
 
-    function test_wrapIsStoredAndBounded() public {
+    function test_wrapIsStoredWhateverTheLook() public {
         vm.prank(deniz);
         uint256 id = pottle.create(50e6, deadline, 2, 0, "picnic", "deniz");
         (Pottle.Pot memory p,,,,) = pottle.getPot(id);
         assertEq(p.wrap, 2);
+        // looks the app adds later need no new contract: every wrap value is stored as given
+        vm.prank(deniz);
+        uint256 later = pottle.create(50e6, deadline, 255, 0, "x", "d");
+        (Pottle.Pot memory q,,,,) = pottle.getPot(later);
+        assertEq(q.wrap, 255);
+        // the currency is still checked: only usdc (0) and eurc (1)
         vm.expectRevert(Pottle.BadText.selector);
-        pottle.create(50e6, deadline, 8, 0, "x", "d");
+        pottle.create(50e6, deadline, 0, 2, "x", "d");
     }
 
     // ---------------------------------------------------------------- euro pots

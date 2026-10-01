@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { Providers } from "./providers";
 import { Tips } from "@/components/Tips";
 import { SITE } from "@/lib/config";
+import { wrapCss } from "@/lib/wraps";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], axes: ["opsz"], variable: "--font-display" }); // opsz keeps giant type tight
@@ -33,6 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>
+        {/* the themed wraps' backgrounds, generated from the same tiles the link previews use */}
+        <style dangerouslySetInnerHTML={{ __html: wrapCss }} />
         <Providers>{children}</Providers>
         <Tips />
       </body>

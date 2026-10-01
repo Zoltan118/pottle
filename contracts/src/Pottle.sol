@@ -37,7 +37,6 @@ contract Pottle {
     uint256 public constant MAX_TITLE = 64; // bytes
     uint256 public constant MAX_NAME = 24; // bytes
     uint256 public constant MAX_PEOPLE = 100; // per pot, bounds refundAll
-    uint8 public constant MAX_WRAP = 7;
     /// @notice if a pot hit its goal but still has not paid out this long after its deadline (for
     /// example because the organiser's address was blocklisted by the token issuer), contributors may
     /// take their money back. long enough to outlast a temporary freeze that gets reviewed and lifted.
@@ -49,7 +48,7 @@ contract Pottle {
         bool released;
         uint128 goal;
         uint128 raised; // currently held for this pot, falls as refunds go out
-        uint8 wrap; // the look the organiser picked, 0 to MAX_WRAP
+        uint8 wrap; // the look the organiser picked. any value: the app draws the ones it knows and a default for the rest
         uint8 currency; // 0 = usdc, 1 = eurc
         string title;
         string organiserName;
@@ -125,7 +124,8 @@ contract Pottle {
         // whole cents only. with the goal and every chip-in on the cent grid, a pot below its goal always
         // has room for one more MIN_CHIP under the cap, so nobody can strand it just short of its goal
         if (goal == 0 || goal > MAX_POT || goal % MIN_CHIP != 0) revert BadGoal();
-        if (wrap > MAX_WRAP || currency > 1) revert BadText();
+        // the wrap is only a look, so every value is accepted: new looks never need a new contract
+        if (currency > 1) revert BadText();
         if (deadline <= block.timestamp || deadline > block.timestamp + MAX_DURATION) revert BadDeadline();
         _text(title, MAX_TITLE);
         _text(organiserName, MAX_NAME);

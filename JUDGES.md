@@ -16,6 +16,7 @@ the $100 beta cap on each pot.
 3. your balance pill shows **+$10…** and then **$10**. that is test usdc, sent to new wallets
    automatically so you never need a faucet
 4. tap **make a pot**. five one-word questions: for? goal? until? wrap? you?
+   (try **trip**, **dinner** or **birthday** as the title: the wrap step leads with wraps made for it)
    (pick **$** or **€** on the goal step. euro pots need test eurc, see the note at the end)
 5. **create pot**. you get a link
 
@@ -47,7 +48,7 @@ the $100 beta cap on each pot.
 `web/scripts/e2e-testnet.mjs` drives the whole flow against the running app with real test usdc:
 signature chip-in with a sponsored fee, a classic chip-in, payout, a refund after a 40 second
 deadline, the pot lists, the scheduled job paying out a pot nobody touched, a pot paying itself out
-when its page is opened, and cash out, including a real one through base. 32 checks. it needs a funded
+when its page is opened, a pot with a themed wrap, and cash out, including a real one through base. 33 checks. it needs a funded
 testnet key in `contracts/.env`.
 
 ## the code worth reading

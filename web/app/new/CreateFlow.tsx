@@ -11,6 +11,7 @@ import { useMountEffect } from "@/hooks/useMountEffect";
 import { createPot } from "@/lib/wallet";
 import { missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { MAX_POT, money, WRAPS, type Wrap } from "@/lib/pot";
+import { THEME_WRAPS, themeOf } from "@/lib/wraps";
 import { fitBytes, MAX_NAME_BYTES, MAX_TITLE_BYTES } from "@/lib/text";
 import { BackIcon, CloseIcon, CopyIcon, ShareIcon } from "@/components/Icons";
 
@@ -48,7 +49,11 @@ const dateLabel = (d: Date) =>
 const WRAP_LIST: { id: Wrap; label: string }[] = [
   { id: "confetti", label: "confetti" }, { id: "stripes", label: "ribbon" }, { id: "gingham", label: "picnic" }, { id: "plain", label: "plain" },
   { id: "hearts", label: "hearts" }, { id: "stars", label: "stars" }, { id: "waves", label: "waves" }, { id: "sprinkles", label: "sprinkles" },
+  { id: "boarding", label: "boarding pass" }, { id: "sunset", label: "sunset" }, { id: "palms", label: "palms" },
+  { id: "cheers", label: "cheers" }, { id: "lemons", label: "lemons" }, { id: "forks", label: "dinner table" },
+  { id: "balloons", label: "balloons" }, { id: "candles", label: "candles" },
 ];
+const SHOWN = 8; // two rows; the rest behind "more wraps"
 
 export function CreateFlow() {
   const w = useWallet();
@@ -69,7 +74,15 @@ export function CreateFlow() {
   const pickedAt = atSix(picked).getTime();
   const pickedOk = !Number.isNaN(pickedAt) && pickedAt - openedAt >= HOUR && pickedAt - openedAt <= MAX_AHEAD;
   const deadline = until ? deadlineFor(until, picked, new Date(openedAt)) : null;
-  const [wrap, setWrap] = useState<Wrap>("confetti");
+  // the wrap: what they tapped, or until then the first one that fits what the pot is for
+  const [tapped, setTapped] = useState<Wrap | null>(null);
+  const [allWraps, setAllWraps] = useState(false);
+  const theme = themeOf(title); // a trip, a dinner, a birthday: its wraps come first
+  const themed = theme ? (THEME_WRAPS[theme] as Wrap[]) : [];
+  const wrap: Wrap = tapped ?? themed[0] ?? "confetti";
+  const ordered = [...themed.map((id) => WRAP_LIST.find((x) => x.id === id)!), ...WRAP_LIST.filter((x) => !themed.includes(x.id))];
+  // two rows at first; all of them once asked for, or when the chosen one is further down
+  const wrapsShown = allWraps || ordered.findIndex((x) => x.id === wrap) >= SHOWN ? ordered : ordered.slice(0, SHOWN);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -192,9 +205,11 @@ export function CreateFlow() {
       {step === 3 && (
         <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">wrap?</h1>
+          {theme && <p className="hint" style={{ margin: 0 }}>picked for a {theme}. any of them works.</p>}
           <div className="wraps" role="group" aria-label="pot wrap">
-            {WRAP_LIST.map((x) => <button key={x.id} className={`wrapchoice w-${x.id}`} aria-pressed={wrap === x.id} aria-label={x.label} data-tip={x.label} onClick={() => setWrap(x.id)} />)}
+            {wrapsShown.map((x) => <button key={x.id} className={`wrapchoice w-${x.id}`} aria-pressed={wrap === x.id} aria-label={x.label} data-tip={x.label} onClick={() => setTapped(x.id)} />)}
           </div>
+          {wrapsShown.length < ordered.length && <button className="linkbtn wraps-more" onClick={() => setAllWraps(true)}>more wraps</button>}
         </section>
       )}
 

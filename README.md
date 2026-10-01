@@ -61,6 +61,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **cash out** | the organiser sends the money to their exchange from the account sheet. kraken, binance and kucoin take usdc on arc directly, and pottle pays the fee. coinbase only takes usdc on base, so pottle moves it there through circle's cctp first, for about 6 cents. straight to a bank account is next |
 | **receive** | a qr code and a tap-to-copy address for anyone sending usdc or eurc on arc |
 | **face id sign-in, optional** | add a passkey and sign in with face id or a fingerprint instead of an email code. adding or removing a key on the account then asks for it too, enforced by dynamic's servers |
+| **wraps that fit the pot** | a trip, a dinner or a birthday gets its own patterns first (boarding pass, sunset, palms; cheers, lemons, a set table; balloons, candles), read from the pot's title. the contract stores any wrap, so new ones never need a new contract |
 | **made for group chats** | a live link preview ("7 in, $140 of $200"), a share button that sends the link with what's left to go, a qr code, and a thank-you card once it pays out |
 
 ## how it uses arc
@@ -157,10 +158,11 @@ is missing instead of failing quietly.
 - **invariant testing**: 15,360 random calls across four people and both currencies; after every
   step the contract holds exactly what it owes and no pot is above the cap. **100% line, statement, branch and function coverage**
 - **slither** static analysis: no exploitable findings. details in [`AUDIT.md`](AUDIT.md)
-- **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 32 checks with real usdc,
+- **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 33 checks with real usdc,
   through the running app. one-signature chip-in with a sponsored fee, a classic approve and chip-in,
   payout, refund after the deadline, the per-person pot lists, the scheduled job paying out a pot
-  nobody touched, a pot paying itself out when its page is opened, and cash out: every address the
+  nobody touched, a pot paying itself out when its page is opened, a pot with a themed wrap and its
+  link preview, and cash out: every address the
   relayer must refuse, no sponsoring without a signed-in account, exact amounts in usdc and eurc, no
   replay, and a real cash out through base (burned on arc testnet, minted on base sepolia)
 
@@ -185,7 +187,7 @@ code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](
 
 | network | chain id | Pottle |
 | --- | --- | --- |
-| arc testnet | 5042002 | [`0x9bCD41085F2BC2Ae1a647A9De630928e50E4201E`](https://explorer.testnet.arc.io/address/0x9bCD41085F2BC2Ae1a647A9De630928e50E4201E) (verified; the exact contract going to mainnet, with every fix from the review) |
+| arc testnet | 5042002 | [`0x2B2a65527A6Bb780758E7100F894e6418223C277`](https://explorer.testnet.arc.io/address/0x2B2a65527A6Bb780758E7100F894e6418223C277) (verified; the exact contract going to mainnet: every fix from the review, and any wrap value accepted so new looks never need a new contract) |
 | arc mainnet | 5042 | deploying before submission (with the 30 day payout grace and the $100 beta cap) |
 
 usdc on arc: `0x3600000000000000000000000000000000000000`.
