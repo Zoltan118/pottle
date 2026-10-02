@@ -36,7 +36,8 @@ export default function About() {
             <li><b>with dynamic</b> (sign-in): your email, your passkey if you add one, and your wallet, which dynamic keeps so only you can use it.</li>
             <li><b>with circle</b>, only if you buy usdc by card: what their id check asks for.</li>
             <li><b>with vercel</b> (hosting): ordinary request logs, kept briefly.</li>
-            <li><b>pottle itself</b> keeps no accounts, no database and no analytics, and sets no ad trackers.</li>
+            <li><b>with google analytics</b>: which pages are visited, counted without cookies and without any ad features.</li>
+            <li><b>pottle itself</b> keeps no accounts and no database.</li>
           </ul>
         </section>
 
