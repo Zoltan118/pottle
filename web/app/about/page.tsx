@@ -6,10 +6,10 @@ import { MAX_POT } from "@/lib/pot";
 
 export const metadata: Metadata = {
   title: "about · pottle",
-  description: "who runs pottle, what it stores, what it can and can't do with your money, and the risks during beta.",
+  description: "how pottle works on chain, what it stores, what it can and can't do with your money, and the risks during beta.",
 };
 
-// who runs pottle, what it keeps, the terms in plain words. kept short and true: everything here can be
+// how pottle works, what it keeps, the terms in plain words. kept short and true: everything here can be
 // checked against the open source code and the contract
 export default function About() {
   return (
@@ -19,13 +19,8 @@ export default function About() {
         <h1 className="giant">about.</h1>
 
         <section>
-          <h2>who runs it</h2>
-          <p>pottle is a personal project by one developer (<a href="https://github.com/Zoltan118" target="_blank" rel="noreferrer">zoltan118 on github</a>), built for circle&apos;s arc microgrants. not a company, no investors, no fees. the code is open source under the mit licence.</p>
-        </section>
-
-        <section>
           <h2>pottle never holds your money</h2>
-          <p>every pot lives in one public contract on arc with no owner and no admin. it pays a pot to its organiser when the goal is hit, and back to everyone who paid when the deadline passes without it. nobody can change that, take money early, or send it anywhere else: not the organiser, and not pottle.</p>
+          <p>pottle is open source software, built for circle&apos;s arc microgrants. it charges no fees, and the money never passes through it: every pot lives in one public contract on arc with no owner and no admin. it pays a pot to its organiser when the goal is hit, and back to everyone who paid when the deadline passes without it. nobody can change that, take money early, or send it anywhere else: not the organiser, and not pottle.</p>
           {POTTLE && <p>the contract: <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">{POTTLE.slice(0, 6)}…{POTTLE.slice(-4)} on the arc explorer</a>.</p>}
         </section>
 

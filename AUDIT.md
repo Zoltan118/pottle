@@ -238,7 +238,7 @@ fixed in the app:
 - **privacy and search**: pot pages (which carry people's names) and the whole test site are kept out of
   search results; names are marked public where they're typed
 - **old test links** on pottle.xyz point to the test site instead of a stranger's mainnet pot
-- **an about page** (`/about`): who runs pottle, what is stored where, the risks, the terms in short,
+- **an about page** (`/about`): how pottle works on chain, what is stored where, the risks, the terms in short,
   and how to reach the developer; plus faq answers on cancelling, losing access, and pottle disappearing
 - smaller ones: coinbase copy, "refunded to you" only once it is, birthday guesses from numbers only
   next to a person, wrap lists typed so a typo fails the build

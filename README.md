@@ -126,7 +126,7 @@ create(goal, deadline,        |                                     |
 
 ```
 contracts/   foundry. src/Pottle.sol, 44 tests, 6 invariants, deploy script
-web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id], who runs it at /about
+web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id], how it works at /about
   app/api/relay         sponsors chip-ins, cash outs, payouts and refunds (simulated first, rate limited)
   app/api/cron/settle   pays out and refunds every due pot, called by the scheduled job
   app/api/drip          testnet only: $10 of test usdc for a new signed-in wallet
