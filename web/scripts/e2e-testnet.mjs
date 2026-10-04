@@ -183,6 +183,10 @@ await wait(await deployer.writeContract({ address: EURC, abi: xferAbi, functionN
 check((await tokenBal(EURC, dest)) - eurBefore === $(1), "a signed €1 eurc cash out lands exactly");
 
 // cash out through base: circle's cctp burns on arc and its forwarding service mints on base sepolia
+// the fee top-up for a first pot pays only a signed-in account (scripts/topup-test.mjs covers the rules)
+const top = await fetch(`${APP}/api/topup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: cash.address }) });
+check(top.status === 401, `a fee top-up without a signed-in pottle account is refused (${top.status})`);
+
 if (process.env.E2E_SKIP_BASE) console.log("SKIP  cash out through base (E2E_SKIP_BASE set)");
 else {
   const TM = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA", BASE_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";

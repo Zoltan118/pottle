@@ -49,6 +49,17 @@ export async function requestDrip(address: Address, authHeader: string) {
   return (j.amount as number | undefined) ?? 0;
 }
 
+/** a cent from the relayer for the fee of someone's first pot, when their wallet is empty. true when they can now pay */
+export async function requestFeeTopUp(address: Address, authHeader: string) {
+  try {
+    const r = await fetch("/api/topup", { method: "POST", headers: { "content-type": "application/json", authorization: authHeader }, body: JSON.stringify({ address }) });
+    const j = await r.json();
+    return j.sent === true || j.reason === "has enough";
+  } catch {
+    return false;
+  }
+}
+
 export async function balanceOf(address: Address, c: Currency = "usd") {
   const b = await publicClient.readContract({ address: TOKEN[c].address, abi: erc20Abi, functionName: "balanceOf", args: [address] });
   return Number(b) / 1e6;

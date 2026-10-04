@@ -130,6 +130,14 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
   signature rather than making a second valid one
 - rate limits are kept per server instance, so they slow a spammer rather than stop a determined one;
   the hard limits are the $1 sponsor minimum and the reserve
+- **the fee for a first pot.** making a pot can't be sponsored (the contract records whoever sends `create` as
+  the organiser), and on arc the fee is paid in usdc, so a brand new wallet couldn't make one. the relayer
+  sends $0.01 (a pot costs about half a cent) only to a signed-in account's own wallet that holds under a
+  cent **and has never sent a transaction**, checked on chain: after its first pot a wallet never qualifies
+  again, and nothing moves the cent out without a transaction of its own (pottle sponsors nothing
+  under $1). also limited to 5 an hour per ip, one at a time per wallet, and $2 a day per server instance.
+  tested on arc testnet with fresh wallets (`scripts/topup-test.mjs`): $0.01 paid for the first pot, a second
+  ask, a used wallet, two requests at once and the daily cap are all refused
 
 ## dependencies
 

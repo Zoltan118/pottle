@@ -8,7 +8,10 @@ import { watchKeyboard } from "@/lib/keyboard";
 import { useWallet } from "@/app/providers";
 import { walletStore } from "@/lib/walletStore";
 import { useMountEffect } from "@/hooks/useMountEffect";
-import { createPot } from "@/lib/wallet";
+import { createPot, requestFeeTopUp, usdcBalance } from "@/lib/wallet";
+
+// the organiser's wallet can't pay the fee for making the pot and pottle couldn't send it: say what to do
+const NO_FEE = "making a pot costs under a cent, paid in usdc from your wallet. add a little (your account, then receive) and try again.";
 import { DEPLOYED, missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { MAX_POT, money, WRAPS, type Wrap } from "@/lib/pot";
 import { THEME_WRAPS, themeOf } from "@/lib/wraps";
@@ -102,11 +105,17 @@ export function CreateFlow() {
     if (!walletStore.get().address && !(await w.signIn())) { setBusy(false); creating.current = false; return; }
     try {
       const c = await walletStore.get().client(); // the live wallet, not this render's copy
+      // making a pot is paid from the organiser's own wallet (the fee is in usdc on arc, about half a
+      // cent). an empty new wallet gets a cent from pottle first, so the first pot just works
+      const me = c.account!.address;
+      if ((await usdcBalance(me)) < 0.01 && !(await requestFeeTopUp(me, walletStore.get().authHeader()))) throw new Error(NO_FEE);
       const id = await createPot(c, { goal: +goal, deadline: Math.floor(deadlineFor(until!, picked).getTime() / 1000), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
       created.current = true;
       setPotId(id); setStep(5); history.replaceState(null, "", "/new");
     } catch (e) {
-      setErr(e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message).slice(0, 140) : "something went wrong");
+      const text = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : "something went wrong";
+      // the wallet's own "exceeds the balance" means the same thing as an empty wallet: say it plainly
+      setErr(/exceeds the balance|insufficient funds/i.test(text) ? NO_FEE : text.slice(0, 140));
     } finally { setBusy(false); creating.current = false; }
   }
 
