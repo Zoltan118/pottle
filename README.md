@@ -54,6 +54,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **nobody can take it early** | one immutable contract holds every pot. no owner, no admin, no upgrade path, no fee |
 | **capped in beta** | there's been no third-party audit yet, so on mainnet a pot never holds more than $1,000 or €1,000. the contract enforces it, not just the app |
 | **one signature to chip in** | friends sign one message (eip-3009) and pottle pays the network fee. no approve step, no gas to buy |
+| **a first pot from an empty wallet** | making a pot is paid from the organiser's own wallet, so pottle sends a new, empty wallet one cent for that first fee (a pot costs about half a cent). once per wallet, checked on chain |
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
 | **dollars or euros** | a pot is in usdc or eurc. euro pots are paid in and paid out in eurc |
@@ -158,12 +159,18 @@ is missing instead of failing quietly.
 - **invariant testing**: 15,360 random calls across four people and both currencies; after every
   step the contract holds exactly what it owes and no pot is above the cap. **100% line, statement, branch and function coverage**
 - **slither** static analysis: no exploitable findings. details in [`AUDIT.md`](AUDIT.md)
-- **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 33 checks with real usdc,
+- **on arc mainnet with real money** (2026-10-04): a new account made a pot from an empty wallet,
+  a sponsored $1 chip-in hit the goal, the scheduled job paid it out, and a sponsored $1 cash out
+  arrived exactly. each step checked on chain
+- **the first-pot fee** (`node web/scripts/topup-test.mjs`, arc testnet): an empty new wallet gets
+  a cent that pays for its pot; asking again, a used wallet, two requests at once and the daily cap
+  are refused
+- **end-to-end on arc testnet** (`node web/scripts/e2e-testnet.mjs`): 34 checks with real usdc,
   through the running app. one-signature chip-in with a sponsored fee, a classic approve and chip-in,
   payout, refund after the deadline, the per-person pot lists, the scheduled job paying out a pot
   nobody touched, a pot paying itself out when its page is opened, a pot with a themed wrap and its
   link preview, and cash out: every address the
-  relayer must refuse, no sponsoring without a signed-in account, exact amounts in usdc and eurc, no
+  relayer must refuse, no sponsoring or fee top-up without a signed-in account, exact amounts in usdc and eurc, no
   replay, and a real cash out through base (burned on arc testnet, minted on base sepolia)
 
 arc moves usdc through a native precompile that local forks cannot execute, so the unit tests use
@@ -187,7 +194,7 @@ code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](
 
 | network | chain id | Pottle |
 | --- | --- | --- |
-| arc testnet | 5042002 | [`0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F`](https://explorer.testnet.arc.io/address/0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F) (verified; the exact contract going to mainnet: every fix from the review, and any wrap value accepted so new looks never need a new contract) |
+| arc testnet | 5042002 | [`0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F`](https://explorer.testnet.arc.io/address/0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F) (verified; the same code as mainnet: every fix from the review, and any wrap value accepted so new looks never need a new contract) |
 | arc mainnet | 5042 | [`0xB53D47878283C2f2D44739B39c1B576469A50D5c`](https://explorer.arc.io/address/0xB53D47878283C2f2D44739B39c1B576469A50D5c) (verified, [exact match on sourcify](https://sourcify.dev/server/v2/contract/5042/0xB53D47878283C2f2D44739B39c1B576469A50D5c); the same code as testnet, with the 30 day payout grace and the $1,000 beta cap) |
 
 usdc on arc: `0x3600000000000000000000000000000000000000`.

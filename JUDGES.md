@@ -2,12 +2,21 @@
 
 pottle runs as two sites from the same code:
 
-- **https://pottle.xyz**, arc mainnet with real usdc (the deployment this submission is about)
+- **https://pottle.xyz**, arc mainnet with real usdc (the deployment this submission is about).
+  contract [`0xB53D47878283C2f2D44739B39c1B576469A50D5c`](https://explorer.arc.io/address/0xB53D47878283C2f2D44739B39c1B576469A50D5c),
+  source verified ([exact match on sourcify](https://sourcify.dev/server/v2/contract/5042/0xB53D47878283C2f2D44739B39c1B576469A50D5c))
 - **https://test.pottle.xyz**, arc testnet with free test dollars
 
 everything below uses the **testnet** site, so nothing costs you anything. about three minutes.
 the `live | test` switch in the nav moves between the two. both run the same contract, including
 the $1,000 beta cap on each pot.
+
+**mainnet was tested with real money on 2026-10-04**, every step checked on chain: a brand new
+email account made pot #1 from an empty wallet (pottle sent it one cent for the fee, see below),
+a sponsored $1 chip-in hit the goal, the scheduled job paid it out (the contract was left holding
+$0.00), and a sponsored $1 cash out arrived exactly. the relayer spent about a cent and a half on
+all of it. to try mainnet yourself you need real usdc on arc for the chip-in; making a pot needs
+nothing.
 
 ## 1. make a pot (one minute)
 
@@ -40,6 +49,10 @@ the $1,000 beta cap on each pot.
   through base with circle's cctp, try it with any test address) and **receive** (qr and tap-to-copy)
 - **face id sign-in**: add a passkey from the account. next time you sign in with face id instead of
   an email code. recovery codes are shown once
+- on mainnet a new wallet is empty, but making a pot is paid from the organiser's own wallet (the
+  contract records whoever sends it as the organiser, so it can't be sponsored). pottle sends an
+  empty new wallet **one cent** for that first fee, once, checked on chain. a pot costs about half
+  a cent on arc
 - a pot that **misses its deadline** refunds everyone the same way. deadlines are at least an hour
   away, so the fastest way to see a refund is the end-to-end run below
 
@@ -48,13 +61,13 @@ the $1,000 beta cap on each pot.
 `web/scripts/e2e-testnet.mjs` drives the whole flow against the running app with real test usdc:
 signature chip-in with a sponsored fee, a classic chip-in, payout, a refund after a 40 second
 deadline, the pot lists, the scheduled job paying out a pot nobody touched, a pot paying itself out
-when its page is opened, a pot with a themed wrap, and cash out, including a real one through base. 33 checks. it needs a funded
+when its page is opened, a pot with a themed wrap, and cash out, including a real one through base. 34 checks. it needs a funded
 testnet key in `contracts/.env`.
 
 ## the code worth reading
 
 - [`contracts/src/Pottle.sol`](contracts/src/Pottle.sol): the whole contract, about 300 lines
-- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 44 tests, including fuzzing and
+- [`contracts/test/Pottle.t.sol`](contracts/test/Pottle.t.sol): 44 tests (100% coverage), including fuzzing and
   signature binding, and [`PottleInvariant.t.sol`](contracts/test/PottleInvariant.t.sol) for random
   sequences
 - [`AUDIT.md`](AUDIT.md): our own security review
@@ -62,6 +75,8 @@ testnet key in `contracts/.env`.
 - [`web/app/api/relay/route.ts`](web/app/api/relay/route.ts): the sponsor, and how it refuses to be
   drained
 - [`web/lib/settle.ts`](web/lib/settle.ts): automatic payout and refund
+- [`web/lib/feeTopup.ts`](web/lib/feeTopup.ts): the one cent for a first pot, and the on-chain rule
+  that makes it once per wallet (tested on testnet by [`web/scripts/topup-test.mjs`](web/scripts/topup-test.mjs))
 - [`web/lib/wallet.ts`](web/lib/wallet.ts) `sendOut` and `sendViaBase`: cash out, and how a retry can
   never send twice
 - [`web/lib/dynamicClient.ts`](web/lib/dynamicClient.ts): email and face id sign-in

@@ -10,12 +10,21 @@
 - nobody can take a pot early, including the organiser and the people who built pottle. the contract has no owner, no admin and no fee
 - friends sign in with their email; pottle pays the network fee for payments of $1 or more, so they only sign once
 - pots can be in dollars (usdc) or euros (eurc)
+- making a pot costs about half a cent, paid from the organiser's wallet; pottle sends an empty new wallet one cent for its first pot
+- in beta (no third-party audit yet) a pot holds at most $1,000 or €1,000. the contract enforces it
 
 ## how it uses arc
 - arc is circle's layer 1 for stablecoin payments. fees are paid in usdc and payments settle in about half a second
 - chip-ins use eip-3009 (receiveWithAuthorization) on circle's usdc and eurc, so a payment is a single signature
 - payouts and refunds are triggered automatically: when anyone opens a pot that is due, and by a scheduled job
 
+## where it runs
+- live on arc mainnet with real usdc: https://pottle.xyz
+- free to try on arc testnet with test dollars: https://test.pottle.xyz
+- the contract on arc mainnet: 0xB53D47878283C2f2D44739B39c1B576469A50D5c (source verified, https://explorer.arc.io/address/0xB53D47878283C2f2D44739B39c1B576469A50D5c)
+
 ## links
 - source code: https://github.com/Zoltan118/pottle
 - make a pot: /new
+- how it works, what's stored, the risks: /about
+- the security review: https://github.com/Zoltan118/pottle/blob/main/AUDIT.md
