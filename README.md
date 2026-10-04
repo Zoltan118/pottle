@@ -188,7 +188,7 @@ code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](
 | network | chain id | Pottle |
 | --- | --- | --- |
 | arc testnet | 5042002 | [`0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F`](https://explorer.testnet.arc.io/address/0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F) (verified; the exact contract going to mainnet: every fix from the review, and any wrap value accepted so new looks never need a new contract) |
-| arc mainnet | 5042 | deploying before submission (with the 30 day payout grace and the $1,000 beta cap) |
+| arc mainnet | 5042 | [`0xB53D47878283C2f2D44739B39c1B576469A50D5c`](https://explorer.arc.io/address/0xB53D47878283C2f2D44739B39c1B576469A50D5c) (verified, [exact match on sourcify](https://sourcify.dev/server/v2/contract/5042/0xB53D47878283C2f2D44739B39c1B576469A50D5c); the same code as testnet, with the 30 day payout grace and the $1,000 beta cap) |
 
 usdc on arc: `0x3600000000000000000000000000000000000000`.
 eurc: `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1` (mainnet), `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` (testnet).

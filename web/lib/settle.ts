@@ -98,7 +98,7 @@ export async function settleDue(maxTx = 20, budgetMs = 45_000, scanBudgetMs = 15
   // the relayer's gas money: under $2 it stops sponsoring chip-ins, so the job reports it while there is
   // still enough to keep paying out and refunding
   const relayerUsdc = Number(await publicClient.readContract({ address: TOKEN.usd.address, abi: erc20Abi, functionName: "balanceOf", args: [relayer()!.account.address] }).catch(() => 0n)) / 1e6;
-  const low = relayerUsdc < 2;
+  const low = relayerUsdc < 1.5; // half a dollar above the relay's $1 reserve, so the warning comes before chip-ins stop being sponsored
   if (low) console.warn(`[pottle] relayer low: ${relayerUsdc} usdc left, top it up: ${relayer()!.account.address}`);
   return { scanned, total: count, due: due.length, unreadable, settled, failed, relayerUsdc, low, off: false };
 }

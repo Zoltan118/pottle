@@ -29,7 +29,7 @@ import { publicClient } from "@/lib/pot";
 // whenever it declines, it answers { selfPay: true } and the app sends from the user's own wallet.
 
 const MIN_SPONSORED = 1_000_000n; // 1.00 of the pot's currency
-const RESERVE = 2_000_000n; // $2 of usdc kept back for payouts and refunds
+const RESERVE = 1_000_000n; // $1 of usdc kept back for payouts and refunds (each costs well under a cent on arc)
 const FLOOR = 300_000n; // below $0.30 the relayer stops sending anything
 const MIN_VALIDITY = 120; // a signature must stay valid at least this long, so it cannot expire mid-flight
 const STATUS = ["none", "open", "reached", "released", "refunding", "refunded"] as const;

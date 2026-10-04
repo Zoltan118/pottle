@@ -89,7 +89,7 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
   signature stays valid at least two more minutes, checks a whole request before it counts against
   anyone's limits, and counts a wallet's daily limit only for chip-ins that actually verify (so nobody
   can use up someone else's). it sponsors a payout or refund only for a pot that is really due and has
-  money in it, once a minute per pot. it keeps a $2 reserve that chip-ins and cash outs cannot touch
+  money in it, once a minute per pot. it keeps a $1 reserve that chip-ins and cash outs cannot touch
   and a $0.30 floor under which it sends nothing, and retries once when two transactions collide on a
   nonce. one signed authorization is broadcast once: a copy that arrives while the first is in flight
   is refused. if it declines a chip-in, the app pays from the user's own wallet. a leaked relayer key
