@@ -31,6 +31,11 @@ export const ArrowOutIcon = ({ className }: P) => (
   <svg {...svg} className={base("out", className)}><g className="ico-nudge"><path d="M7 17 17 7" /><path d="M7 7h10v10" /></g></svg>
 );
 
+/** history: a clock with its hand turning back */
+export const HistoryIcon = ({ className }: P) => (
+  <svg {...svg} className={base("history", className)}><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></svg>
+);
+
 /** back to top: the arrow lifts */
 export const UpIcon = ({ className }: P) => (
   <svg {...svg} className={base("up", className)}><g className="ico-lift"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></g></svg>

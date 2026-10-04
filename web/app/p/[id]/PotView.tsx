@@ -13,7 +13,7 @@ import { SignIn } from "@/components/SignIn";
 import { balanceCents, balanceOf, chipIn, settle, requestDrip } from "@/lib/wallet";
 import { chipOptions, MAX_POT, MIN_CHIP, money, payoutStuck, readPot, timeLeft, toCents, type PotData } from "@/lib/pot";
 import { fitBytes, MAX_NAME_BYTES } from "@/lib/text";
-import { explorerAddress, NETWORK, TOKEN } from "@/lib/config";
+import { explorerAddress, explorerTx, NETWORK, TOKEN } from "@/lib/config";
 import { ShareIcon, ArrowOutIcon } from "@/components/Icons";
 import { CountUp, type Counter } from "@/components/CountUp";
 import { Celebrate } from "@/components/Celebrate";
@@ -65,7 +65,7 @@ export function PotView({ initial }: { initial: PotData }) {
   const [err, setErr] = useState("");
   const [short, setShort] = useState(0); // how much the payer is missing, offered as "add money"
   const [have, setHave] = useState(0); // what the payer holds, when it is less than they picked
-  const [done, setDone] = useState<{ amount: number; hit: boolean; before: number; name: string } | null>(null); // the "you're in" moment
+  const [done, setDone] = useState<{ amount: number; hit: boolean; before: number; name: string; hash: string } | null>(null); // the "you're in" moment
 
   // the payer's balance in this pot's currency, shared with the nav's balance pill
   const bal = useQuery({
@@ -125,8 +125,8 @@ export function PotView({ initial }: { initial: PotData }) {
       }
       const c = await cur.client();
       const nm = fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) || "friend";
-      await chipIn(c, { id: pot.id, amount, name: nm, currency: pot.currency });
-      setDone({ amount, hit: pot.raised + amount >= pot.goal, before: pot.raised, name: nm });
+      const hash = await chipIn(c, { id: pot.id, amount, name: nm, currency: pot.currency });
+      setDone({ amount, hit: pot.raised + amount >= pot.goal, before: pot.raised, name: nm, hash });
       if (nm !== "friend") rememberName(nm);
       refreshed();
       qc.invalidateQueries({ queryKey: [pot.currency === "eur" ? "eur" : "bal", cur.address] });
@@ -279,6 +279,8 @@ export function PotView({ initial }: { initial: PotData }) {
               <button className="btn lg" onClick={shareToGroup}><ShareIcon />{shared === "share" ? "copied" : "tell the group"}</button>
               <button className="btn lg ghost" onClick={closeSheet}>done</button>
             </div>
+            {/* the payment itself on arc's explorer, so nobody has to take our word for it */}
+            <a className="cash-link" href={explorerTx(done.hash)} target="_blank" rel="noreferrer">see your payment on arc<ArrowOutIcon /></a>
             <Link className="hint sticker-link" href="/stickers">get the pottle stickers for the chat →</Link>
           </>
         ) : (<>

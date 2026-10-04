@@ -355,6 +355,7 @@ body:has(.sheet.on) { overflow: hidden; }
 .acct-rows { display: grid; border-top: 2px solid var(--line); }
 .acct-row { appearance: none; border: 0; border-bottom: 2px solid var(--line); background: none; width: 100%; min-height: 56px; padding: 0 2px; display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: -.01em; color: var(--ink); text-align: left; cursor: pointer; }
 .acct-row > .ico { font-size: 20px; }
+a.acct-row { text-decoration: none; }
 .acct-row-end { margin-left: auto; display: flex; align-items: center; gap: 8px; font-family: var(--body); font-size: 15px; font-weight: 700; color: var(--muted); }
 .acct-row:focus-visible { outline: 3px solid var(--marigold); outline-offset: -3px; border-radius: 8px; }
 .acct-out { color: var(--ribbon-text); }

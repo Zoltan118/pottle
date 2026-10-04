@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { balanceOf, requestDrip, usdcBalance } from "@/lib/wallet";
-import { NETWORK } from "@/lib/config";
+import { explorerAddress, NETWORK } from "@/lib/config";
 import { money, potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
 import { Logo } from "./Mark";
 import { NetSwitch } from "./NetSwitch";
@@ -17,7 +17,7 @@ import { AddMoney, ONRAMP_ON } from "./AddMoney";
 import { CashOut } from "./CashOut";
 import { Receive } from "./Receive";
 import { Lock, useLock } from "./Lock";
-import { ArrowOutIcon, CloseIcon, CopyIcon, ExitIcon, InIcon, LockIcon, NextIcon, PlusIcon, ShareIcon } from "./Icons";
+import { ArrowOutIcon, CloseIcon, CopyIcon, ExitIcon, HistoryIcon, InIcon, LockIcon, NextIcon, PlusIcon, ShareIcon } from "./Icons";
 
 
 /** logo left; right: the page's own action plus sign in, or your balance once signed in */
@@ -192,6 +192,13 @@ export function Nav({ action }: { action?: React.ReactNode }) {
                 <NextIcon />
               </span>
             </button>
+          )}
+          {/* pottle keeps no history of its own: the chain is the record, and the explorer shows all of it */}
+          {w.address && (
+            <a className="acct-row" href={explorerAddress(w.address)} target="_blank" rel="noreferrer">
+              <HistoryIcon />your history on arc
+              <span className="acct-row-end"><ArrowOutIcon /></span>
+            </a>
           )}
           <HomeScreenTip row />
           <button className="acct-row acct-out" onClick={() => { close(); w.signOut(); }}><ExitIcon />sign out</button>

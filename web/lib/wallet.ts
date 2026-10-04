@@ -82,7 +82,7 @@ export async function createPot(c: Client, a: { goal: number; deadline: number; 
   const pottle = POTTLE.toLowerCase();
   const log = receipt.logs.find((l) => l.address.toLowerCase() === pottle);
   if (!log?.topics[1]) throw new Error("pot not found in receipt");
-  return Number(BigInt(log.topics[1]));
+  return { id: Number(BigInt(log.topics[1])), hash };
 }
 
 /** one signature, then the relayer (or the user's own wallet) submits it */

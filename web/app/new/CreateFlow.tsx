@@ -12,11 +12,11 @@ import { createPot, requestFeeTopUp, usdcBalance } from "@/lib/wallet";
 
 // the organiser's wallet can't pay the fee for making the pot and pottle couldn't send it: say what to do
 const NO_FEE = "making a pot costs under a cent, paid in usdc from your wallet. add a little (your account, then receive) and try again.";
-import { DEPLOYED, missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
+import { DEPLOYED, explorerTx, missingEnv, NETWORK, TOKEN, type Currency } from "@/lib/config";
 import { MAX_POT, money, WRAPS, type Wrap } from "@/lib/pot";
 import { THEME_WRAPS, themeOf } from "@/lib/wraps";
 import { fitBytes, MAX_NAME_BYTES, MAX_TITLE_BYTES } from "@/lib/text";
-import { BackIcon, CloseIcon, CopyIcon, ShareIcon } from "@/components/Icons";
+import { ArrowOutIcon, BackIcon, CloseIcon, CopyIcon, ShareIcon } from "@/components/Icons";
 
 const UNTIL = ["tonight", "tomorrow", "friday", "1 week", "pick a date"] as const;
 type Until = (typeof UNTIL)[number];
@@ -90,6 +90,7 @@ export function CreateFlow() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [potId, setPotId] = useState<number | null>(null);
+  const [tx, setTx] = useState(""); // the transaction that made the pot, for its receipt link
   const [copied, setCopied] = useState(false);
 
   const valid = [title.trim().length > 0, +goal > 0 && +goal <= MAX_POT, !!until && (until !== "pick a date" || pickedOk), true, name.trim().length > 0][step] ?? true;
@@ -109,9 +110,9 @@ export function CreateFlow() {
       // cent). an empty new wallet gets a cent from pottle first, so the first pot just works
       const me = c.account!.address;
       if ((await usdcBalance(me)) < 0.01 && !(await requestFeeTopUp(me, walletStore.get().authHeader()))) throw new Error(NO_FEE);
-      const id = await createPot(c, { goal: +goal, deadline: Math.floor(deadlineFor(until!, picked).getTime() / 1000), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
+      const { id, hash } = await createPot(c, { goal: +goal, deadline: Math.floor(deadlineFor(until!, picked).getTime() / 1000), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
       created.current = true;
-      setPotId(id); setStep(5); history.replaceState(null, "", "/new");
+      setPotId(id); setTx(hash); setStep(5); history.replaceState(null, "", "/new");
     } catch (e) {
       const text = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : "something went wrong";
       // the wallet's own "exceeds the balance" means the same thing as an empty wallet: say it plainly
@@ -241,6 +242,8 @@ export function CreateFlow() {
             <button className="btn lg" onClick={share}><ShareIcon />share with the group</button>
             <a className="btn lg ghost" href={link}>open pot</a>
           </div>
+          {/* the transaction that made it, on arc's explorer: anyone can check the pot is real */}
+          {tx && <a className="cash-link" href={explorerTx(tx)} target="_blank" rel="noreferrer">made on arc. see the receipt<ArrowOutIcon /></a>}
           <HomeScreenTip />
         </section>
       )}
