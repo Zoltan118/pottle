@@ -132,7 +132,6 @@ export default function Home() {
           <Link href="/about">about</Link>
           <a className="foot-up" href="#top" aria-label="back to top"><span className="foot-up-word">back to top</span><UpIcon /></a>
         </nav>
-        {NETWORK === "mainnet" && <p className="foot-note">beta · no third-party audit</p>}
       </footer>
       <BigMark />
     </main>
