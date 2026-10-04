@@ -47,6 +47,9 @@ nothing.
   minutes from the scheduled job. its preview turns into a thank-you card with everyone's names
 - tap your **balance** for the account: **add**, **cash out** (pick your exchange; coinbase goes
   through base with circle's cctp, try it with any test address) and **receive** (qr and tap-to-copy)
+- **add** opens circle's onramp kit inside pottle: card, apple pay, google pay or bank transfer,
+  whichever circle offers in your country, with circle's own id check. on the test site it's circle's
+  sandbox; on pottle.xyz it's live and opens in circle's own window. not every country is covered yet
 - **face id sign-in**: add a passkey from the account. next time you sign in with face id instead of
   an email code. recovery codes are shown once
 - on mainnet a new wallet is empty, but making a pot is paid from the organiser's own wallet (the

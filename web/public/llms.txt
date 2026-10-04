@@ -10,6 +10,7 @@
 - nobody can take a pot early, including the organiser and the people who built pottle. the contract has no owner, no admin and no fee
 - friends sign in with their email; pottle pays the network fee for payments of $1 or more, so they only sign once
 - pots can be in dollars (usdc) or euros (eurc)
+- no usdc yet? add money inside pottle through circle's onramp: card, apple pay, google pay or bank transfer, where circle offers it
 - making a pot costs about half a cent, paid from the organiser's wallet; pottle sends an empty new wallet one cent for its first pot
 - in beta (no third-party audit yet) a pot holds at most $1,000 or €1,000. the contract enforces it
 

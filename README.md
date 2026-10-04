@@ -58,7 +58,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
 | **dollars or euros** | a pot is in usdc or eurc. euro pots are paid in and paid out in eurc |
-| **add money by card** | circle's onramp kit (part of circle app kits), built into the app: card, apple pay or google pay, with circle's own id check. not switched on yet: it needs circle's onramp keys (sandbox for the test site, production for mainnet). until then, add money means withdrawing usdc on arc from an exchange to your address |
+| **add money** | circle's onramp kit (part of circle app kits), built into the app: card, apple pay, google pay or bank transfer, whichever circle offers in the person's country, with circle's own id check. live on mainnet (circle's window opens from pottle) and on the test site against circle's sandbox (embedded). not every country is covered yet; there, people withdraw usdc on arc from an exchange to their address |
 | **cash out** | the organiser sends the money to their exchange from the account sheet. kraken, binance and kucoin take usdc on arc directly, and pottle pays the fee. coinbase only takes usdc on base, so pottle moves it there through circle's cctp first, for about 6 cents. straight to a bank account is next |
 | **receive** | a qr code and a tap-to-copy address for anyone sending usdc or eurc on arc |
 | **face id sign-in, optional** | add a passkey and sign in with face id or a fingerprint instead of an email code. adding or removing a key on the account then asks for it too, enforced by dynamic's servers |
@@ -186,7 +186,7 @@ wallet on that token.
 code: [`web/lib/dynamicClient.ts`](web/lib/dynamicClient.ts), [`web/components/SignIn.tsx`](web/components/SignIn.tsx), [`web/components/Lock.tsx`](web/components/Lock.tsx), [`web/lib/auth.ts`](web/lib/auth.ts).
 
 **circle.** usdc and eurc with eip-3009 for one-signature payments, and the onramp kit for buying
-usdc by card inside the app (popup on iphones and in production, embedded elsewhere), and cctp v2
+usdc by card, apple pay or bank transfer inside the app (circle's own window in production and on iphones, embedded on the test site), and cctp v2
 with the forwarding service for cashing out to coinbase on base.
 code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](web/components/AddMoney.tsx), [`web/components/CashOut.tsx`](web/components/CashOut.tsx).
 

@@ -15,7 +15,7 @@ const FEATURES = [
   { word: "qr", line: "for the office leaving gift. scan, chip in, done.", wrap: "w-gingham" },
   { word: "thank you", line: "a card with everyone's names when it pays out.", wrap: "w-hearts" },
   ONRAMP
-    ? { word: "by card", line: "no usdc yet? add it by card, apple pay or google pay.", wrap: "w-sprinkles" }
+    ? { word: "add money", line: "no usdc yet? add it inside pottle: card, apple pay or bank transfer, where circle offers it.", wrap: "w-sprinkles" }
     : { word: "email in", line: "friends sign in with their email. no wallet app needed.", wrap: "w-sprinkles" },
 ];
 
@@ -27,8 +27,8 @@ const FAQ = [
   { q: "can i use it to get paid back for a dinner i already paid?", a: "it's made for collecting before you buy: the gift, the trip, the table. if you've already paid, all or nothing works against you, because one friend who doesn't chip in means everyone is refunded. collect first, then book." },
   { q: "can the organiser chip in too?", a: "yes, and it counts toward the goal like anyone's. their share comes back to them with the rest when the pot pays out, so they've paid their part like everyone else. the organiser's circle has a ring, so you can see what they put in." },
   { q: "what if the goal is hit but the money can't be paid out?", a: "it's paid out automatically, usually within minutes. if something blocks the payout for 30 days after the deadline (for example the organiser's account gets frozen), everyone can take their money back." },
-  { q: "do my friends need crypto?", a: `no. they sign in with their email and get a wallet. they need usdc (or eurc for euro pots) on arc${ONRAMP ? ", which they can add by card inside pottle" : ""}.` },
-  ...(ONRAMP ? [{ q: "can i pay by card?", a: "yes. if you don't have usdc yet, tap add money and buy it by card, apple pay or google pay, without leaving pottle. it's circle's onramp, so circle checks your id and the usdc lands straight in your own wallet." }] : []),
+  { q: "do my friends need crypto?", a: `no. they sign in with their email and get a wallet. they need usdc (or eurc for euro pots) on arc${ONRAMP ? ", which they can add inside pottle by card, apple pay or bank transfer where circle offers it" : ""}.` },
+  ...(ONRAMP ? [{ q: "can i pay by card?", a: "often, yes. if you don't have usdc yet, tap add money: circle's onramp opens and offers what works where you live, like a card, apple pay, google pay or a bank transfer. circle checks your id and the usdc lands straight in your own wallet. it isn't offered in every country yet; where it isn't, withdraw usdc on arc from an exchange instead." }] : []),
   { q: "what are usdc, eurc and arc?", a: "usdc and eurc are digital dollars and euros issued by circle: one usdc is always worth one dollar, one eurc one euro. arc is circle's blockchain for money. payments land in about half a second and fees are paid in usdc, so there's nothing else to buy first." },
   { q: "can i cancel a pot or fix a typo?", a: "no. a pot can't be changed once it's made, not even by its organiser, which is what makes it safe to chip into. if something's wrong, make a new pot: the old one refunds everyone at its deadline." },
   { q: "what if pottle disappears?", a: "your money doesn't. pots live in a public contract that keeps working without this website: anyone can pay out a pot that hit its goal, or refund one that missed, straight from the arc explorer." },
