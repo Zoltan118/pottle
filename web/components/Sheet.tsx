@@ -40,8 +40,9 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
  * inside, closes on escape, and gives focus back to whatever opened it. the page behind stops
  * scrolling while it is open (see `body:has(.sheet.on)` in the css)
  */
-export function Sheet({ open, onClose, label, children, closeButton = true }: {
+export function Sheet({ open, onClose, label, children, closeButton = true, className }: {
   open: boolean;
+  className?: string; // a variant, like "film" for the wide video sheet
   onClose: () => void;
   label: string;
   children: ReactNode;
@@ -111,7 +112,7 @@ export function Sheet({ open, onClose, label, children, closeButton = true }: {
   return (
     <>
       <div className={`scrim${open ? " on" : ""}`} onClick={onClose} aria-hidden="true" />
-      <div ref={ref} className={`sheet${open ? " on" : ""}`} role="dialog" aria-modal="true" aria-label={label} aria-hidden={!open}
+      <div ref={ref} className={`sheet${className ? ` ${className}` : ""}${open ? " on" : ""}`} role="dialog" aria-modal="true" aria-label={label} aria-hidden={!open}
         tabIndex={-1} onKeyDown={onKeyDown} onTransitionEnd={onTransitionEnd}>
         {closeButton && <button className="iconbtn sheet-x" onClick={onClose} aria-label="close"><CloseIcon /></button>}
         {children}

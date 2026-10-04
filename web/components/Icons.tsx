@@ -80,3 +80,8 @@ export const NextIcon = ({ className }: P) => (
 export const ExitIcon = ({ className }: P) => (
   <svg {...svg} className={base("exit", className)}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><g className="ico-slide-r"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></g></svg>
 );
+
+/** play: a bare triangle, rounded at the corners, that slides forward on hover or press */
+export const PlayIcon = ({ className }: P) => (
+  <svg {...svg} className={base("play", className)}><path className="ico-slide-r" d="M7 4.5v15a1 1 0 0 0 1.5.86l12.6-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" fill="currentColor" strokeWidth={1.5} /></svg>
+);

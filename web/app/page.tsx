@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { HeroPot } from "@/components/HeroPot";
+import { HeroFilm } from "@/components/HeroFilm";
 import { BigMark, Logo } from "@/components/Mark";
 import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO, X_URL } from "@/lib/config";
 import { OtherSiteLink } from "@/components/OtherSiteLink";
@@ -56,6 +57,7 @@ export default function Home() {
           <div className="hero-actions">
             <Link className="btn lg" href="/new">make a pot</Link>
             {NETWORK === "mainnet" && OTHER_SITE && <a className="btn lg ghost" href={OTHER_SITE}>try it free</a>}
+            <HeroFilm />
             <p className="hero-note"><span>friends chip in from the link.</span> <span>just an email, nothing to download.</span></p>
           </div>
         </div>

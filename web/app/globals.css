@@ -167,7 +167,45 @@ html { scroll-padding-top: 88px; } /* a jump to an anchor lands below the bar, n
   .specs .ico { grid-column: 2; grid-row: 1 / span 2; }
 }
 .hero-note { flex-basis: 100%; margin: 0; font-size: 15px; font-weight: 700; color: var(--muted); }
-.hero-note span { display: inline-block; } /* each sentence stays whole: a line break only ever falls between them */
+.hero-note span { display: inline-block; }
+/* the film's play button beside "make a pot" (components/HeroFilm.tsx): a circle exactly as tall as the
+   big buttons, which are their text's line (1.4em) plus 20px above and below */
+.btn.lg.watch { padding: 0; width: calc(1.4em + 40px); height: calc(1.4em + 40px); flex: none; }
+/* a bare triangle about a third of the circle. the icon draws it a little right of its own centre, as a
+   centred triangle looks off */
+.btn.lg.watch .ico { width: calc((1.4em + 40px) * .48); height: calc((1.4em + 40px) * .48); }
+.btn.lg.watch { position: relative; transition: transform 160ms var(--out), background-color 200ms ease; }
+/* hovered or pressed, the triangle gives way to a tiny pottle, pottle's own icon, filling up on a loop */
+.watch-pot { position: absolute; left: 50%; top: 50%; width: calc((1.4em + 40px) * .62); height: calc((1.4em + 40px) * .62); margin: calc((1.4em + 40px) * -.31) 0 0 calc((1.4em + 40px) * -.31); opacity: 0; transform: scale(.7); transition: opacity 200ms ease, transform 260ms var(--out); pointer-events: none; }
+.watch-fill { fill: var(--marigold); transform: translateY(40px); }
+.btn.lg.watch .ico { transition: opacity 200ms ease, transform 260ms var(--out); }
+.btn.lg.watch:is(:active, :focus-visible) .ico { opacity: 0; transform: scale(.5); }
+.btn.lg.watch:is(:active, :focus-visible) .watch-pot { opacity: 1; transform: scale(1); }
+.btn.lg.watch:is(:active, :focus-visible) .watch-fill { animation: watch-fill 1600ms cubic-bezier(.77, 0, .175, 1) infinite; }
+@media (hover: hover) and (pointer: fine) {
+  .btn.lg.watch:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+  .btn.lg.watch:hover .ico { opacity: 0; transform: scale(.5); }
+  .btn.lg.watch:hover .watch-pot { opacity: 1; transform: scale(1); }
+  .btn.lg.watch:hover .watch-fill { animation: watch-fill 1600ms cubic-bezier(.77, 0, .175, 1) infinite; }
+}
+@keyframes watch-fill { 0% { transform: translateY(40px); } 70%, 100% { transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .watch-fill { animation: none !important; transform: translateY(20px); } }
+/* once, a second after the page loads: one soft ring goes out from the button and fades, to say there's
+   something to tap. it never repeats, so the pot stays the one thing that moves on its own */
+.btn.lg.watch::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 2px var(--ribbon); opacity: 0; pointer-events: none; animation: watch-ping 1100ms var(--out) 1200ms 1 both; }
+@keyframes watch-ping { from { transform: scale(1); opacity: .9; } to { transform: scale(1.45); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .btn.lg.watch::after { animation: none; } }
+/* the film sheet: wide for the 16:9 film, narrow and tall for the vertical one */
+.sheet.film { width: min(1000px, 100%); }
+.sheet.film.tall { width: min(460px, 100%); }
+.film-title { margin: 0; padding-right: 56px; min-height: 48px; display: flex; align-items: center; font-family: var(--display); font-weight: 800; font-size: 24px; letter-spacing: -.02em; }
+.film-frame { border-radius: 18px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; width: 100%; }
+.sheet.film.tall .film-frame { aspect-ratio: 9 / 16; width: auto; height: min(64dvh, calc((100vw - 44px) * 16 / 9)); justify-self: center; }
+.film-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.sheet.film.tall :is(.film-title, .film-more) { justify-self: center; padding-right: 0; }
+.sheet.film.tall .film-title { padding-inline: 56px; }
+.film-more { justify-self: start; color: var(--ink); font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; text-underline-offset: 3px; }
+ /* each sentence stays whole: a line break only ever falls between them */
 .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding-block: 8px 72px; }
 .feat { border-radius: 28px; box-shadow: inset 0 0 0 2px var(--ink); padding: 10px; display: grid; min-height: 220px; }
 .feat-in { background: var(--paper); border-radius: 20px; padding: 20px; display: grid; gap: 8px; align-content: end; box-shadow: 0 0 0 2px var(--ink); }
@@ -501,7 +539,7 @@ a.acct-row { text-decoration: none; }
 @media (max-width: 520px) {
   .wraps { gap: 8px; }
   .wrapchoice { border-radius: 16px; }
-  .hero-actions .btn { flex: 1; }
+  .hero-actions .btn:not(.watch) { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
