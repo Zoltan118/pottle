@@ -33,7 +33,7 @@ const FAQ = [
   { q: "can i cancel a pot or fix a typo?", a: "no. a pot can't be changed once it's made, not even by its organiser, which is what makes it safe to chip into. if something's wrong, make a new pot: the old one refunds everyone at its deadline." },
   { q: "what if pottle disappears?", a: "your money doesn't. pots live in a public contract that keeps working without this website: anyone can pay out a pot that hit its goal, or refund one that missed, straight from the arc explorer." },
   { q: "what if i lose my phone or my email?", a: "your wallet is tied to your email. sign in with it on any device and it's all there. if you added face id sign-in, a recovery code lets you remove the lost passkey. if you lose the email itself, the wallet goes with it, so don't keep more in pottle than you need." },
-  { q: "is it safe?", a: "nobody can take a pot early, not the organiser and not us: the money sits in a contract with no owner and no admin, and it can only go to the organiser once the goal is hit or back to whoever paid. the contract is open source and tested, but there's been no third-party audit yet, so during beta a pot on the live site holds at most $100 (or €100)." },
+  { q: "is it safe?", a: "nobody can take a pot early, not the organiser and not us: the money sits in a contract with no owner and no admin, and it can only go to the organiser once the goal is hit or back to whoever paid. the contract is open source and tested, but there's been no third-party audit yet, so during beta a pot on the live site holds at most $1,000 (or €1,000)." },
 ];
 
 export default function Home() {

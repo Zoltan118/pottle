@@ -52,7 +52,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | --- | --- |
 | **all or nothing** | the pot releases to the organiser only once the goal is hit. past the deadline below the goal, everyone is refunded to the cent. if a finished pot still cannot pay out 30 days after its deadline, everyone can take their money back |
 | **nobody can take it early** | one immutable contract holds every pot. no owner, no admin, no upgrade path, no fee |
-| **capped in beta** | there's been no third-party audit yet, so on mainnet a pot never holds more than $100 or €100. the contract enforces it, not just the app |
+| **capped in beta** | there's been no third-party audit yet, so on mainnet a pot never holds more than $1,000 or €1,000. the contract enforces it, not just the app |
 | **one signature to chip in** | friends sign one message (eip-3009) and pottle pays the network fee. no approve step, no gas to buy |
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
@@ -151,7 +151,7 @@ is missing instead of failing quietly.
 
 ## tests
 
-- **44 contract tests** (`forge test`): payout, overfunding, refunds, the $100 beta cap, blocked addresses, the 30 day
+- **44 contract tests** (`forge test`): payout, overfunding, refunds, the $1,000 beta cap, blocked addresses, the 30 day
   payout grace, the 100 person cap, euro pots, a hostile re-entering token, and signature binding (a
   signature for one pot, name, amount or currency cannot be replayed on another). money conservation
   is fuzzed over 1,000 runs
@@ -187,8 +187,8 @@ code: [`web/lib/wallet.ts`](web/lib/wallet.ts), [`web/components/AddMoney.tsx`](
 
 | network | chain id | Pottle |
 | --- | --- | --- |
-| arc testnet | 5042002 | [`0x2B2a65527A6Bb780758E7100F894e6418223C277`](https://explorer.testnet.arc.io/address/0x2B2a65527A6Bb780758E7100F894e6418223C277) (verified; the exact contract going to mainnet: every fix from the review, and any wrap value accepted so new looks never need a new contract) |
-| arc mainnet | 5042 | deploying before submission (with the 30 day payout grace and the $100 beta cap) |
+| arc testnet | 5042002 | [`0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F`](https://explorer.testnet.arc.io/address/0x28c404bCD028aC3A20e26Dd700F9E2eE72A8E91F) (verified; the exact contract going to mainnet: every fix from the review, and any wrap value accepted so new looks never need a new contract) |
+| arc mainnet | 5042 | deploying before submission (with the 30 day payout grace and the $1,000 beta cap) |
 
 usdc on arc: `0x3600000000000000000000000000000000000000`.
 eurc: `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1` (mainnet), `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` (testnet).

@@ -7,7 +7,7 @@ pottle runs as two sites from the same code:
 
 everything below uses the **testnet** site, so nothing costs you anything. about three minutes.
 the `live | test` switch in the nav moves between the two. both run the same contract, including
-the $100 beta cap on each pot.
+the $1,000 beta cap on each pot.
 
 ## 1. make a pot (one minute)
 

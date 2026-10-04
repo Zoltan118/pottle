@@ -30,9 +30,9 @@ contract Pottle {
     IFiatToken public immutable eurc;
 
     uint256 public constant MAX_DURATION = 90 days;
-    /// @notice beta cap: a pot never holds more than 100 of its currency, goal and chip-ins included.
+    /// @notice beta cap: a pot never holds more than 1,000 of its currency, goal and chip-ins included.
     /// both tokens have 6 decimals
-    uint256 public constant MAX_POT = 100e6;
+    uint256 public constant MAX_POT = 1_000e6;
     uint256 public constant MIN_CHIP = 1e4; // $0.01
     uint256 public constant MAX_TITLE = 64; // bytes
     uint256 public constant MAX_NAME = 24; // bytes

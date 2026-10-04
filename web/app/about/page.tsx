@@ -26,7 +26,7 @@ export default function About() {
 
         <section>
           <h2>beta</h2>
-          <p>pottle hasn&apos;t had a third-party audit yet, so the contract caps every pot at ${MAX_POT} or €{MAX_POT}. use it for amounts you&apos;re fine with. what was checked and what&apos;s known is in the <a href={`${REPO}/blob/main/AUDIT.md`} target="_blank" rel="noreferrer">security review</a>.</p>
+          <p>pottle hasn&apos;t had a third-party audit yet, so the contract caps every pot at ${MAX_POT.toLocaleString("en-US")} or €{MAX_POT.toLocaleString("en-US")}. use it for amounts you&apos;re fine with. what was checked and what&apos;s known is in the <a href={`${REPO}/blob/main/AUDIT.md`} target="_blank" rel="noreferrer">security review</a>.</p>
         </section>
 
         <section>

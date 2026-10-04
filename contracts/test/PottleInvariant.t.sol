@@ -27,7 +27,7 @@ contract Handler is Test {
     function potCount() external view returns (uint256) { return ids.length; }
 
     function create(uint256 who, uint128 goal, uint64 len, bool euro) external {
-        goal = uint128(bound(goal, 1, 10_000)) * 1e4; // whole cents, as the contract requires
+        goal = uint128(bound(goal, 1, 100_000)) * 1e4; // whole cents, as the contract requires
         len = uint64(bound(len, 1, 90 days));
         vm.prank(actors[who % 4]);
         ids.push(pottle.create(goal, uint64(block.timestamp) + len, 0, euro ? 1 : 0, "pot", "org"));
@@ -36,7 +36,7 @@ contract Handler is Test {
     function chip(uint256 who, uint256 pick, uint128 amount) external {
         if (ids.length == 0) return;
         uint256 id = ids[pick % ids.length];
-        amount = uint128(bound(amount, 1, 6_000)) * 1e4;
+        amount = uint128(bound(amount, 1, 60_000)) * 1e4;
         vm.prank(actors[who % 4]);
         try pottle.chipIn(id, amount, "friend") {} catch {}
     }

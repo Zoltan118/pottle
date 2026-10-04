@@ -70,8 +70,9 @@ contract PottleTest is Test {
     function test_create_rejectsBadInput() public {
         vm.expectRevert(Pottle.BadGoal.selector);
         pottle.create(0, deadline, 0, 0, "x", "d");
+        uint128 overCap = uint128(pottle.MAX_POT() + 1e4); // a cent over the cap (read first: expectRevert takes the next call)
         vm.expectRevert(Pottle.BadGoal.selector);
-        pottle.create(100e6 + 1, deadline, 0, 0, "x", "d");
+        pottle.create(overCap, deadline, 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
         pottle.create(1e6, uint64(block.timestamp), 0, 0, "x", "d");
         vm.expectRevert(Pottle.BadDeadline.selector);
@@ -293,28 +294,29 @@ contract PottleTest is Test {
         assertEq(people[1], ayla); assertEq(names[1], "ayla"); assertEq(amounts[1], 50e6);
     }
 
-    function test_betaCap_potNeverHoldsMoreThan100() public {
-        uint256 id = _pot(100e6); // a goal of exactly the cap is allowed
-        _chip(mert, id, 60e6, "mert");
+    function test_betaCap_potNeverHoldsMoreThan1000() public {
+        assertEq(pottle.MAX_POT(), 1_000e6);
+        uint256 id = _pot(1_000e6); // a goal of exactly the cap is allowed
+        _chip(mert, id, 600e6, "mert");
         vm.startPrank(ayla);
-        usdc.approve(address(pottle), 41e6);
+        usdc.approve(address(pottle), 400e6 + 1e4);
         vm.expectRevert(Pottle.OverCap.selector);
-        pottle.chipIn(id, 41e6, "ayla");
+        pottle.chipIn(id, 400e6 + 1e4, "ayla"); // a cent too many
         vm.stopPrank();
-        _chip(ayla, id, 40e6, "ayla"); // filling it to the cap exactly is fine
-        assertEq(usdc.balanceOf(address(pottle)), 100e6);
+        _chip(ayla, id, 400e6, "ayla"); // filling it to the cap exactly is fine
+        assertEq(usdc.balanceOf(address(pottle)), 1_000e6);
     }
 
     function test_betaCap_overpayingStopsAtTheCap() public {
         uint256 id = _pot(30e6);
-        _chip(mert, id, 90e6, "mert"); // above the goal is still allowed, up to the cap
+        _chip(mert, id, 990e6, "mert"); // above the goal is still allowed, up to the cap
         vm.startPrank(ayla);
         usdc.approve(address(pottle), 11e6);
         vm.expectRevert(Pottle.OverCap.selector);
         pottle.chipIn(id, 11e6, "ayla");
         vm.stopPrank();
         pottle.release(id);
-        assertEq(usdc.balanceOf(deniz), 90e6);
+        assertEq(usdc.balanceOf(deniz), 990e6);
     }
 
     function test_potFull_after100People() public {

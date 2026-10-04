@@ -10,9 +10,13 @@ wrong. if you find something that is not here, see [`SECURITY.md`](SECURITY.md).
   the address that paid it in**
 - refunds open when the deadline passes below the goal, or when a pot that hit its goal **still has
   not paid out 30 days after its deadline** (see "a frozen organiser" below)
-- during beta a pot on mainnet never holds more than **100 of its currency** ($100 or €100). the goal is capped at
-  100 and a chip-in that would take the pot past 100 is refused, so the most any single pot can ever
-  put at risk is 100. the testnet runs the same contract, cap included
+- during beta a pot on mainnet never holds more than **1,000 of its currency** ($1,000 or €1,000). the goal is
+  capped at 1,000 and a chip-in that would take the pot past 1,000 is refused, so the most any single pot can
+  ever put at risk is 1,000. the testnet runs the same contract, cap included. (the cap was 100 until
+  2026-10-04 and was raised before the mainnet deploy, since 100 left out most real group gifts and trips.
+  it is a per-pot limit, not a limit on the contract as a whole, so it bounds what one group can lose, not
+  the total the contract holds. the invariant run now draws goals up to 1,000 and chip-ins up to 600 so the
+  new cap is actually reached)
 - nobody can move money any other way. there is no owner, no admin, no pause, no upgrade and no fee.
   the deployer has no powers after deployment
 - a signed chip-in cannot be redirected. the eip-3009 nonce commits to the pot id, the name and a salt,
@@ -202,7 +206,7 @@ accepted on purpose:
   the next step if abuse shows up
 - **email is the key to the wallet.** without a lock on payments, whoever controls someone's email can
   sign in and spend their wallet, as with any email sign-in wallet. a pot's money is not at risk (only
-  the organiser can be paid, and only by the contract), and in beta a pot holds at most $100
+  the organiser can be paid, and only by the contract), and in beta a pot holds at most $1,000
 - **a passkey added by someone with your email first.** someone who controls your email can add their
   own passkey before you do, and you can't remove it without a passkey or a recovery code. the card
   lists every passkey with its device and date so it is visible

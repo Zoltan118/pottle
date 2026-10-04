@@ -114,9 +114,9 @@ export function chipOptions(goal: number, raised: number, max: number) {
 /** the smallest amount the app asks for (pottle sponsors the fee from here up), unless less than that finishes the pot */
 export const MIN_CHIP = 1;
 
-/** most a pot can hold: the contract caps every pot at 100 during beta (MAX_POT). testnet runs the
+/** most a pot can hold: the contract caps every pot at 1,000 during beta (MAX_POT). testnet runs the
  * exact contract mainnet does, so the cap is the same on both */
-export const MAX_POT = 100;
+export const MAX_POT = 1000;
 
 /** the contract's PAYOUT_GRACE: a pot that hit its goal but still hasn't paid out this long after its
  * deadline becomes refundable. computed here so older contracts without it keep working */
