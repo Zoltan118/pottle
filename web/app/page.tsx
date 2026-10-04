@@ -45,10 +45,11 @@ export default function Home() {
 
   return (
     <main className="view">
-      {/* the first screen: nav and hero together fill exactly one screen, so the next section never peeks in */}
+      {/* the nav sits outside the fold so it can stick for the whole page (see .topbar) */}
+      <Nav action={<Link className="btn sm hide-sm" href="/new">make a pot</Link>} />
+      {/* the first screen: the nav and the hero together fill exactly one screen, so the next section never peeks in */}
       {/* id "top": the footer's back-to-top link lands here, and focus with it */}
       <div className="fold" id="top" tabIndex={-1}>
-      <Nav action={<Link className="btn sm hide-sm" href="/new">make a pot</Link>} />
       <section className="shell hero">
         <div className="hero-text">
           <h1 className="giant">chip in.<span className="pink">or get it back.</span></h1>

@@ -37,6 +37,18 @@ a { color: inherit; }
 /* nav */
 /* both wrap, so at large text sizes the nav buttons move to a second line instead of being cut off */
 .bar { display: flex; align-items: center; justify-content: space-between; padding-block: 18px; gap: 12px; flex-wrap: wrap; }
+/* the top bar sticks, but slides away while you scroll down and comes back on any scroll up (hooks/
+   useHideOnScroll.ts). it takes over the view's safe-area padding, so once stuck it also covers the
+   status bar of a home-screen app. clear at the top, so a pot's wrap shows through; paper once scrolled */
+.topbar { position: sticky; top: 0; z-index: 30; margin-top: calc(-1 * env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px); transition: transform 240ms var(--out), background-color 160ms ease; }
+.topbar[data-scrolled] { background: var(--paper); }
+/* no line and no box: below the bar the paper fades out, so the page dissolves under it instead of being cut */
+.topbar::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 24px; background: linear-gradient(var(--paper), transparent); opacity: 0; pointer-events: none; transition: opacity 160ms ease; }
+.topbar[data-scrolled]::after { opacity: 1; }
+.topbar[data-hide]:not(:focus-within) { transform: translateY(calc(-100% - 24px)); }
+.view.kb .topbar { position: static; } /* typing: the keyboard needs the room */
+html { scroll-padding-top: 88px; } /* a jump to an anchor lands below the bar, not under it */
+@media (prefers-reduced-motion: reduce) { .topbar { transition: none; } }
 .bar-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .logo { display: inline-flex; align-items: center; font-family: var(--display); font-weight: 800; font-size: 28px; letter-spacing: -.045em; line-height: 1; text-decoration: none; }
 .logo svg { width: .8em; height: .8em; margin-inline: .02em; transform: translateY(.08em); }
@@ -568,7 +580,7 @@ body:has(.sheet.on) { overflow: hidden; }
 .foot-links .ico { width: 20px; height: 20px; }
 
 /* the landing hero is exactly one screen, with a quiet arrow to the rest */
-.fold { min-height: 100svh; display: flex; flex-direction: column; }
+.fold { min-height: calc(100svh - 80px); display: flex; flex-direction: column; } /* 80px: the nav above it (.bar) */
 .fold > .hero { position: relative; flex: 1; }
 .more { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--muted); font-size: 22px; font-weight: 800; text-decoration: none; animation: more-bob 2.6s ease-in-out infinite; }
 .more:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }

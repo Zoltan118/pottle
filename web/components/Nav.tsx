@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/app/providers";
+import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { balanceOf, requestDrip, usdcBalance } from "@/lib/wallet";
 import { NETWORK } from "@/lib/config";
 import { money, potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
@@ -27,6 +28,8 @@ export function Nav({ action }: { action?: React.ReactNode }) {
   // a link inside the account sheet: close the sheet, then go once its history step is back
   const go = (href: string) => (e: React.MouseEvent) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); close(); afterSheetsClose(() => router.push(href)); };
   const [open, setOpen] = useState(false);
+  const top = useRef<HTMLElement>(null);
+  useHideOnScroll(top);
   // the account sheet's screens: the account itself, and the ones its actions open
   const [view, setView] = useState<"main" | "cash" | "receive" | "lock" | "add">("main");
   const close = () => { setOpen(false); setView("main"); };
@@ -93,7 +96,9 @@ export function Nav({ action }: { action?: React.ReactNode }) {
   }
 
   return (
-    <div className="shell">
+    <>
+      <header className="topbar" ref={top}>
+      <div className="shell">
       <nav className="bar">
         <Logo />
         <div className="bar-right">
@@ -111,6 +116,8 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           ))}
         </div>
       </nav>
+      </div>
+      </header>
 
       <Sheet open={open} onClose={close} label="your account" closeButton={false}>
         {view === "cash" ? <CashOut onBack={back} onClose={close} />
@@ -191,6 +198,6 @@ export function Nav({ action }: { action?: React.ReactNode }) {
         </div>
         </>}
       </Sheet>
-    </div>
+    </>
   );
 }
