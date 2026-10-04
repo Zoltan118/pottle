@@ -56,7 +56,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **one signature to chip in** | friends sign one message (eip-3009) and pottle pays the network fee. no approve step, no gas to buy |
 | **a first pot from an empty wallet** | making a pot is paid from the organiser's own wallet, so pottle sends a new, empty wallet one cent for that first fee (a pot costs about half a cent). once per wallet, checked on chain |
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
-| **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
+| **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job sweeps the rest (set to every ten minutes, though github often runs it hours apart) |
 | **dollars or euros** | a pot is in usdc or eurc. euro pots are paid in and paid out in eurc |
 | **add money** | circle's onramp kit (part of circle app kits), built into the app: card, apple pay, google pay or bank transfer, whichever circle offers in the person's country, with circle's own id check. live on mainnet (circle's window opens from pottle) and on the test site against circle's sandbox (embedded). not every country is covered yet; there, people withdraw usdc on arc from an exchange to their address |
 | **cash out** | the organiser sends the money to their exchange from the account sheet. kraken, binance and kucoin take usdc on arc directly, and pottle pays the fee. coinbase only takes usdc on base, so pottle moves it there through circle's cctp first, for about 6 cents. straight to a bank account is next |

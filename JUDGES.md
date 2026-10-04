@@ -43,8 +43,8 @@ nothing.
 - **share** opens your share sheet with the link and what's left to go already written. **qr** shows a code to scan
 - your **balance pill** lists every pot you made or joined, each with a share button
 - share the pot link in any chat: the preview shows the live total
-- **hit the goal** and the pot pays itself out: it settles when anyone opens it, or within ten
-  minutes from the scheduled job. its preview turns into a thank-you card with everyone's names
+- **hit the goal** and the pot pays itself out: it settles when anyone opens it (reload the pot
+  page), and a scheduled job sweeps any pot nobody opens. its preview turns into a thank-you card with everyone's names
 - tap your **balance** for the account: **add**, **cash out** (pick your exchange; coinbase goes
   through base with circle's cctp, try it with any test address) and **receive** (qr and tap-to-copy)
 - **add** opens circle's onramp kit inside pottle: card, apple pay, google pay or bank transfer,
