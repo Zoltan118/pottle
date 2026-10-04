@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { Providers } from "./providers";
 import { Tips } from "@/components/Tips";
@@ -53,6 +54,8 @@ gtag('js',new Date());
 gtag('config','${GA_ID}',{allow_google_signals:false,allow_ad_personalization_signals:false});`}</Script>
         </>}
         <Tips />
+        {/* vercel web analytics: cookieless page views, counted in the vercel dashboard once enabled there */}
+        <Analytics />
       </body>
     </html>
   );
