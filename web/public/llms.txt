@@ -26,6 +26,7 @@
 
 ## links
 - source code: https://github.com/Zoltan118/pottle
+- on x: https://x.com/pottlexyz
 - make a pot: /new
 - how it works, what's stored, the risks: /about
 - the security review: https://github.com/Zoltan118/pottle/blob/main/AUDIT.md

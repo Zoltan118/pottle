@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { HeroPot } from "@/components/HeroPot";
 import { BigMark, Logo } from "@/components/Mark";
-import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO } from "@/lib/config";
+import { explorerAddress, NETWORK, OTHER_SITE, POTTLE, REPO, X_URL } from "@/lib/config";
 import { OtherSiteLink } from "@/components/OtherSiteLink";
 import { ArrowOutIcon, UpIcon } from "@/components/Icons";
 
@@ -126,6 +126,7 @@ export default function Home() {
         </div>
         <nav className="foot-links" aria-label="links">
           {OTHER_SITE && <OtherSiteLink site={OTHER_SITE} mainnet={NETWORK === "mainnet"} />}
+          <a href={X_URL} target="_blank" rel="noreferrer">x<ArrowOutIcon /></a>
           <a href={REPO} target="_blank" rel="noreferrer">github<ArrowOutIcon /></a>
           {POTTLE && <a href={explorerAddress(POTTLE)} target="_blank" rel="noreferrer">contract<ArrowOutIcon /></a>}
           <Link href="/stickers">stickers</Link>

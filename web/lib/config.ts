@@ -58,6 +58,8 @@ export const BASE_NAME = NETWORK === "mainnet" ? "base" : "base sepolia";
 export const baseExplorerTx = (h: string) => `${NETWORK === "mainnet" ? "https://basescan.org" : "https://sepolia.basescan.org"}/tx/${h}`;
 
 export const REPO = "https://github.com/Zoltan118/pottle";
+export const X_HANDLE = "pottlexyz";
+export const X_URL = `https://x.com/${X_HANDLE}`;
 /** the public address of this site. vercel sets VERCEL_PROJECT_PRODUCTION_URL; NEXT_PUBLIC_SITE_URL overrides it (e.g. a custom domain) */
 export const SITE =
   process.env.NEXT_PUBLIC_SITE_URL ||

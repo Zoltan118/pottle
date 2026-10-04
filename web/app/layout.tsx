@@ -4,7 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { Providers } from "./providers";
 import { Tips } from "@/components/Tips";
-import { NETWORK, SITE } from "@/lib/config";
+import { NETWORK, SITE, X_HANDLE } from "@/lib/config";
 import { wrapCss } from "@/lib/wraps";
 import "./globals.css";
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "pottle · chip in, or get it back",
   description,
   openGraph: { title: "pottle · chip in, or get it back", description, siteName: "pottle", type: "website" },
-  twitter: { card: "summary_large_image", title: "pottle · chip in, or get it back", description },
+  twitter: { card: "summary_large_image", site: `@${X_HANDLE}`, title: "pottle · chip in, or get it back", description },
   appleWebApp: { title: "pottle", statusBarStyle: "default" },
   // the test site stays out of search, so people find the real one
   ...(NETWORK === "testnet" ? { robots: { index: false, follow: true } } : {}),
