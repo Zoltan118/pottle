@@ -58,7 +58,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **sign in with an email** | friends get a wallet from their email through dynamic. no wallet app needed |
 | **automatic payout and refund** | a pot that is due settles the moment anyone opens it, and a scheduled job settles the rest every ten minutes |
 | **dollars or euros** | a pot is in usdc or eurc. euro pots are paid in and paid out in eurc |
-| **add money by card** | circle's onramp kit (part of circle app kits), inside the app: card, apple pay or google pay, with circle's own id check. live on the test site against circle's sandbox; switched on for mainnet once circle's production key is set up |
+| **add money by card** | circle's onramp kit (part of circle app kits), built into the app: card, apple pay or google pay, with circle's own id check. not switched on yet: it needs circle's onramp keys (sandbox for the test site, production for mainnet). until then, add money means withdrawing usdc on arc from an exchange to your address |
 | **cash out** | the organiser sends the money to their exchange from the account sheet. kraken, binance and kucoin take usdc on arc directly, and pottle pays the fee. coinbase only takes usdc on base, so pottle moves it there through circle's cctp first, for about 6 cents. straight to a bank account is next |
 | **receive** | a qr code and a tap-to-copy address for anyone sending usdc or eurc on arc |
 | **face id sign-in, optional** | add a passkey and sign in with face id or a fingerprint instead of an email code. adding or removing a key on the account then asks for it too, enforced by dynamic's servers |

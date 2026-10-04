@@ -71,27 +71,33 @@ export function AddMoney({ currency = "usd", amount, label = "add money", active
   const [note, setNote] = useState("");
 
   const key = ["onramp", w.address, currency, amount ?? null];
+  // a session from circle: short-lived and single use
+  const mint = async () => {
+    const { kit, fetchOnrampSession } = await loadKit();
+    const session = await fetchOnrampSession({
+      url: "/api/onramp/sessions",
+      headers: { authorization: w.authHeader() },
+      body: {
+        appUserId: w.userId!,
+        destinationAddress: w.address!,
+        ...(amount ? { amount: amount.toFixed(2) } : {}),
+        assets: { tokens: [TOKEN[currency].name], chains: ["arc"] },
+      },
+    });
+    return { kit, session } as { kit: Kit["kit"]; session: typeof session };
+  };
+  // ready ahead of the tap, for the popup: a popup must open in the tap itself, with no wait in between.
+  // the embedded widget doesn't need it, and mints its own session at the tap (see open)
   const prep = useQuery({
     queryKey: key,
     enabled: active && !!w.address && !!w.userId,
-    staleTime: 4 * 60_000, // sessions are short-lived and single use; mint a new one well before expiry
+    staleTime: 2 * 60_000, // kept young, so the session still has most of its life when the popup opens
     refetchOnWindowFocus: false,
     retry: false,
-    queryFn: async () => {
-      const { kit, fetchOnrampSession } = await loadKit();
-      const session = await fetchOnrampSession({
-        url: "/api/onramp/sessions",
-        headers: { authorization: w.authHeader() },
-        body: {
-          appUserId: w.userId!,
-          destinationAddress: w.address!,
-          ...(amount ? { amount: amount.toFixed(2) } : {}),
-          assets: { tokens: [TOKEN[currency].name], chains: ["arc"] },
-        },
-      });
-      return { kit, session } as { kit: Kit["kit"]; session: typeof session };
-    },
+    queryFn: mint,
   });
+  const embedded = useRef(false);
+  const refreshes = useRef(0); // fresh sessions minted for one open widget, so a broken session can't loop
 
   const spent = () => qc.removeQueries({ queryKey: key }); // a session works once; the next tap gets a fresh one
 
@@ -103,7 +109,21 @@ export function AddMoney({ currency = "usd", amount, label = "add money", active
       if (d.done) onDone();
       if (d.over) { close(); spent(); }
     },
-    onSessionExpired: () => { close(); spent(); setNote("that timed out. tap add money again."); },
+    // circle ends a session that idles or runs out mid-flow. in the page, carry on with a fresh one (circle's
+    // own guidance); a popup can't be reopened without a new tap, so that one asks for it
+    onSessionExpired: () => {
+      spent();
+      if (!embedded.current || !box.current || refreshes.current >= 2) { close(); setNote("that timed out. tap add money again."); return; }
+      refreshes.current += 1;
+      widget.current?.close();
+      widget.current = null;
+      setNote("one sec, refreshing the payment screen…");
+      mint().then(({ kit, session }) => {
+        if (!box.current) return;
+        setNote("");
+        widget.current = kit.mountIframe({ session, container: box.current, ...callbacks });
+      }).catch(() => { close(); setNote("that timed out. tap add money again."); });
+    },
   };
 
   function close() {
@@ -113,6 +133,8 @@ export function AddMoney({ currency = "usd", amount, label = "add money", active
   }
 
   function embed(session: NonNullable<typeof prep.data>["session"], kit: Kit["kit"]) {
+    embedded.current = true;
+    refreshes.current = 0;
     setOverlay(true);
     // the overlay mounts on the next frame; the widget needs its container in the page
     requestAnimationFrame(() => {
@@ -124,18 +146,22 @@ export function AddMoney({ currency = "usd", amount, label = "add money", active
   // must stay synchronous up to openWindow, or the browser blocks the popup
   function open() {
     if (!w.address || !w.userId) return w.signIn();
+    // in the page: a session minted right now, so its clock starts with the person, not when the sheet opened
+    if (!(PRODUCTION || isIOS())) {
+      setNote("getting ready…");
+      mint().then(({ kit, session }) => { setNote(""); embed(session, kit); })
+        .catch(() => setNote("couldn't reach circle. try again in a moment."));
+      return;
+    }
     if (!prep.data) { setNote(prep.isError ? "couldn't reach circle. try again in a moment." : "getting ready…"); if (prep.isError) prep.refetch(); return; }
     setNote("");
     const { kit, session } = prep.data;
-    if (PRODUCTION || isIOS()) {
-      const result = kit.openWindow({ session, ...callbacks });
-      if (result.status === "opened") { widget.current = result.widget; return; }
-      if (result.reason === "popup_blocked") { setNote("your browser blocked the payment window. allow popups for pottle and tap again."); return; }
-      if (PRODUCTION) { setNote("open pottle in your phone's browser (safari or chrome) to add money."); return; }
-      embed(session, kit); // in-app browsers and home-screen apps can't open popups; embed instead in sandbox
-      return;
-    }
-    embed(session, kit);
+    embedded.current = false;
+    const result = kit.openWindow({ session, ...callbacks });
+    if (result.status === "opened") { widget.current = result.widget; return; }
+    if (result.reason === "popup_blocked") { setNote("your browser blocked the payment window. allow popups for pottle and tap again."); return; }
+    if (PRODUCTION) { setNote("open pottle in your phone's browser (safari or chrome) to add money."); return; }
+    embed(session, kit); // in-app browsers and home-screen apps can't open popups; embed instead in sandbox
   }
 
   return (

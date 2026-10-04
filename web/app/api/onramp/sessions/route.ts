@@ -3,7 +3,8 @@ import { createOnrampServerKit, createSessionRouteHandler } from "@circle-fin/on
 import { verifyUser } from "@/lib/auth";
 
 // circle onramp kit: turns our long-lived key into a one-time session for the signed-in user's
-// own wallet. the key never reaches the browser. set both base urls for sandbox, neither for production.
+// own wallet. the key never reaches the browser. the api key's prefix (TEST_ or LIVE_) picks the environment;
+// the widget url is the sandbox one for test keys. ONRAMP_API_BASE_URL normally stays unset (api.circle.com).
 const apiKey = process.env.ONRAMP_API_KEY?.trim();
 const baseUrl = process.env.ONRAMP_API_BASE_URL?.trim() || undefined;
 const widgetBaseUrl = process.env.NEXT_PUBLIC_ONRAMP_WIDGET_BASE_URL?.trim() || undefined;
