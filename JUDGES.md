@@ -43,6 +43,7 @@ nothing.
 - **share** opens your share sheet with the link and what's left to go already written. **qr** shows a code to scan
 - your **balance pill** lists every pot you made or joined, each with a share button
 - share the pot link in any chat: the preview shows the live total
+- pots are **unlisted**: the link ends in a code (`/p/12-…`). drop the code, or try the next number, and pottle shows "this pot needs its full link" instead of the pot
 - **hit the goal** and the pot pays itself out: it settles when anyone opens it (reload the pot
   page), and a scheduled job sweeps any pot nobody opens. its preview turns into a thank-you card with everyone's names
 - tap your **balance** for the account: **add**, **cash out** (pick your exchange; coinbase goes

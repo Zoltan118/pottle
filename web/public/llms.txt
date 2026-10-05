@@ -13,6 +13,7 @@
 - no usdc yet? add money inside pottle through circle's onramp: card, apple pay, google pay or bank transfer, where circle offers it
 - making a pot costs about half a cent, paid from the organiser's wallet; pottle sends an empty new wallet one cent for its first pot
 - in beta (no third-party audit yet) a pot holds at most $1,000 or €1,000. the contract enforces it
+- pots are unlisted: a pot opens on pottle only from its full link, which ends in a code that can't be guessed. the pot's title, names and amounts are still recorded on arc, which is public
 
 ## how it uses arc
 - arc is circle's layer 1 for stablecoin payments. fees are paid in usdc and payments settle in about half a second

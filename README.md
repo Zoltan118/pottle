@@ -63,6 +63,7 @@ chases anybody, and nobody (not the organiser, not us) can take it out early.
 | **receive** | a qr code and a tap-to-copy address for anyone sending usdc or eurc on arc |
 | **face id sign-in, optional** | add a passkey and sign in with face id or a fingerprint instead of an email code. adding or removing a key on the account then asks for it too, enforced by dynamic's servers |
 | **wraps that fit the pot** | a trip, a dinner or a birthday gets its own patterns first (boarding pass, sunset, palms; cheers, lemons, a set table; balloons, candles), read from the pot's title. the contract stores any wrap, so new ones never need a new contract |
+| **unlisted pots** | a pot opens on pottle only from its full link, `/p/<id>-<code>`, where the code is an hmac of the network, contract and pot number under a server secret. nobody browses pots by counting numbers, and a bare or wrong link shows the same page whether the pot exists or not. no database: the code is recomputed, never stored. the people in a pot get its link from a signed-in endpoint. unlisted is not private: titles, names and amounts are on arc, which anyone can read. the first pots (mainnet 1 to 3, testnet 1 to 11) keep their short links |
 | **made for group chats** | a live link preview ("7 in, $140 of $200"), a share button that sends the link with what's left to go, a qr code, and a thank-you card once it pays out |
 
 ## how it uses arc
