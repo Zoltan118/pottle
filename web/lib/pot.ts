@@ -29,12 +29,6 @@ export type PotData = {
 };
 
 /**
- * a pot id from a url: plain digits only, so "/p/0x10" or "/p/1e1" cannot open pot 16 or 10 under a
- * second address. anything else reads as no pot
- */
-export const parsePotId = (raw: string) => (/^[1-9]\d{0,15}$/.test(raw) ? Number(raw) : NaN);
-
-/**
  * titles and names are whatever anyone wrote on chain. before they reach a page, a preview or a share
  * message: invisible and direction-changing characters go (they can make one pot's name read like
  * another's), and newlines and runs of spaces become one space
@@ -85,8 +79,6 @@ export async function readPotsOf(address: Address, limit = 20): Promise<PotData[
   const pots = await Promise.all(recent.map((id) => readPot(id)));
   return pots.filter((p): p is PotData => !!p);
 }
-
-export const potPath = (id: number) => `/p/${id}`;
 
 /** whole cents as an integer. every amount the sheet compares goes through this, never through float maths */
 export const toCents = (d: number) => Math.round(d * 100);

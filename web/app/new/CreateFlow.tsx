@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fetchPotLinks } from "@/lib/potLinks";
 import { useRouter } from "next/navigation";
 import { HomeScreenTip } from "@/components/HomeScreenTip";
 import { useRef, useState } from "react";
@@ -94,7 +95,9 @@ export function CreateFlow() {
   const [copied, setCopied] = useState(false);
 
   const valid = [title.trim().length > 0, +goal > 0 && +goal <= MAX_POT, !!until && (until !== "pick a date" || pickedOk), true, name.trim().length > 0][step] ?? true;
-  const link = potId ? `${typeof location !== "undefined" ? location.origin : ""}/p/${potId}` : "";
+  // the pot's full link comes from the server (pots are unlisted, see lib/potLink.ts); "" until it does
+  const [path, setPath] = useState("");
+  const link = path ? `${typeof location !== "undefined" ? location.origin : ""}${path}` : "";
 
   // one pot per tap. a ref, not state: two Enter presses can land before React re-renders
   const creating = useRef(false);
@@ -113,11 +116,20 @@ export function CreateFlow() {
       const { id, hash } = await createPot(c, { goal: +goal, deadline: Math.floor(deadlineFor(until!, picked).getTime() / 1000), wrap: WRAPS.indexOf(wrap), currency, title: fitBytes(title.trim(), MAX_TITLE_BYTES), name: fitBytes(name.trim().toLowerCase(), MAX_NAME_BYTES) });
       created.current = true;
       setPotId(id); setTx(hash); setStep(5); history.replaceState(null, "", "/new");
+      void loadLink(id);
     } catch (e) {
       const text = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : "something went wrong";
       // the wallet's own "exceeds the balance" means the same thing as an empty wallet: say it plainly
       setErr(/exceeds the balance|insufficient funds/i.test(text) ? NO_FEE : text.slice(0, 140));
     } finally { setBusy(false); creating.current = false; }
+  }
+
+  // the pot is made either way; if its link can't be fetched, the done screen says so and offers a retry
+  const [linkErr, setLinkErr] = useState(false);
+  async function loadLink(id: number) {
+    setLinkErr(false);
+    const p = (await fetchPotLinks([id], walletStore.get().authHeader()))[id];
+    if (p) setPath(p); else setLinkErr(true);
   }
 
   function next() {
@@ -237,10 +249,14 @@ export function CreateFlow() {
         <section className={`flow${dir ? ` slide-${dir}` : ""}`}>
           <h1 className="giant q">ready.</h1>
           <p className="hint" style={{ margin: 0 }}>send it to the group. you&apos;ll see everyone who chips in on the pot, and in your pots under your balance.</p>
-          <div className="linkbox"><code>{link.replace(/^https?:\/\//, "")}</code><button className="btn sm" onClick={copy}><CopyIcon done={copied} />{copied ? "copied" : "copy"}</button></div>
+          {linkErr ? (
+            <div className="notice">the pot is made, but its link didn&apos;t load. <button className="tipword" style={{ cursor: "pointer" }} onClick={() => potId && loadLink(potId)}>try again</button></div>
+          ) : (
+            <div className="linkbox"><code>{link ? link.replace(/^https?:\/\//, "") : "getting your link…"}</code><button className="btn sm" onClick={copy} disabled={!link}><CopyIcon done={copied} />{copied ? "copied" : "copy"}</button></div>
+          )}
           <div className="ready-acts">
-            <button className="btn lg" onClick={share}><ShareIcon />share with the group</button>
-            <a className="btn lg ghost" href={link}>open pot</a>
+            <button className="btn lg" onClick={share} disabled={!link}><ShareIcon />share with the group</button>
+            {link ? <a className="btn lg ghost" href={link}>open pot</a> : <button className="btn lg ghost" disabled>open pot</button>}
           </div>
           {/* the transaction that made it, on arc's explorer: anyone can check the pot is real */}
           {tx && <a className="cash-link" href={explorerTx(tx)} target="_blank" rel="noreferrer">made on arc. see the receipt<ArrowOutIcon /></a>}

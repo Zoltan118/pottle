@@ -2,13 +2,16 @@
 // usage: npm run dev (in another shell), then: node scripts/e2e-testnet.mjs
 // needs contracts/.env (DEPLOYER_PRIVATE_KEY with testnet usdc) and web/.env.local (NEXT_PUBLIC_POTTLE_ADDRESS)
 import { readFileSync } from "node:fs";
+import { createHmac } from "node:crypto";
 import { createPublicClient, createWalletClient, http, pad, parseSignature, toHex, parseAbi } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { arcTestnet, baseSepolia } from "viem/chains";
 
 const env = (file) => Object.fromEntries(readFileSync(new URL(file, import.meta.url), "utf8").split("\n").filter((l) => l.includes("=") && !l.startsWith("#")).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]));
 const { DEPLOYER_PRIVATE_KEY } = env("../../contracts/.env");
-const { NEXT_PUBLIC_POTTLE_ADDRESS: POTTLE, CRON_SECRET } = env("../.env.local");
+const { NEXT_PUBLIC_POTTLE_ADDRESS: POTTLE, CRON_SECRET, POT_LINK_SECRET } = env("../.env.local");
+// a pot's full link, the same way lib/potLink.ts makes it (pots are unlisted: the bare number won't open)
+const potLink = (id) => `/p/${id}-${BigInt(`0x${createHmac("sha256", POT_LINK_SECRET).update(`pottle:${arcTestnet.id}:${POTTLE.toLowerCase()}:${id}`).digest().subarray(0, 8).toString("hex")}`).toString(36).padStart(13, "0")}`;
 const APP = process.env.APP_URL || "http://localhost:3000";
 const USDC = "0x3600000000000000000000000000000000000000";
 const EURC = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a";
@@ -125,7 +128,12 @@ await wait(await deployer.writeContract({ address: USDC, abi: usdcAbi, functionN
 const d = await create(org, 1, 3600, "e2e view");
 await relay(await signChip(anaPk, d, 1, "ana"));
 check((await status(d)) === "reached", "pot D reached its goal");
-await fetch(`${APP}/p/${d}`);
+// unlisted links: the bare number and a wrong code open nothing, the full link opens the pot
+const bare = await (await fetch(`${APP}/p/${d}`)).text();
+const wrong = await (await fetch(`${APP}/p/${d}-0000000000000`)).text();
+check(bare.includes("needs its full link") && !bare.includes("e2e view"), "a pot's bare number doesn't open it");
+check(wrong.includes("needs its full link") && !wrong.includes("e2e view"), "a wrong link code doesn't open it");
+await fetch(`${APP}${potLink(d)}`);
 let tries = 0;
 while ((await status(d)) !== "released" && tries++ < 12) await new Promise((r) => setTimeout(r, 2500));
 check((await status(d)) === "released", "opening pot D's page paid it out by itself");
@@ -137,7 +145,7 @@ const wrapId = await (async () => {
   const rc = await wait(hash);
   return BigInt(rc.logs.find((l) => l.address.toLowerCase() === POTTLE.toLowerCase()).topics[1]);
 })();
-const og = await fetch(`${APP}/p/${wrapId}/opengraph-image`);
+const og = await fetch(`${APP}${potLink(wrapId)}/opengraph-image`);
 check(og.ok && (og.headers.get("content-type") ?? "").startsWith("image/"), `a pot with a themed wrap (candles) is created and its link preview renders (${og.status})`);
 
 // cash out: the relayer's "send" job. a fresh wallet, so the relayer's own fee never mixes into the numbers
@@ -208,4 +216,4 @@ else {
 }
 
 console.log(`organiser ${org.account.address}`);
-console.log(`pots: ${APP}/p/${a}  ${APP}/p/${b}`);
+console.log(`pots: ${APP}${potLink(a)}  ${APP}${potLink(b)}`);
