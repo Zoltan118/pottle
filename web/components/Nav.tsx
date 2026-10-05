@@ -8,7 +8,8 @@ import { useWallet } from "@/app/providers";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { balanceOf, requestDrip, usdcBalance } from "@/lib/wallet";
 import { explorerAddress, NETWORK } from "@/lib/config";
-import { money, potPath, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
+import { money, readPotsOf, timeLeft, usd, type PotData } from "@/lib/pot";
+import { fetchPotLinks } from "@/lib/potLinks";
 import { Logo } from "./Mark";
 import { NetSwitch } from "./NetSwitch";
 import { afterSheetsClose, Sheet } from "./Sheet";
@@ -63,7 +64,13 @@ export function Nav({ action }: { action?: React.ReactNode }) {
   });
   const pots = useQuery({
     queryKey: ["pots", w.address],
-    queryFn: () => readPotsOf(w.address!),
+    // each pot with its full link (pots are unlisted, lib/potLink.ts). a pot whose link didn't load is still
+    // listed, just without a way in from here
+    queryFn: async () => {
+      const list = await readPotsOf(w.address!);
+      const links = await fetchPotLinks(list.map((p) => p.id), w.authHeader());
+      return list.map((p) => ({ ...p, path: links[p.id] as string | undefined }));
+    },
     enabled: !!w.address && open,
   });
 
@@ -87,8 +94,9 @@ export function Nav({ action }: { action?: React.ReactNode }) {
   }
 
   /** phones get the native share sheet (whatsapp, messages), desktops copy the link */
-  async function share(p: PotData) {
-    const url = `${location.origin}${potPath(p.id)}`;
+  async function share(p: PotData & { path?: string }) {
+    if (!p.path) return;
+    const url = `${location.origin}${p.path}`;
     if (navigator.share) {
       try { await navigator.share({ title: p.title, text: `chip in for ${p.title}`, url }); return; } catch { return; }
     }
@@ -168,14 +176,14 @@ export function Nav({ action }: { action?: React.ReactNode }) {
           )}
           {pots.data?.map((p) => (
             <div className="acct-pot" key={p.id}>
-              <Link href={potPath(p.id)} onClick={go(potPath(p.id))} className="acct-pot-main">
+              <Link href={p.path ?? "#"} onClick={p.path ? go(p.path) : (e) => e.preventDefault()} aria-disabled={!p.path} className="acct-pot-main">
                 <b>{p.title}</b>
                 <span>{money(p.raised, p.currency)} of {money(p.goal, p.currency)} · {p.status === "open" ? timeLeft(p.deadline) : p.status === "released" ? "paid out" : p.status === "refunding" ? "ended" : "goal hit"}{p.organiser.toLowerCase() === w.address?.toLowerCase()
                     ? (p.status === "released" ? " · paid to you" : p.status === "refunding" ? (p.raised > 0 ? " · yours, refunding" : " · yours, refunded") : " · yours")
                     // "refunded" only once the money is back (nothing left in the pot), not while refunds are under way
                     : (p.status === "refunding" ? (p.raised > 0 ? " · refunding" : " · refunded to you") : " · you're in")}</span>
               </Link>
-              <button className="iconbtn acct-share" onClick={() => share(p)} aria-label={copied === `pot-${p.id}` ? "link copied" : `share ${p.title}`}>
+              <button className="iconbtn acct-share" onClick={() => share(p)} disabled={!p.path} aria-label={copied === `pot-${p.id}` ? "link copied" : `share ${p.title}`}>
                 {copied === `pot-${p.id}` ? <CopyIcon done /> : <ShareIcon />}
               </button>
             </div>

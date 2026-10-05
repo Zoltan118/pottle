@@ -32,6 +32,7 @@ export default function About() {
         <section>
           <h2>what&apos;s stored, and where</h2>
           <ul>
+            <li><b>pot links:</b> each pot&apos;s link ends in a code made from the pot number and a secret only pottle&apos;s server has. pottle opens a pot only for its full link, so pots are unlisted: nobody finds one by trying numbers. they aren&apos;t private, though, because everything a pot shows is also on the blockchain, below.</li>
             <li><b>on the blockchain, for good and readable by anyone:</b> pot titles, the names people type, amounts and wallet addresses. a name can&apos;t be changed or deleted later, so use one you&apos;re happy to have public.</li>
             <li><b>with dynamic</b> (sign-in): your email, your passkey if you add one, and your wallet, which dynamic keeps so only you can use it.</li>
             <li><b>with circle</b>, only if you buy usdc by card: what their id check asks for.</li>

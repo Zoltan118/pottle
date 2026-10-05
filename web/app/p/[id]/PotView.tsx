@@ -159,7 +159,8 @@ export function PotView({ initial }: { initial: PotData }) {
     : null;
   const [qr, setQr] = useState<string | null>(null);
   const [shared, setShared] = useState("");
-  const url = () => `${location.origin}/p/${pot.id}`;
+  // the link this page was opened with, key and all: pots are unlisted, so the bare number would not open
+  const url = () => `${location.origin}${location.pathname}`;
 
   /** phones open the share sheet with the message ready; desktops copy it */
   async function send(text: string, label: string) {

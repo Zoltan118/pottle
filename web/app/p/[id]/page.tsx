@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { settlePot } from "@/lib/settle";
-import { money, readPot, parsePotId } from "@/lib/pot";
+import { money, readPot } from "@/lib/pot";
+import { readPotParam } from "@/lib/potLink";
 import { POTTLE, DEPLOYED, NETWORK, OTHER_SITE } from "@/lib/config";
 import { PotView } from "./PotView";
 import { Mascot } from "@/components/Mascot";
@@ -10,7 +11,10 @@ import { Mascot } from "@/components/Mascot";
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const pot = await readPot(parsePotId((await params).id)).catch((e) => {
+  // only the full link describes the pot: a bare or wrong number gets the plain site preview
+  const link = readPotParam((await params).id);
+  if (link.state !== "ok") return { title: "pottle", robots: { index: false, follow: false } };
+  const pot = await readPot(link.id).catch((e) => {
     console.error("[pottle] metadata read failed:", e instanceof Error ? e.message : e);
     return null;
   });
@@ -27,7 +31,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PotPage({ params }: Props) {
-  const id = parsePotId((await params).id);
+  const raw = (await params).id;
+  const link = readPotParam(raw);
+  const id = link.id;
+  if (link.state === "bad") notFound();
+  // pots are unlisted: a pot number without its key (or with the wrong one) opens nothing. the same page
+  // whether the pot exists or not, so counting up the numbers tells nobody which pots are real
+  if (link.state === "locked") {
+    return (
+      <main className="view"><section className="flow"><div className="lost-mascot"><Mascot mood="confused" level={0.4} /></div><h1 className="giant q">almost.</h1>
+        <p className="hint" style={{ margin: 0 }}>this pot needs its full link, the part after the number too. ask whoever shared it to send it again.</p>
+      </section></main>
+    );
+  }
+  if (link.state === "off") {
+    return (
+      <main className="view"><section className="flow"><h1 className="giant q">soon.</h1>
+        <div className="notice">{DEPLOYED ? "pots can't be opened right now. try again later." : <>setup needed: <code>POT_LINK_SECRET</code> in <code>.env.local</code></>}</div>
+      </section></main>
+    );
+  }
   if (!POTTLE) {
     return (
       <main className="view"><section className="flow"><h1 className="giant q">soon.</h1>
@@ -52,7 +75,7 @@ export default async function PotPage({ params }: Props) {
     return (
       <main className="view"><section className="flow"><div className="lost-mascot"><Mascot mood="confused" level={0.4} /></div><h1 className="giant q">no pot here.</h1>
         <p className="hint" style={{ margin: 0 }}>made it while pottle was in testing? test pots live on the test site.</p>
-        <a className="btn lg" href={`${OTHER_SITE}/p/${id}`}>open it on the test site</a>
+        <a className="btn lg" href={`${OTHER_SITE}/p/${raw}`}>open it on the test site</a>
       </section></main>
     );
   }
