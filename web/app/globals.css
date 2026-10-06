@@ -861,7 +861,10 @@ html { scroll-behavior: smooth; }
 .signin-wait { font-size: 15px; font-weight: 700; color: var(--muted); }
 /* under the email sign-in: who makes the wallet. quiet, one line on a laptop, two on a phone */
 .signin-trust { margin: 2px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); text-align: center; line-height: 1.45; text-wrap: balance; }
-.signin-trust a { color: var(--ink); font-weight: 700; text-underline-offset: 3px; }
+.signin-trust a { color: var(--ink); font-weight: 700; text-underline-offset: 3px; white-space: nowrap; } /* the mark never parts from its name */
+/* dynamic's own mono icon (public/brand, from their brand kit at dynamic.xyz/brandingkit), unaltered in
+   shape. used as a mask so it takes the link's colour and reads in both themes */
+.dyn-mark { display: inline-block; width: 1.1em; height: 1.1em; margin-right: .22em; vertical-align: -.2em; background: currentColor; -webkit-mask: url(/brand/dynamic-icon.svg) center / contain no-repeat; mask: url(/brand/dynamic-icon.svg) center / contain no-repeat; }
 
 /* the pot card's rows: "goes to" with the payout wallet, the faces with "latest" */
 .goesrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin-top: -8px; }

@@ -170,7 +170,7 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
       <button className="btn lg wide sheet-pay" disabled={busy}>{busy ? "sending…" : "send me a code"}</button>
       {passkey.data && <button type="button" className="btn lg ghost wide" disabled={busy} onClick={() => void withFaceId()}>sign in with face id</button>}
       {/* who makes the wallet, and the part that matters: pottle never has the keys */}
-      <p className="signin-trust">your wallet is made for your email by <a href="https://www.dynamic.xyz" target="_blank" rel="noreferrer">dynamic</a>. pottle never holds its keys.</p>
+      <p className="signin-trust">your wallet is made for your email by <a href="https://www.dynamic.xyz" target="_blank" rel="noreferrer"><span className="dyn-mark" aria-hidden="true" />dynamic</a>. pottle never holds its keys.</p>
     </form>
   );
 }
