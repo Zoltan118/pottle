@@ -128,14 +128,17 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
     return (
       <form className="signin" onSubmit={(e) => { e.preventDefault(); if (code.length === 6) void verify(code); }}>
         <p className="signin-title">check your email</p>
-        <p className="signin-sub">we sent a 6-digit code to <b>{email}</b>.</p>
+        <p className="signin-sub">we sent a 6-digit code to <b>{email}</b>. it stays valid for a few minutes.</p>
         <input ref={codeInput} className="bigin signin-code" data-autofocus type="text" inputMode="numeric" autoComplete="one-time-code" enterKeyHint="done"
           maxLength={6} placeholder="6-digit code" aria-label="the 6-digit code" aria-invalid={!!err || undefined} value={code} disabled={busy}
           onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 6); setCode(v); setErr(""); if (v.length === 6) void verify(v); }} />
         {err && <p className="signin-err" role="alert">{err}</p>}
         <button className="btn lg wide sheet-pay" disabled={busy || code.length !== 6}>{busy ? "checking…" : "sign in"}</button>
         <div className="signin-links">
-          <button type="button" className="linkbtn" disabled={busy || wait > 0} onClick={() => void send()}>{wait > 0 ? `send a new code in ${wait}s` : "send a new code"}</button>
+          {/* the wait is only before asking again: the code already sent keeps working after it runs out */}
+          {wait > 0
+            ? <span className="signin-wait">didn&apos;t get it? you can ask again in {wait}s</span>
+            : <button type="button" className="linkbtn" disabled={busy} onClick={() => void send()}>didn&apos;t get it? send a new code</button>}
           <button type="button" className="linkbtn" disabled={busy} onClick={() => { clearPending(); verification.current = null; setStep("email"); setCode(""); setErr(""); }}>change email</button>
         </div>
       </form>
@@ -166,6 +169,8 @@ export function SignIn({ title = "sign in with your email" }: { title?: string }
       {err && <p className="signin-err" role="alert">{err}</p>}
       <button className="btn lg wide sheet-pay" disabled={busy}>{busy ? "sending…" : "send me a code"}</button>
       {passkey.data && <button type="button" className="btn lg ghost wide" disabled={busy} onClick={() => void withFaceId()}>sign in with face id</button>}
+      {/* who makes the wallet, and the part that matters: pottle never has the keys */}
+      <p className="signin-trust">your wallet is made for your email by <a href="https://www.dynamic.xyz" target="_blank" rel="noreferrer">dynamic</a>. pottle never holds its keys.</p>
     </form>
   );
 }
