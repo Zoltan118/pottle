@@ -102,6 +102,14 @@ every package is on its latest release as of september 2026.
 
 ## how it works
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/how-it-works-dark.svg">
+  <img alt="how pottle works: a pot is made, the link goes to the group, friends chip in and pottle pays the fee. the pot pays the organiser when the goal is hit, or refunds everyone if the deadline passes" src="docs/how-it-works-light.svg" width="100%">
+</picture>
+
+<details>
+<summary>the contract calls behind it</summary>
+
 ```
 organiser                 friends                         anyone / scheduled job
     |                         |                                     |
@@ -117,6 +125,8 @@ create(goal, deadline,        |                                     |
     |       deadline passed, below goal ---------------------------> refundAll(id) -> each friend
 ```
 
+</details>
+
 - the signed nonce commits to the pot and the name, so whoever submits it cannot move the money to
   another pot or change the name shown for it
 - `release` and `refundAll` are permissionless. the app and the scheduled job call them through a
@@ -127,14 +137,16 @@ create(goal, deadline,        |                                     |
 ## repo
 
 ```
-contracts/   foundry. src/Pottle.sol, 44 tests, 6 invariants, deploy script
+contracts/   foundry. src/Pottle.sol, 45 tests, 6 invariants, deploy script
 web/         next.js app. landing at /, make a pot at /new, the pot at /p/[id], how it works at /about
   app/api/relay         sponsors chip-ins, cash outs, payouts and refunds (simulated first, rate limited)
   app/api/cron/settle   pays out and refunds every due pot, called by the scheduled job
   app/api/drip          testnet only: $10 of test usdc for a new signed-in wallet
   app/api/onramp        circle onramp kit sessions, only for the signed-in user's own wallet
+  app/api/potlink       full (unlisted) pot links, only for people in that pot
   scripts/e2e-testnet   end-to-end run on arc testnet with real usdc through the app's own api
 brand/       mark, colours, social cards
+docs/        the animated "how it works" above, drawn by how-it-works.mjs
 .github/     ci (tests, lint, types, build on every push), the scheduled settle job, issue templates
 ```
 
