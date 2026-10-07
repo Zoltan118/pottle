@@ -58,7 +58,10 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   }
 
   const refunded = pot.status === "refunding";
-  const state = refunded ? "refunded" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline);
+  // a missed pot says what really happened, like the pot page: nobody came, refunds still going out, or done
+  const nobody = refunded && pot.people.length === 0;
+  const pending = refunded && pot.raised > 0;
+  const state = nobody ? "ended" : pending ? "refunding" : refunded ? "refunded" : pot.status === "reached" ? "goal hit" : timeLeft(pot.deadline);
   return new ImageResponse(
     <Frame wrap={pot.wrap}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -70,7 +73,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 18 }}>
           <div style={{ display: "flex", fontSize: titleSize(pot.title), fontWeight: 800, letterSpacing: -titleSize(pot.title) * 0.045, lineHeight: 0.95 }}>{pot.title}</div>
           <div style={{ display: "flex", fontSize: 34, fontWeight: 800, color: C.muted, letterSpacing: -0.6 }}>
-            {refunded ? "missed. everyone got their money back" : <>{`${pot.organiserName} is collecting`}</>}
+            {nobody ? "ended. nobody chipped in." : pending ? "missed the goal. refunds are on their way." : refunded ? "missed. everyone got their money back" : <>{`${pot.organiserName} is collecting`}</>}
           </div>
         </div>
         <Pot level={refunded ? 0 : level} size={230} face={refunded ? "calm" : pot.status === "reached" ? "stars" : "idle"} />
@@ -90,9 +93,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               <div style={{ display: "flex", width: 54, height: 54, marginLeft: -12, borderRadius: 99, background: C.gold, color: C.ink, border: `3px solid ${C.paper}`, alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>{`+${people.length - faces.length}`}</div>
             )}
           </div>
-          <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: C.muted }}>
-            {refunded ? `${pot.people.length} ${pot.people.length === 1 ? "was" : "were"} in` : `${people.length} in · back to you if it misses`}
-          </div>
+          {/* nothing to count when nobody came: the line is left out, not drawn empty (an empty text node breaks the layout) */}
+          {!nobody && (
+            <div style={{ display: "flex", fontSize: 26, fontWeight: 600, color: C.muted }}>
+              {refunded ? `${pot.people.length} ${pot.people.length === 1 ? "was" : "were"} in` : `${people.length} in · back to you if it misses`}
+            </div>
+          )}
         </div>
       </div>
     </Frame>,
